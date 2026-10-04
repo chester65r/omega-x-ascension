@@ -30,8 +30,11 @@ postgres (healthy) → migrate (completed) → api + worker (parallel)
 - `POST /v1/runs/{run_id}/approve` — approve gated run (scope: `runs:approve`)
 - JWT must have `sub`, `tenant_id`, `scope`, `iss`, `aud`, `iat`, `exp` claims
 
-## External credentials
-- `OMEGA_MODEL_PROVIDERS` — JSON array of LLM endpoints. Optional; defaults to `[]`. Without a provider, the app boots and health endpoints work, but `POST /v1/runs` returns 503. Configure via the Base44 secrets dashboard.
+## LLM provider
+- A local **Ollama** service (`ollama/ollama:latest`) runs in the compose stack with `qwen2.5:0.5b` model (CPU inference, no external credentials needed)
+- `OMEGA_MODEL_PROVIDERS` in `.env.base44-defaults` points to `http://ollama:11434/v1`
+- To use a different provider (OpenAI, Together AI, etc.), set `OMEGA_MODEL_PROVIDERS` via the Base44 secrets dashboard — it overrides the defaults file
+- The `ollama-pull` one-shot service pulls the model on startup; api/worker wait for it to complete
 
 ## Verification
 ```bash
