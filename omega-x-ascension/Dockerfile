@@ -4,6 +4,7 @@ RUN groupadd --system omega && useradd --system --gid omega --home /app omega
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY static ./static
 COPY alembic ./alembic
 COPY alembic.ini ./
 COPY scripts ./scripts

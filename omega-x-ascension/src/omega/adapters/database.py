@@ -27,11 +27,12 @@ class RunRow(Base):
     status: Mapped[RunStatus] = mapped_column(Enum(RunStatus, name="run_status", values_callable=lambda cls: [item.value for item in cls]))
     requested_actions: Mapped[list] = mapped_column(JSON, default=list)
     approval_digest: Mapped[str | None] = mapped_column(String(64))
+    idempotency_key: Mapped[str | None] = mapped_column(String(255))
     output: Mapped[str | None] = mapped_column(Text)
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    __table_args__ = (Index("ix_workflow_runs_tenant_created", "tenant_id", "created_at"),)
+    __table_args__ = (Index("ix_workflow_runs_tenant_created", "tenant_id", "created_at"), Index("uq_workflow_runs_idempotency", "tenant_id", "idempotency_key", unique=True, postgresql_where=text("idempotency_key IS NOT NULL")),)
 
 
 class JobStatus(str, __import__("enum").Enum):
@@ -83,14 +84,22 @@ class SqlRunRepository:
 
     async def add(self, run: WorkflowRun) -> None:
         async with self._tenant_session(run.tenant_id) as session:
-            session.add(RunRow(tenant_id=run.tenant_id,id=run.id,created_by=run.created_by,goal=run.goal,task_type=run.task_type,status=run.status,requested_actions=run.requested_actions,approval_digest=run.approval_digest,output=run.output,error=run.error,created_at=run.created_at,updated_at=run.updated_at))
+            session.add(RunRow(tenant_id=run.tenant_id,id=run.id,created_by=run.created_by,goal=run.goal,task_type=run.task_type,status=run.status,requested_actions=run.requested_actions,approval_digest=run.approval_digest,idempotency_key=run.idempotency_key,output=run.output,error=run.error,created_at=run.created_at,updated_at=run.updated_at))
 
     async def get(self, tenant_id: UUID, run_id: UUID) -> WorkflowRun | None:
         async with self._tenant_session(tenant_id) as session:
             row = (await session.execute(select(RunRow).where(RunRow.id == run_id))).scalar_one_or_none()
             if row is None:
                 return None
-            return WorkflowRun(id=row.id,tenant_id=row.tenant_id,created_by=row.created_by,goal=row.goal,task_type=row.task_type,status=row.status,requested_actions=row.requested_actions or [],approval_digest=row.approval_digest,output=row.output,error=row.error,created_at=row.created_at,updated_at=row.updated_at)
+            return WorkflowRun(id=row.id,tenant_id=row.tenant_id,created_by=row.created_by,goal=row.goal,task_type=row.task_type,status=row.status,requested_actions=row.requested_actions or [],approval_digest=row.approval_digest,idempotency_key=row.idempotency_key,output=row.output,error=row.error,created_at=row.created_at,updated_at=row.updated_at)
+
+
+    async def get_by_idempotency_key(self, tenant_id: UUID, key: str) -> WorkflowRun | None:
+        async with self._tenant_session(tenant_id) as session:
+            row = (await session.execute(select(RunRow).where(RunRow.idempotency_key == key))).scalar_one_or_none()
+            if row is None:
+                return None
+            return WorkflowRun(id=row.id, tenant_id=row.tenant_id, created_by=row.created_by, goal=row.goal, task_type=row.task_type, status=row.status, requested_actions=row.requested_actions or [], approval_digest=row.approval_digest, idempotency_key=row.idempotency_key, output=row.output, error=row.error, created_at=row.created_at, updated_at=row.updated_at)
 
     async def save(self, tenant_id: UUID, run: WorkflowRun) -> None:
         if tenant_id != run.tenant_id:

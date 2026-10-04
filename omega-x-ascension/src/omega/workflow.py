@@ -83,6 +83,6 @@ class CoreWorkflow:
         graph.add_edge(START, "ceo"); graph.add_edge("ceo", "planner"); graph.add_edge("planner", "researcher"); graph.add_edge("researcher", "specialist"); graph.add_edge("specialist", "executor"); graph.add_edge("executor", "critic"); graph.add_edge("critic", "judge"); graph.add_edge("judge", END)
         return graph.compile(checkpointer=checkpointer)
 
-    async def run(self, tenant_id: UUID, run_id: UUID, goal: str, task_type: Capability) -> State:
+    async def run(self, tenant_id: UUID, run_id: UUID, goal: str, task_type: Capability, requested_actions: list[str]) -> State:
         config = {"configurable": {"thread_id": str(run_id), "checkpoint_ns": str(tenant_id)}}
         return await self.graph.ainvoke({"goal": goal, "task_type": task_type}, config=config)
