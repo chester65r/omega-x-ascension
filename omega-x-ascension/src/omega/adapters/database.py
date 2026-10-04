@@ -156,6 +156,7 @@ class SqlRunRepository:
     async def create_run(self, run: WorkflowRun, actor: str, enqueue: bool) -> None:
         async with self._tenant_session(run.tenant_id) as session:
             session.add(RunRow(tenant_id=run.tenant_id,id=run.id,created_by=run.created_by,goal=run.goal,task_type=run.task_type,status=run.status,requested_actions=run.requested_actions,approval_digest=run.approval_digest,output=run.output,error=run.error,created_at=run.created_at,updated_at=run.updated_at))
+            await session.flush()
             session.add(AuditEventRow(tenant_id=run.tenant_id,run_id=run.id,kind="run.created",payload={"actor":actor,"approval_required":not enqueue}))
             if enqueue: session.add(WorkflowJobRow(tenant_id=run.tenant_id,run_id=run.id))
 

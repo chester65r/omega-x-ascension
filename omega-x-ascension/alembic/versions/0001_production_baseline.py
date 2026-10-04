@@ -52,10 +52,10 @@ def upgrade() -> None:
           USING (tenant_id = NULLIF(current_setting('omega.tenant_id',true),'')::uuid)
           WITH CHECK (tenant_id = NULLIF(current_setting('omega.tenant_id',true),'')::uuid)""")
     op.execute("GRANT SELECT,INSERT,UPDATE ON workflow_runs TO omega_app")
-    op.execute("GRANT INSERT ON audit_events TO omega_app")
+    op.execute("GRANT SELECT,INSERT ON audit_events TO omega_app")
     op.execute("GRANT SELECT,INSERT ON workflow_jobs TO omega_app")
     op.execute("GRANT SELECT,UPDATE ON workflow_runs TO omega_worker")
-    op.execute("GRANT INSERT ON audit_events TO omega_worker")
+    op.execute("GRANT SELECT,INSERT ON audit_events TO omega_worker")
     op.execute("GRANT SELECT,INSERT,UPDATE ON workflow_jobs TO omega_worker")
     op.execute("GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO omega_app,omega_worker")
 
