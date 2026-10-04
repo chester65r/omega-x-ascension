@@ -27,7 +27,7 @@ async def process(repo,workflow,tenant_id,run_id,job_id,attempt,worker_id):
             await repo.finish_job(tenant_id,job_id,attempt,worker_id,True); return
         run.status=RunStatus.RUNNING; await repo.save(tenant_id,run); await repo.append_event(tenant_id,run_id,'run.started',{'attempt':attempt})
         try:
-            result=await workflow.run(tenant_id,run_id,run.goal,run.task_type)
+            result=await workflow.run(tenant_id,run_id,run.goal,run.task_type,run.requested_actions)
             if lease_task.done(): await lease_task
             if not await repo.complete_success(tenant_id,job_id,attempt,worker_id,result['final']): raise RuntimeError("stale worker completion rejected")
         except Exception as exc:
