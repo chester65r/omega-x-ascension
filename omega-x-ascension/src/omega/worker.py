@@ -8,6 +8,7 @@ from omega.adapters.models import OpenAICompatibleGateway, StaticRegistry
 from omega.config import get_settings
 from omega.domain import RunStatus
 from omega.model_router import ModelRouter
+from omega.tools import BrowserTool, ComputerTool
 from omega.workflow import CoreWorkflow
 
 log=logging.getLogger(__name__)
@@ -43,8 +44,9 @@ async def main():
     engine=build_engine(cfg.worker_database_url); maker=async_sessionmaker(engine,expire_on_commit=False); repo=SqlRunRepository(maker)
     http=httpx.AsyncClient(); router=ModelRouter(StaticRegistry([OpenAICompatibleGateway(p,http) for p in cfg.model_providers])); worker_id=f'{socket.gethostname()}:{os.getpid()}'
     try:
+        browser=BrowserTool(http); computer=ComputerTool()
         async with AsyncPostgresSaver.from_conn_string(cfg.checkpoint_database_url) as saver:
-            workflow=CoreWorkflow(router,saver)
+            workflow=CoreWorkflow(router,saver,browser,computer)
             while True:
                 claimed=await repo.claim(worker_id)
                 if claimed is None: await asyncio.sleep(1); continue

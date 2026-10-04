@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, Security, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from omega.auth import Principal, current_principal
 from omega.config import Capability
@@ -34,3 +35,26 @@ async def approve(run_id:UUID,principal:Principal=Security(current_principal,sco
     if not run: raise HTTPException(404,'run not found')
     if run.status!=RunStatus.WAITING_APPROVAL or run.approval_digest!=run.digest(): raise HTTPException(409,'approval request is stale or invalid')
     if not await svc.repo.approve_and_enqueue(run.tenant_id,run.id,run.approval_digest,principal.user_id): raise HTTPException(409,'approval request changed concurrently')
+
+class ComputerCommand(BaseModel):
+    command: str = Field(min_length=1, max_length=1000)
+
+@router.get('/browser/search')
+async def browser_search(q: str, principal: Principal = Security(current_principal, scopes=['runs:read']), svc = Depends(services)):
+    return await svc.browser.search(q)
+
+@router.get('/browser/proxy', response_class=HTMLResponse)
+async def browser_proxy(url: str, principal: Principal = Security(current_principal, scopes=['runs:read']), svc = Depends(services)):
+    try:
+        html, _ = await svc.browser.proxy(url)
+        return HTMLResponse(content=html)
+    except Exception as exc:
+        raise HTTPException(502, f"Failed to fetch URL: {exc}") from exc
+
+@router.post('/computer/execute')
+async def computer_execute(body: ComputerCommand, principal: Principal = Security(current_principal, scopes=['runs:write']), svc = Depends(services)):
+    return await svc.computer.execute(body.command)
+
+@router.get('/computer/files')
+async def computer_files(path: str = ".", principal: Principal = Security(current_principal, scopes=['runs:read']), svc = Depends(services)):
+    return await svc.computer.list_dir(path)
