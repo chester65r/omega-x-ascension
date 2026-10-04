@@ -57,7 +57,7 @@ class CoreWorkflow:
         return {"solution": await self._ask(cast(Capability, state["task_type"]), "You are the assigned specialist. Produce a concrete, secure, maintainable solution. Do not claim actions you did not perform.", prompt)}
 
     async def executor(self, state: State) -> dict[str, str]:
-        if not self.computer:
+        if not self.computer or not self.computer.enabled:
             return {}
         try:
             plan = await self._ask("coding", "You are a computer execution agent. Based on the goal and solution, generate shell commands to accomplish the task. Return only the commands, one per line.", f"GOAL: {state['goal']}\nSOLUTION: {state['solution']}")

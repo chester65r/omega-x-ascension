@@ -31,7 +31,7 @@ class Services:
 async def lifespan(app: FastAPI):
     cfg=get_settings(); engine=build_engine(cfg.database_url); maker=async_sessionmaker(engine,expire_on_commit=False); http=httpx.AsyncClient()
     model_router=ModelRouter(StaticRegistry([OpenAICompatibleGateway(p,http) for p in cfg.model_providers])); redis=Redis.from_url(cfg.redis_url,decode_responses=True)
-    browser=BrowserTool(http); computer=ComputerTool()
+    browser=BrowserTool(http); computer=ComputerTool(enabled=cfg.enable_computer_execution)
     app.state.services=Services(SqlRunRepository(maker),model_router,redis,engine,http,browser,computer)
     try: yield
     finally: await http.aclose(); await redis.aclose(); await engine.dispose()

@@ -44,15 +44,26 @@ class BrowserTool:
                 "html": "",
                 "status": response.status_code,
             }
-        except httpx.HTTPError as exc:
-            return {"url": url, "title": url, "text": "", "links": [], "html": "", "status": 0, "error": str(exc)}
+        except (httpx.HTTPError, ValueError) as exc:
+            return {
+                "url": url,
+                "title": url,
+                "text": "",
+                "links": [],
+                "html": "",
+                "status": 0,
+                "error": str(exc),
+            }
 
     async def search(self, query: str) -> dict:
         """Search the web using DuckDuckGo HTML endpoint."""
         try:
-            url = f"https://html.duckduckgo.com/html/?q={query}"
             response = await self._client.get(
-                url, follow_redirects=True, timeout=30, headers=self._headers
+                "https://html.duckduckgo.com/html/",
+                params={"q": query},
+                follow_redirects=True,
+                timeout=30,
+                headers=self._headers,
             )
             soup = BeautifulSoup(response.text, "html.parser")
             results = []

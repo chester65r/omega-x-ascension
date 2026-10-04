@@ -2,7 +2,7 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
-  let token = localStorage.getItem('omega-jwt') || '';
+  let token = sessionStorage.getItem('omega-jwt') || '';
   let pollTimer = null;
   let runPollTimer = null;
   let browserHistory = [];
@@ -19,7 +19,7 @@
   if (token) setConnected(true);
   $('#connect-btn').addEventListener('click', () => {
     token = $('#jwt-token').value.trim();
-    localStorage.setItem('omega-jwt', token);
+    sessionStorage.setItem('omega-jwt', token);
     setConnected(!!token);
     if (token) { startPolling(); loadRuns(); }
   });
@@ -75,14 +75,17 @@
 
   async function loadModels() {
     try {
-      const res = await api('/v1/browser/search?q=omega'); // just to verify auth works
-    } catch { /* ignore */ }
-    // Models are shown from the health endpoint
-    const ready = await (await fetch('/health/ready')).json();
-    const count = ready.configured_models ?? 0;
-    const list = $('#models-list');
-    if (count === 0) { list.textContent = 'No models configured'; return; }
-    list.innerHTML = '<div class="model-item"><span class="model-name">Ollama (qwen2.5:0.5b)</span><br><span class="model-url">http://ollama:11434/v1</span></div>';
+      const ready = await (await fetch('/health/ready')).json();
+      const count = ready.configured_models ?? 0;
+      const list = $('#models-list');
+      if (count === 0) {
+        list.textContent = 'No models configured';
+        return;
+      }
+      list.textContent = count + ' provider(s) configured';
+    } catch {
+      $('#models-list').textContent = 'Failed to load model status';
+    }
   }
 
   async function loadMetrics() {
@@ -107,7 +110,7 @@
   async function loadRuns() {
     if (!token) return;
     // Note: the API doesn't have a list endpoint, so we track runs locally
-    const runs = JSON.parse(localStorage.getItem('omega-runs') || '[]');
+    const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
     const list = $('#runs-list');
     if (runs.length === 0) { list.textContent = 'No runs yet. Create one!'; return; }
     list.innerHTML = '';
@@ -115,9 +118,9 @@
       const div = document.createElement('div');
       div.className = 'run-item' + (r.id === selectedRunId ? ' active' : '');
       div.innerHTML = `
-        <div class="run-id">${r.id.substring(0, 8)}</div>
-        <div class="run-goal">${r.goal.substring(0, 80)}</div>
-        <span class="run-status ${r.status}">${r.status}</span>`;
+        <div class="run-id">${escapeHtml(r.id.substring(0, 8))}</div>
+        <div class="run-goal">${escapeHtml(r.goal.substring(0, 80))}</div>
+        <span class="run-status ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span>`;
       div.addEventListener('click', () => { selectedRunId = r.id; loadRunDetail(r.id); loadRuns(); });
       list.appendChild(div);
     }
@@ -129,16 +132,16 @@
       const res = await api(`/v1/runs/${runId}`);
       const run = await res.json();
       // Update local store
-      const runs = JSON.parse(localStorage.getItem('omega-runs') || '[]');
+      const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
       const idx = runs.findIndex((r) => r.id === runId);
-      if (idx >= 0) { runs[idx].status = run.status; runs[idx].output = run.output; runs[idx].error = run.error; localStorage.setItem('omega-runs', JSON.stringify(runs)); }
+      if (idx >= 0) { runs[idx].status = run.status; runs[idx].output = run.output; runs[idx].error = run.error; sessionStorage.setItem('omega-runs', JSON.stringify(runs)); }
       const detail = $('#run-detail');
       detail.innerHTML = `
         <dl>
-          <dt>ID</dt><dd><code>${run.id}</code></dd>
-          <dt>Goal</dt><dd>${run.goal}</dd>
-          <dt>Task Type</dt><dd>${run.task_type}</dd>
-          <dt>Status</dt><dd><span class="run-status ${run.status}">${run.status}</span></dd>
+          <dt>ID</dt><dd><code>${escapeHtml(run.id)}</code></dd>
+          <dt>Goal</dt><dd>${escapeHtml(run.goal)}</dd>
+          <dt>Task Type</dt><dd>${escapeHtml(run.task_type)}</dd>
+          <dt>Status</dt><dd><span class="run-status ${escapeHtml(run.status)}">${escapeHtml(run.status)}</span></dd>
           <dt>Output</dt><dd>${run.output ? '<pre>' + escapeHtml(run.output) + '</pre>' : '—'}</dd>
           <dt>Error</dt><dd>${run.error ? '<pre style="color:var(--error)">' + escapeHtml(run.error) + '</pre>' : '—'}</dd>
         </dl>`;
@@ -162,9 +165,9 @@
         body: JSON.stringify({ goal, task_type, requested_actions: actions }),
       });
       const run = await res.json();
-      const runs = JSON.parse(localStorage.getItem('omega-runs') || '[]');
+      const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
       runs.unshift({ id: run.id, goal: run.goal, status: run.status, output: null, error: null });
-      localStorage.setItem('omega-runs', JSON.stringify(runs));
+      sessionStorage.setItem('omega-runs', JSON.stringify(runs));
       selectedRunId = run.id;
       loadRuns();
       loadRunDetail(run.id);
@@ -175,7 +178,7 @@
   });
 
   $('#refresh-runs').addEventListener('click', () => {
-    const runs = JSON.parse(localStorage.getItem('omega-runs') || '[]');
+    const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
     runs.forEach((r) => loadRunDetail(r.id));
     loadRuns();
   });

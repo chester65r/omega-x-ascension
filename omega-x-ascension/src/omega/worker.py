@@ -44,7 +44,7 @@ async def main():
     engine=build_engine(cfg.worker_database_url); maker=async_sessionmaker(engine,expire_on_commit=False); repo=SqlRunRepository(maker)
     http=httpx.AsyncClient(); router=ModelRouter(StaticRegistry([OpenAICompatibleGateway(p,http) for p in cfg.model_providers])); worker_id=f'{socket.gethostname()}:{os.getpid()}'
     try:
-        browser=BrowserTool(http); computer=ComputerTool()
+        browser=BrowserTool(http); computer=ComputerTool(enabled=cfg.enable_computer_execution)
         async with AsyncPostgresSaver.from_conn_string(cfg.checkpoint_database_url) as saver:
             workflow=CoreWorkflow(router,saver,browser,computer)
             while True:

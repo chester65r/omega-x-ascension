@@ -1,7 +1,7 @@
 # OMEGA-X ASCENSION — Base44 Dev Environment
 
 ## Project overview
-Python/FastAPI modular monolith (backend-only, no frontend). PostgreSQL/pgvector for state, Redis for coordination, LangGraph for workflows, OpenAI-compatible model endpoints for LLM inference. API serves on port 8000 (mapped to host 3000 in Base44 compose).
+Python/FastAPI modular monolith with a lightweight static dashboard. PostgreSQL/pgvector for state, Redis for coordination, LangGraph for workflows, OpenAI-compatible model endpoints for LLM inference. API serves on port 8000 (mapped to host 3000 in Base44 compose).
 
 ## Architecture
 - **api** — uvicorn dev server with `--reload`, serves FastAPI app at `omega.main:app`
@@ -35,6 +35,11 @@ postgres (healthy) → migrate (completed) → api + worker (parallel)
 - `OMEGA_MODEL_PROVIDERS` in `.env.base44-defaults` points to `http://ollama:11434/v1`
 - To use a different provider (OpenAI, Together AI, etc.), set `OMEGA_MODEL_PROVIDERS` via the Base44 secrets dashboard — it overrides the defaults file
 - The `ollama-pull` one-shot service pulls the model on startup; api/worker wait for it to complete
+
+## Security defaults
+- Computer/shell execution is disabled by default.
+- Browser fetching blocks private/local IP destinations and validates redirects.
+- API/worker database roles use PostgreSQL RLS for tenant isolation.
 
 ## Verification
 ```bash

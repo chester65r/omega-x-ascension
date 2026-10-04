@@ -4,10 +4,11 @@ RUN groupadd --system omega && useradd --system --gid omega --home /app omega
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY static ./static
 COPY alembic ./alembic
 COPY alembic.ini ./
 COPY scripts ./scripts
-RUN pip install --no-cache-dir .
+RUN python -m compileall -q src scripts && pip install --no-cache-dir .
 USER omega
 EXPOSE 8000
 CMD ["uvicorn", "omega.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

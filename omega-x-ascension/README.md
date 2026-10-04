@@ -1,6 +1,6 @@
 # OMEGA-X ASCENSION
 
-Phase 1 foundation for a production-oriented autonomous AI platform. This release deliberately uses a **modular monolith**: one API/runtime deployment, PostgreSQL for durable state, Redis for coordination, LangGraph for explicit workflows, and OpenAI-compatible model endpoints for local or remote open-weight inference.
+Production-oriented autonomous AI platform with a modular monolith architecture. This release deliberately uses a **modular monolith**: one API/runtime deployment, PostgreSQL for durable state, Redis for coordination, LangGraph for explicit workflows, and OpenAI-compatible model endpoints for local or remote open-weight inference.
 
 ## What works
 - API liveness/readiness and Prometheus metrics
@@ -72,3 +72,5 @@ docker compose up --build
 ```
 
 Never use the example secrets outside local development.
+
+Computer/shell execution is disabled by default and is not a hardened public sandbox. Keep OMEGA_ENABLE_COMPUTER_EXECUTION=false for internet-facing or multi-tenant deployments.

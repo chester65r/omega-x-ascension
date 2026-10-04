@@ -55,6 +55,15 @@ async def browser_proxy(url: str, principal: Principal = Security(current_princi
 async def computer_execute(body: ComputerCommand, principal: Principal = Security(current_principal, scopes=['runs:write']), svc = Depends(services)):
     return await svc.computer.execute(body.command)
 
-@router.get('/computer/files')
-async def computer_files(path: str = ".", principal: Principal = Security(current_principal, scopes=['runs:read']), svc = Depends(services)):
+@router.get("/computer/files")
+async def computer_files(
+    path: str = ".",
+    principal: Principal = Security(current_principal, scopes=["runs:read"]),
+    svc=Depends(services),
+):
+    if not svc.computer.enabled:
+        raise HTTPException(
+            503,
+            "computer execution is disabled; enable it only in a trusted deployment",
+        )
     return await svc.computer.list_dir(path)

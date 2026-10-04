@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     jwt_algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"
     model_providers: list[ProviderConfig] = Field(default_factory=list)
     log_level: str = "INFO"
+    enable_computer_execution: bool = False
 
 
 @lru_cache
