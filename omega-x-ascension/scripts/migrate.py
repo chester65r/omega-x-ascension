@@ -17,17 +17,8 @@ def provision_roles()->None:
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         for role,password in roles.items():
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname=%s",(role,))
-            if cur.fetchone() is None:
-                cur.execute(
-                    sql.SQL(
-                        "CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
-                    ).format(sql.Identifier(role))
-                )
-            cur.execute(
-                sql.SQL(
-                    "ALTER ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS PASSWORD {}"
-                ).format(sql.Identifier(role), sql.Literal(password))
-            )
+            if cur.fetchone() is None: cur.execute(sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS").format(sql.Identifier(role)))
+            cur.execute(sql.SQL("ALTER ROLE {} PASSWORD {}").format(sql.Identifier(role), sql.Literal(password)))
             cur.execute(sql.SQL("GRANT CONNECT ON DATABASE omega TO {}").format(sql.Identifier(role)))
             cur.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(role)))
 

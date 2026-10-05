@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OMEGA-X ASCENSION</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <h1>⚡ OMEGA-X ASCENSION</h1>
+      <span class="version" id="app-version">v0.4.0</span>
+    </div>
+    <div class="header-right">
+      <input type="password" id="jwt-token" placeholder="Paste JWT token..." />
+      <button id="connect-btn" class="btn btn-primary">Connect</button>
+      <span id="conn-status" class="status-badge disconnected">Disconnected</span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview">📊 Overview</button>
+    <button class="tab" data-tab="runs">🔄 Runs</button>
+    <button class="tab" data-tab="browser">🌐 Browser</button>
+    <button class="tab" data-tab="agents">🤖 Agents</button>
+  </nav>
+
+  <main>
+    <!-- Overview -->
+    <section id="overview" class="tab-content active">
+      <div class="cards">
+        <div class="card stat-card" id="card-live"><h3>Live</h3><div class="card-value" id="health-live">--</div></div>
+        <div class="card stat-card" id="card-ready"><h3>Ready</h3><div class="card-value" id="health-ready">--</div></div>
+        <div class="card stat-card"><h3>Models</h3><div class="card-value" id="model-count">--</div></div>
+        <div class="card stat-card"><h3>Uptime</h3><div class="card-value" id="uptime">--</div></div>
+      </div>
+      <div class="card"><h3>Configured Models</h3><div id="models-list" class="models-list">Loading...</div></div>
+      <div class="card"><h3>Metrics</h3><pre id="metrics" class="metrics-display">Loading...</pre></div>
+    </section>
+
+    <!-- Runs -->
+    <section id="runs" class="tab-content">
+      <div class="runs-layout">
+        <div class="card form-card">
+          <h3>Create Run</h3>
+          <form id="create-run-form">
+            <label>Goal</label>
+            <textarea id="run-goal" placeholder="Describe the workflow goal..." rows="3" required></textarea>
+            <label>Task Type</label>
+            <select id="run-task-type">
+              <option value="reasoning">Reasoning</option>
+              <option value="coding">Coding</option>
+              <option value="mathematics">Mathematics</option>
+              <option value="planning">Planning</option>
+              <option value="analysis">Analysis</option>
+              <option value="summarization">Summarization</option>
+              <option value="research">Research</option>
+            </select>
+            <label>Requested Actions (comma-separated)</label>
+            <input type="text" id="run-actions" placeholder="deploy, release, delete..." />
+            <button type="submit" class="btn btn-primary">Create Run</button>
+          </form>
+        </div>
+        <div class="card list-card">
+          <h3>Runs <button id="refresh-runs" class="btn btn-small">↻</button></h3>
+          <div id="runs-list" class="runs-list">Connect to view runs</div>
+        </div>
+        <div class="card detail-card">
+          <h3>Run Details</h3>
+          <div id="run-detail" class="run-detail">Select a run to view details</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Browser -->
+    <section id="browser" class="tab-content">
+      <div class="browser-toolbar">
+        <button id="browser-back" class="btn btn-small" title="Back">←</button>
+        <button id="browser-forward" class="btn btn-small" title="Forward">→</button>
+        <button id="browser-reload" class="btn btn-small" title="Reload">↻</button>
+        <input type="text" id="browser-url" placeholder="Enter URL or search query..." />
+        <button id="browser-go" class="btn btn-primary">Go</button>
+      </div>
+      <div class="browser-content">
+        <iframe id="browser-frame" sandbox="allow-scripts allow-forms allow-popups"></iframe>
+      </div>
+      <div class="browser-info"><span id="browser-status">Ready — enter a URL above</span></div>
+    </section>
+
+    <!-- Agents -->
+    <section id="agents" class="tab-content">
+      <div class="card">
+        <h3>Workflow Pipeline</h3>
+        <div class="workflow-graph">
+          <div class="wf-node" data-node="ceo">CEO</div><div class="wf-arrow">→</div>
+          <div class="wf-node" data-node="planner">Planner</div><div class="wf-arrow">→</div>
+          <div class="wf-node" data-node="researcher">Researcher</div><div class="wf-arrow">→</div>
+          <div class="wf-node" data-node="specialist">Specialist</div><div class="wf-arrow">→</div>
+          <div class="wf-node" data-node="executor">Executor</div><div class="wf-arrow">→</div>
+          <div class="wf-node" data-node="critic">Critic</div><div class="wf-arrow">→</div>
+          <div class="wf-node" data-node="judge">Judge</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Available Tools</h3>
+        <div class="tools-grid">
+          <div class="tool-card">
+            <h4>🌐 Browser Tool</h4>
+            <p>Web browsing and search for agents</p>
+            <ul><li>Fetch web pages</li><li>Search the web</li><li>Extract content</li></ul>
+          </div>
+          <div class="tool-card">
+            <h4>💻 Computer Tool</h4>
+            <p>Shell execution and file ops</p>
+            <ul><li>Execute commands</li><li>Read/write files</li><li>List directories</li></ul>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Computer Terminal</h3>
+        <div class="terminal">
+          <div id="terminal-output" class="terminal-output">$ ready\n</div>
+          <div class="terminal-input-row">
+            <span class="terminal-prompt">$</span>
+            <input type="text" id="terminal-input" placeholder="Enter command..." />
+            <button id="terminal-run" class="btn btn-small btn-primary">Run</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Agent Activity</h3>
+        <div id="agent-log" class="agent-log">No activity yet. Create a run to see agent activity.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
