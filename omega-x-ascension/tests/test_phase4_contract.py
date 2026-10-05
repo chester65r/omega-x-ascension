@@ -21,4 +21,4 @@ def test_sensitive_actions_require_approval():
     domain=Path('src/omega/domain.py').read_text()
     api=Path('src/omega/api.py').read_text()
     assert 'execute_code' in domain
-    assert 'approval_digest!=run.digest()' in api
+    assert 'run.approval_digest != run.digest()' in api
