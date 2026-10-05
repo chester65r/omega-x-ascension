@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
 
 app=FastAPI(title="OMEGA-X ASCENSION",version=__import__("omega").__version__,lifespan=lifespan)
 app.include_router(router,prefix="/v1")
-_static_dir=Path(__file__).parent.parent.parent/"static"
+_static_candidates = (\n    Path(__file__).resolve().parents[2] / "static",\n    Path.cwd() / "static",\n    Path("/app/static"),\n)\n_static_dir = next((path for path in _static_candidates if path.is_dir()), _static_candidates[0])
 app.mount("/static",StaticFiles(directory=str(_static_dir)),name="static")
 @app.get("/",response_class=HTMLResponse)
 async def dashboard(): return (_static_dir/"index.html").read_text()
