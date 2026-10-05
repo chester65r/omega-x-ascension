@@ -1,5 +1,7 @@
 name: CI
 
+# CI validates the production tree on every main push.
+
 on:
   push:
     branches: ["main"]
