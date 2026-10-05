@@ -71,10 +71,22 @@ class CoreWorkflow:
             return {"computer_output": "Computer execution failed; continuing without execution results."}
 
     async def critic(self, state: State) -> dict[str, str]:
-        return {"critique": await self._ask("analysis", "You are the Critic. Evaluate accuracy, completeness, logic, performance, maintainability, and security. List blocking defects first.", state["solution"])}
+        prompt = "SOLUTION:\n" + state["solution"]
+        if state.get("computer_output"):
+            prompt += "\nEXECUTION OUTPUT:\n" + state["computer_output"]
+        return {
+            "critique": await self._ask(
+                "analysis",
+                "You are the Critic. Evaluate accuracy, completeness, logic, performance, maintainability, security, and execution evidence. List blocking defects first.",
+                prompt,
+            )
+        }
 
     async def judge(self, state: State) -> dict[str, str]:
-        prompt = "CANDIDATE:\n" + state["solution"] + "\nCRITIQUE:\n" + state["critique"]
+        prompt = "CANDIDATE:\n" + state["solution"]
+        if state.get("computer_output"):
+            prompt += "\nEXECUTION OUTPUT:\n" + state["computer_output"]
+        prompt += "\nCRITIQUE:\n" + state["critique"]
         return {"final": await self._ask("reasoning", "You are the Judge. Reconcile the candidate and critique. Return the best corrected result and explicit residual risks.", prompt)}
 
     def _build(self, checkpointer: BaseCheckpointSaver):

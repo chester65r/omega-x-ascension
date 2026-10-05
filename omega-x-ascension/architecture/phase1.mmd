@@ -1,8 +1,0 @@
-flowchart LR
-  UI[Next.js future] --> API[FastAPI]
-  API --> WF[LangGraph workflow]
-  WF --> MR[Model router]
-  MR --> M[OpenAI-compatible model endpoints]
-  API --> PG[(PostgreSQL + pgvector)]
-  API --> R[(Redis)]
-  WF --> PG
