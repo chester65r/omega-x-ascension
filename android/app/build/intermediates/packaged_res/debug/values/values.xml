@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="omega_accent">#58a6ff</color>
+    <color name="omega_bg">#0d1117</color>
+    <string name="app_name">OMEGA-X</string>
+    <style name="Theme.OMEGAX" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/omega_bg</item>
+        <item name="android:statusBarColor">@color/omega_bg</item>
+        <item name="android:navigationBarColor">@color/omega_bg</item>
+    </style>
+</resources>
