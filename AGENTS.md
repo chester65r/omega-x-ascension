@@ -32,8 +32,8 @@ postgres (healthy) → migrate (completed) → api + worker (parallel)
 
 ## LLM provider
 - A local **Ollama** service (`ollama/ollama:latest`) runs in the compose stack with `qwen2.5:0.5b` model (CPU inference, no external credentials needed)
-- `OMEGA_MODEL_PROVIDERS` in `.env.base44-defaults` points to `http://ollama:11434/v1`
-- To use a different provider (OpenAI, Together AI, etc.), set `OMEGA_MODEL_PROVIDERS` via the Base44 secrets dashboard — it overrides the defaults file
+- `OMEGA_MODEL_PROVIDERS` in `.env.base44-defaults` defaults to `[]` (no providers configured); the health check returns `configured_models:0`
+- To use Ollama or another provider (OpenAI, Together AI, etc.), set `OMEGA_MODEL_PROVIDERS` as a JSON array of provider configs via the Base44 secrets dashboard — it overrides the defaults file
 - The `ollama-pull` one-shot service pulls the model on startup; api/worker wait for it to complete
 
 ## Security defaults
