@@ -99,6 +99,12 @@ services:
       migrate: {condition: service_completed_successfully}
       ollama-pull: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import glob,sys; sys.exit(0 if any(b'omega.worker' in open(f,'rb').read() for f in glob.glob('/proc/[0-9]*/cmdline')) else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
     restart: on-failure
 
 volumes:
