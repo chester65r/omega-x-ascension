@@ -41,6 +41,12 @@ jobs:
       - name: Build debug APK
         run: ./android/build-apk.sh
 
+      - name: Verify APK signature and package
+        run: |
+          APK=omega-x-ascension-0.5.0-debug.apk
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
