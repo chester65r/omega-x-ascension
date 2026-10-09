@@ -1,6 +1,7 @@
 package com.omega.ascension;
 
 import android.app.Activity;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebResourceRequest;
@@ -50,7 +51,7 @@ public class MainActivity extends Activity {
             @Override
             @SuppressWarnings("deprecation")
             public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
-                return assetLoader.shouldInterceptRequest(url);
+                return assetLoader.shouldInterceptRequest(Uri.parse(url));
             }
         });
 
