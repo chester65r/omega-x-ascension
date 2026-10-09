@@ -19,7 +19,7 @@ OMEGA_JWT_SECRET={jwt}
 OMEGA_JWT_ISSUER=omega-x
 OMEGA_JWT_AUDIENCE=omega-x-api
 OMEGA_JWT_ALGORITHM=HS256
-OMEGA_MODEL_PROVIDERS=[]
+OMEGA_MODEL_PROVIDERS=[{{"name":"ollama-local","base_url":"http://ollama:11434/v1","api_key":"ollama","model":"qwen2.5:0.5b","capabilities":["reasoning","coding","mathematics","planning","analysis","summarization","research"],"priority":50,"timeout_seconds":300}}]
 OMEGA_LOG_LEVEL=INFO
 LANGGRAPH_STRICT_MSGPACK=true
 '''

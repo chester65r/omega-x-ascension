@@ -12,7 +12,8 @@ Python/FastAPI modular monolith with a lightweight static dashboard. PostgreSQL/
 
 ## Setup
 - Source lives in `omega-x-ascension/` subdirectory (not repo root)
-- Local infra credentials (DB passwords, Redis password, JWT signing key) are generated in `.env.base44-defaults` at repo root (gitignored)
+- Local infra credentials (DB passwords, Redis password, JWT signing key) are generated in `.env.base44-defaults` at repo root — committed on purpose (local-only dev values) so a fresh clone boots; never put real external credentials there
+- Built APKs and `*.tar.gz` archives are gitignored — build them, don't commit them
 - `docker-compose.base44.yml` at repo root bind-mounts `./omega-x-ascension` to `/app` and installs deps via `pip install -e .` on each service startup
 - All services use `python:3.12-slim` base image (never a prebuilt app image)
 
@@ -32,8 +33,8 @@ postgres (healthy) → migrate (completed) → api + worker (parallel)
 
 ## LLM provider
 - A local **Ollama** service (`ollama/ollama:latest`) runs in the compose stack with `qwen2.5:0.5b` model (CPU inference, no external credentials needed)
-- `OMEGA_MODEL_PROVIDERS` in `.env.base44-defaults` points to `http://ollama:11434/v1`
-- To use a different provider (OpenAI, Together AI, etc.), set `OMEGA_MODEL_PROVIDERS` via the Base44 secrets dashboard — it overrides the defaults file
+- `OMEGA_MODEL_PROVIDERS` in `.env.base44-defaults` points at Ollama's OpenAI-compatible endpoint (`http://ollama:11434/v1`, dummy api_key); the health check returns `configured_models:1`
+- To use another provider (OpenAI, Together AI, etc.), set `OMEGA_MODEL_PROVIDERS` as a JSON array of provider configs via the Base44 secrets dashboard — it overrides the defaults file
 - The `ollama-pull` one-shot service pulls the model on startup; api/worker wait for it to complete
 
 ## Security defaults
@@ -46,7 +47,7 @@ postgres (healthy) → migrate (completed) → api + worker (parallel)
 docker compose -f docker-compose.base44.yml up -d --build
 # Wait for migrate to complete, then:
 curl http://localhost:3000/health/ready
-# Should return {"status":"ready","configured_models":0}
+# Should return {"status":"ready","configured_models":1}
 ```
 
 ## Tests
