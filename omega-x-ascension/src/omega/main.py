@@ -1,9 +1,11 @@
 from __future__ import annotations
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import httpx
 from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -37,6 +39,19 @@ async def lifespan(app: FastAPI):
     finally: await http.aclose(); await redis.aclose(); await engine.dispose()
 
 app=FastAPI(title="OMEGA-X ASCENSION",version=__import__("omega").__version__,lifespan=lifespan)
+allowed_origins = ["https://appassets.androidplatform.net"]
+allowed_origins.extend(
+    origin.strip()
+    for origin in os.environ.get("OMEGA_CORS_ORIGINS", "").split(",")
+    if origin.strip()
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 app.include_router(router,prefix="/v1")
 _static_candidates = (
     Path(__file__).resolve().parents[2] / "static",

@@ -36,8 +36,8 @@ header {
 header h1 { font-size: 18px; font-weight: 600; }
 .version { color: var(--text-muted); font-size: 12px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
-#jwt-token {
-  width: 260px; padding: 6px 12px;
+#api-base, #jwt-token {
+  width: 230px; padding: 6px 12px;
   background: var(--bg-input); border: 1px solid var(--border);
   border-radius: var(--radius); color: var(--text); font-size: 13px;
 }
@@ -184,5 +184,7 @@ form textarea { resize: vertical; }
 @media (max-width: 900px) {
   .runs-layout { grid-template-columns: 1fr; }
   .tools-grid { grid-template-columns: 1fr; }
-  #jwt-token { width: 160px; }
+  header { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .header-right { width: 100%; flex-wrap: wrap; }
+  #api-base, #jwt-token { width: min(100%, 240px); }
 }

@@ -3,6 +3,7 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
   let token = sessionStorage.getItem('omega-jwt') || '';
+  let apiBase = localStorage.getItem('omega-api-base') || '';
   let pollTimer = null;
   let runPollTimer = null;
   let browserHistory = [];
@@ -15,6 +16,31 @@
     badge.textContent = connected ? 'Connected' : 'Disconnected';
     badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
   }
+
+  function normalizeApiBase(value) {
+    const parsed = new URL(value.trim());
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+      throw new Error('Use a valid HTTP or HTTPS server URL without login details.');
+    }
+    return parsed.origin + parsed.pathname.replace(/\\/+$/, '');
+  }
+
+  async function apiFetch(path, options = {}) {
+    if (!apiBase) throw new Error('Save your API server URL first.');
+    return fetch(apiBase + (path.startsWith('/') ? path : '/' + path), options);
+  }
+
+  $('#api-base').value = apiBase;
+  $('#save-server-btn').addEventListener('click', () => {
+    try {
+      apiBase = normalizeApiBase($('#api-base').value);
+      localStorage.setItem('omega-api-base', apiBase);
+      $('#api-base').value = apiBase;
+      startPolling();
+      if (token) loadRuns();
+    } catch (e) { alert(e.message || 'Enter a valid API server URL.'); }
+  });
+
   $('#jwt-token').value = token;
   if (token) setConnected(true);
   $('#connect-btn').addEventListener('click', () => {
@@ -29,7 +55,7 @@
   }
 
   async function api(path, opts = {}) {
-    const res = await fetch(path, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
+    const res = await apiFetch(path, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`${res.status}: ${body}`);
@@ -50,13 +76,13 @@
   // ── Overview ──
   async function pollHealth() {
     try {
-      const live = await (await fetch('/health/live')).json();
+      const live = await (await apiFetch('/health/live')).json();
       $('#health-live').textContent = live.status === 'ok' ? 'OK' : 'ERR';
       $('#card-live').className = 'card stat-card ' + (live.status === 'ok' ? 'ok' : 'err');
     } catch { $('#health-live').textContent = 'ERR'; $('#card-live').className = 'card stat-card err'; }
 
     try {
-      const ready = await (await fetch('/health/ready')).json();
+      const ready = await (await apiFetch('/health/ready')).json();
       if (ready.status === 'ready') {
         $('#health-ready').textContent = 'Ready';
         $('#card-ready').className = 'card stat-card ok';
@@ -75,7 +101,7 @@
 
   async function loadModels() {
     try {
-      const ready = await (await fetch('/health/ready')).json();
+      const ready = await (await apiFetch('/health/ready')).json();
       const count = ready.configured_models ?? 0;
       const list = $('#models-list');
       if (count === 0) {
@@ -90,7 +116,7 @@
 
   async function loadMetrics() {
     try {
-      const res = await fetch('/metrics');
+      const res = await apiFetch('/metrics');
       const text = await res.text();
       const lines = text.split('\n').filter((l) => !l.startsWith('#')).slice(0, 30);
       $('#metrics').textContent = lines.join('\n');
@@ -99,6 +125,13 @@
 
   function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
+    if (!apiBase) {
+      $('#health-live').textContent = 'Set server URL';
+      $('#health-ready').textContent = 'Set server URL';
+      $('#models-list').textContent = 'Save your API server URL to connect.';
+      $('#metrics').textContent = 'Waiting for server configuration.';
+      return;
+    }
     pollHealth();
     loadMetrics();
     pollTimer = setInterval(() => { pollHealth(); loadMetrics(); }, 5000);
@@ -144,7 +177,22 @@
           <dt>Status</dt><dd><span class="run-status ${escapeHtml(run.status)}">${escapeHtml(run.status)}</span></dd>
           <dt>Output</dt><dd>${run.output ? '<pre>' + escapeHtml(run.output) + '</pre>' : '—'}</dd>
           <dt>Error</dt><dd>${run.error ? '<pre style="color:var(--error)">' + escapeHtml(run.error) + '</pre>' : '—'}</dd>
-        </dl>`;
+        </dl>${run.status === 'waiting_approval' ? '<button id="approve-run" class="btn btn-primary">Approve run</button>' : ''}`;
+      const approveButton = $('#approve-run');
+      if (approveButton) {
+        approveButton.addEventListener('click', async () => {
+          approveButton.disabled = true;
+          try {
+            await api(`/v1/runs/${runId}/approve`, { method: 'POST' });
+            addAgentLog('success', `Approved run ${runId.substring(0, 8)}`);
+            await loadRunDetail(runId);
+            await loadRuns();
+          } catch (e) {
+            approveButton.disabled = false;
+            $('#run-detail').insertAdjacentText('beforeend', ` Approval failed: ${e.message}`);
+          }
+        });
+      }
       addAgentLog('info', `Run ${runId.substring(0, 8)} status: ${run.status}`);
       if (run.status === 'running') {
         setTimeout(() => loadRunDetail(runId), 3000);
@@ -260,7 +308,7 @@
 
   // ── Utils ──
   function escapeHtml(s) {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   // ── Init ──

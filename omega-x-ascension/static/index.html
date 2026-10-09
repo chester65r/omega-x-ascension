@@ -15,10 +15,13 @@
   <header>
     <div class="header-left">
       <h1>⚡ OMEGA-X ASCENSION</h1>
-      <span class="version" id="app-version">v0.4.0</span>
+      <span class="version" id="app-version">v0.5.0</span>
     </div>
     <div class="header-right">
-      <input type="password" id="jwt-token" placeholder="Paste JWT token..." />
+      <label class="sr-only" for="api-base">API server URL</label>
+      <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url" />
+      <button id="save-server-btn" class="btn btn-small">Save server</button>
+      <input type="password" id="jwt-token" placeholder="Paste JWT token..." autocomplete="off" />
       <button id="connect-btn" class="btn btn-primary">Connect</button>
       <span id="conn-status" class="status-badge disconnected">Disconnected</span>
     </div>
