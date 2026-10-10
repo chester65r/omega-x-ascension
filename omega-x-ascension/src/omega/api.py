@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Security, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -72,6 +72,16 @@ async def create_run(
         run.status == RunStatus.PENDING,
     )
     return view(run)
+
+
+@router.get("/runs", response_model=list[RunView])
+async def list_runs(
+    limit: int = Query(default=50, ge=1, le=100),
+    principal: Principal = Security(current_principal, scopes=["runs:read"]),
+    svc=Depends(services),
+):
+    runs = await svc.repo.list_runs(principal.tenant_id, limit)
+    return [view(run) for run in runs]
 
 
 @router.get("/runs/{run_id}", response_model=RunView)
