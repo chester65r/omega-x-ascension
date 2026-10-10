@@ -39,7 +39,7 @@ def test_hugging_face_token_adds_qwen_gateway_with_all_agent_capabilities():
         gateway = gateways[0]
         assert gateway.name == "huggingface-inference"
         assert gateway._config.base_url == "https://router.huggingface.co/v1"
-        assert gateway._config.model == "Qwen/Qwen3-4B"
+        assert gateway._config.model == "Qwen/Qwen3-4B:featherless-ai"
         assert gateway._config.api_key.get_secret_value() == "hf_test_only_not_a_real_token"
         assert gateway.capabilities == {
             "reasoning", "coding", "mathematics", "planning",
