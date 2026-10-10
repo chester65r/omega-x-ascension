@@ -37,7 +37,7 @@ Set `OMEGA_ENABLE_COMPUTER_FILES=true` to enable file listing, reading and writi
 
 ## Hosted model with a free-credit allowance (optional)
 
-The Render blueprint now supports Hugging Face Inference Providers through the OpenAI-compatible router. The default model ID is `Qwen/Qwen3-4B`. A narrowly scoped Hugging Face access token must be stored as the Render secret `OMEGA_HF_INFERENCE_TOKEN`; it is never committed to GitHub or printed by the application. Only enable the "Inference Providers" permission for that token, not repository write or account-management permissions.
+The Render blueprint now supports Hugging Face Inference Providers through the OpenAI-compatible router. The default model ID is `Qwen/Qwen3-4B:featherless-ai`, which pins routing to Featherless rather than depending on automatic provider selection. A narrowly scoped Hugging Face access token must be stored as the Render secret `OMEGA_HF_INFERENCE_TOKEN`; it is never committed to GitHub or printed by the application. Only enable the "Inference Providers" permission for that token, not repository write or account-management permissions.
 
 **This is not unlimited free hosting.** Hugging Face currently documents a small monthly free allowance for free accounts (listed as $0.10 and subject to change). If that allowance runs out, live inference may stop until the allowance refreshes or additional credits are added. Do not add a payment method or purchase credits when you require a zero-cost setup. The API reports provider health separately; it never substitutes fake model output for a failed provider.
 
