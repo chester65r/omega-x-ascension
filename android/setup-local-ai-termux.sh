@@ -43,12 +43,21 @@ if [[ ! -x "$LLAMA_DIR/build/bin/llama-server" ]]; then
 fi
 [[ -x "$LLAMA_DIR/build/bin/llama-server" ]] || fail "llama-server was not produced by the build."
 
-if [[ ! -f "$MODEL_PATH" ]] || [[ "$(stat -c '%s' "$MODEL_PATH" 2>/dev/null || echo 0)" -lt 400000000 ]]; then
-  note "Downloading the Qwen 2.5 0.5B Q4_K_M model (about 491 MB)."
-  curl --fail --location --retry 3 --retry-all-errors --continue-at - \
-    --output "$MODEL_PATH" "$MODEL_URL"
+model_bytes=0
+if [[ -f "$MODEL_PATH" ]]; then
+  model_bytes="$(wc -c < "$MODEL_PATH" | tr -d '[:space:]')"
 fi
-model_bytes="$(stat -c '%s' "$MODEL_PATH" 2>/dev/null || echo 0)"
+if (( model_bytes < 400000000 )); then
+  note "Downloading the Qwen 2.5 0.5B Q4_K_M model (about 491 MB)."
+  if [[ -f "$MODEL_PATH" && "$model_bytes" -gt 0 ]]; then
+    curl --fail --location --retry 3 --retry-all-errors --continue-at - \
+      --output "$MODEL_PATH" "$MODEL_URL"
+  else
+    curl --fail --location --retry 3 --retry-all-errors \
+      --output "$MODEL_PATH" "$MODEL_URL"
+  fi
+fi
+model_bytes="$(wc -c < "$MODEL_PATH" | tr -d '[:space:]')"
 (( model_bytes >= 400000000 )) || fail "The model download looks incomplete ($model_bytes bytes). Check free space/network and run again."
 
 note "Starting the local model server on 127.0.0.1:8080."
