@@ -35,6 +35,14 @@ Set `OMEGA_ENABLE_COMPUTER_FILES=true` to enable file listing, reading and writi
 
 **Security boundary:** the sandbox is a separate resource-limited container on a private Docker network, but shell processes in it share the same OS identity. Therefore workspace file permissions do not fully isolate one tenant from another when arbitrary shell execution is on. It is suitable for local development and trusted single-operator testing, not untrusted multi-tenant public SaaS. A hardened per-job container/VM or equivalent runtime isolation is required before enabling arbitrary command execution for untrusted users. Workspace contents are ephemeral and clear when the sandbox container is recreated.
 
+## Hosted model with a free-credit allowance (optional)
+
+The Render blueprint now supports Hugging Face Inference Providers through the OpenAI-compatible router. The default model ID is `Qwen/Qwen3-4B`. A narrowly scoped Hugging Face access token must be stored as the Render secret `OMEGA_HF_INFERENCE_TOKEN`; it is never committed to GitHub or printed by the application. Only enable the "Inference Providers" permission for that token, not repository write or account-management permissions.
+
+**This is not unlimited free hosting.** Hugging Face currently documents a small monthly free allowance for free accounts (listed as $0.10 and subject to change). If that allowance runs out, live inference may stop until the allowance refreshes or additional credits are added. Do not add a payment method or purchase credits when you require a zero-cost setup. The API reports provider health separately; it never substitutes fake model output for a failed provider.
+
+After storing the token in Render, deploy the service and check `/health/models` for at least one healthy model and `/health/ready` for a 200 response. If no model is healthy, readiness returns 503 and workflow creation rejects the task rather than pretending it ran.
+
 ## Local model without a paid API
 
 For a local Ollama service on the same Docker host, start the optional profile:
