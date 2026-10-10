@@ -48,7 +48,7 @@ From the `llama.cpp` directory, run:
 
 Leave this Termux session running. It must listen on `127.0.0.1`, not `0.0.0.0`; do not expose this local server to your Wi-Fi network or the public internet. The CORS origin is restricted to the Android app's WebView asset origin.
 
-If the server says the model is loaded, open OMEGA-X ASCENSION and choose **Local AI**. Keep the server URL as `http://127.0.0.1:8080), tap **Test connection**, then send a short message.
+If the server says the model is loaded, open OMEGA-X ASCENSION and choose **Local AI**. Keep the server URL as `http://127.0.0.1:8080`, tap **Test connection**, then send a short message.
 
 ## Troubleshooting
 
