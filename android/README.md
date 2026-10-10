@@ -18,7 +18,7 @@ For Docker, build from the repository root and export the APK:
 docker build --target apk --output type=local,dest=dist -f android/Dockerfile .
 ```
 
-## Connect the app
+## Run local AI chat without a cloud account\n\nSee [LOCAL_AI_ANDROID.md](LOCAL_AI_ANDROID.md) for the on-device Termux + llama.cpp setup. This provides local chat only; workflow automation still requires the OMEGA API backend.\n\n## Connect the app
 
 1. Deploy the FastAPI service and make it reachable from the phone.
 2. Open the app and save the API server URL (prefer HTTPS for public servers).
