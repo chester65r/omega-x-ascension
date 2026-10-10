@@ -6,7 +6,22 @@ This adds a standalone chat tab to the OMEGA-X Android dashboard. It talks direc
 
 ## 1. Install Termux
 
-Install Termux from its official project source: https://github.com/termux/termux-app. Keep at least 3 GB of free storage available for build files and the model, and connect to Wi-Fi. The Q4 model below is about 491 MB; the source build needs additional space.
+Install Termux from its official project source: https://github.com/termux/termux-app. Keep at least 5 GB of free storage available for build files and the model, and connect to Wi-Fi. The Q4 model below is about 491 MB; the source build needs additional space.
+
+## Quick setup (recommended)
+
+The repository includes a setup script that installs build tools, builds `llama-server`, downloads the model, and starts it locally. Review the script first if you prefer not to execute code downloaded from your repository.
+
+In Termux, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chester65r/omega-x-ascension/main/android/setup-local-ai-termux.sh -o ~/setup-omega-local-ai.sh
+bash ~/setup-omega-local-ai.sh
+```
+
+The setup needs at least 5 GB free storage and may take a while. Keep the Termux session open while chatting. The server binds only to `127.0.0.1:8080` and does not enable model shell tools.
+
+The manual steps below are available if the script fails or you want to inspect each command.
 
 ## 2. Build llama.cpp inside Termux
 
