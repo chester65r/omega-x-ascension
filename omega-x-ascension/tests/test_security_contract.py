@@ -65,6 +65,21 @@ def test_file_routes_use_separate_policy_and_are_not_duplicated():
     assert 'scopes=["runs:write", "runs:approve", "computer:execute"]' in api
 
 
+def test_sandbox_workspace_file_crud_is_tenant_scoped(tmp_path):
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    tenant_a = "11111111-1111-1111-1111-111111111111"
+    tenant_b = "22222222-2222-2222-2222-222222222222"
+
+    written = runtime.write_file(tenant_a, "src/main.py", "print('ok')\\n")
+    assert written["written"] is True
+    assert written["bytes"] == len("print('ok')\\n".encode("utf-8"))
+    assert runtime.read_file(tenant_a, "src/main.py")["content"] == "print('ok')\\n"
+    assert runtime.list_dir(tenant_a, "src")["entries"][0]["name"] == "main.py"
+    assert runtime.list_dir(tenant_b)["entries"] == []
+    with pytest.raises(ValueError, match="regular file"):
+        runtime.read_file(tenant_b, "src/main.py")
+
+
 def test_sandbox_workspace_blocks_path_traversal(tmp_path):
     runtime = SandboxRuntime(tmp_path / "workspace")
     tenant_id = "00000000-0000-0000-0000-000000000001"
