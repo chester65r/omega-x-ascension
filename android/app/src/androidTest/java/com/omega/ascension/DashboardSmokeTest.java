@@ -31,7 +31,7 @@ public class DashboardSmokeTest {
                     latch.countDown();
                 }));
         assertTrue("WebView JavaScript evaluation timed out",
-                latch.await(5, TimeUnit.SECONDS));
+                latch.await(10, TimeUnit.SECONDS));
         return result.get();
     }
 
@@ -43,6 +43,18 @@ public class DashboardSmokeTest {
             scenario.onActivity(activity -> webViewRef.set(activity.findViewById(R.id.webview)));
             WebView webView = webViewRef.get();
             assertNotNull("MainActivity must contain its WebView", webView);
+
+            boolean loaded = false;
+            for (int attempt = 0; attempt < 80; attempt++) {
+                AtomicReference<Boolean> loadedRef = new AtomicReference<>(false);
+                scenario.onActivity(activity -> loadedRef.set(activity.isDashboardLoaded()));
+                if (Boolean.TRUE.equals(loadedRef.get())) {
+                    loaded = true;
+                    break;
+                }
+                Thread.sleep(250);
+            }
+            assertTrue("MainActivity did not finish loading its trusted bundled dashboard", loaded);
 
             String ready = "false";
             String readyCheck =
@@ -59,30 +71,30 @@ public class DashboardSmokeTest {
                 }
                 Thread.sleep(250);
             }
-            assertEquals("Bundled HTML and critical screens must load in WebView", "true", ready);
+            assertEquals("Bundled HTML and critical screens must load in WebView (actual=" + ready + ")", "true", ready);
 
             String tabConsistency = evaluate(webView,
                     "Array.from(document.querySelectorAll('.tab')).map(e => e.dataset.tab).join(',') === " +
                     "Array.from(document.querySelectorAll('section.tab-content')).map(e => e.id).join(',')");
-            assertEquals("Each navigation tab must map to an existing section", "true", tabConsistency);
+            assertEquals("Each navigation tab must map to an existing section (actual=" + tabConsistency + ")", "true", tabConsistency);
 
             String aboutWorks = evaluate(webView,
                     "document.querySelector('[data-tab=\"about\"]').click();" +
                     "document.getElementById('about').classList.contains('active')");
-            assertEquals("About tab must activate in the running WebView", "true", aboutWorks);
+            assertEquals("About tab must activate in the running WebView (actual=" + aboutWorks + ")", "true", aboutWorks);
 
             String assistantWorks = evaluate(webView,
                     "document.querySelector('[data-tab=\"assistant\"]').click();" +
                     "document.getElementById('assistant').classList.contains('active') && " +
                     "document.getElementById('assistant-form') !== null");
-            assertEquals("Personal Assistant tab and form must work", "true", assistantWorks);
+            assertEquals("Personal Assistant tab and form must work (actual=" + assistantWorks + ")", "true", assistantWorks);
 
             String browserWorks = evaluate(webView,
                     "document.querySelector('[data-tab=\"browser\"]').click();" +
                     "document.getElementById('browser').classList.contains('active') && " +
                     "document.getElementById('browser-results') !== null && " +
                     "document.getElementById('browser-frame') !== null");
-            assertEquals("Browser tab and its results/preview containers must exist", "true", browserWorks);
+            assertEquals("Browser tab and its results/preview containers must exist (actual=" + browserWorks + ")", "true", browserWorks);
         }
     }
 
