@@ -44,7 +44,7 @@ fi
 ./gradlew assembleDebug --no-daemon --stacktrace
 
 APK_PATH="$SCRIPT_DIR/app/build/outputs/apk/debug/app-debug.apk"
-OUTPUT_PATH="$PROJECT_ROOT/omega-x-ascension-0.5.0-debug.apk"
+OUTPUT_PATH="$PROJECT_ROOT/omega-x-ascension-0.5.1-debug.apk"
 if [[ ! -s "$APK_PATH" ]]; then
   echo "APK build completed without an APK at $APK_PATH" >&2
   exit 1

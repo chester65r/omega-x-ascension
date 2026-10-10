@@ -1,6 +1,6 @@
 # OMEGA-X Ascension Android app
 
-The Android app packages the dashboard in a WebView using AndroidX WebKit's secure asset loader. The workflow dashboard includes Overview, Runs, Browser, and Agents; the app does not host the API or model by itself.
+The Android app packages the dashboard in a WebView using AndroidX WebKit's secure asset loader. The workflow dashboard includes Overview, Runs, Browser, Local AI, and Agents; the app does not host the API or model by itself.
 
 ## Build a debug APK
 
@@ -10,7 +10,7 @@ From the repository root, with Java 17 and Android SDK platform/build-tools 34 i
 ./android/build-apk.sh
 ```
 
-The installable, debug-signed APK is written to `omega-x-ascension-0.5.0-debug.apk`. You can also run the **Android APK** GitHub Actions workflow; it uploads the APK as a downloadable workflow artifact.
+The installable, debug-signed APK is written to `omega-x-ascension-0.5.1-debug.apk`. You can also run the **Android APK** GitHub Actions workflow; it uploads the APK as a downloadable workflow artifact.
 
 For Docker, build from the repository root and export the APK:
 
