@@ -47,3 +47,34 @@ def test_hugging_face_token_adds_qwen_gateway_with_all_agent_capabilities():
         }
 
     asyncio.run(check())
+
+
+
+def test_openai_flagship_gateway_uses_configured_secret():
+    async def check():
+        settings = make_settings(
+            openai_api_key=SecretStr("sk-test-not-a-real-key"),
+            openai_model="gpt-6-astra",
+            openai_base_url="https://api.openai.com/v1",
+        )
+        async with httpx.AsyncClient() as client:
+            gateways = build_gateways(settings, client)
+
+        assert len(gateways) == 1
+        gateway = gateways[0]
+        assert gateway.name == "openai-gpt-6-astra"
+        assert gateway._config.base_url == "https://api.openai.com/v1"
+        assert gateway._config.model == "gpt-6-astra"
+        assert gateway._config.api_key.get_secret_value() == "sk-test-not-a-real-key"
+        assert gateway.priority == 100
+
+    asyncio.run(check())
+
+
+def test_blank_openai_key_does_not_create_a_fake_provider():
+    async def check():
+        settings = make_settings(openai_api_key=SecretStr("  "))
+        async with httpx.AsyncClient() as client:
+            assert build_gateways(settings, client) == []
+
+    asyncio.run(check())
