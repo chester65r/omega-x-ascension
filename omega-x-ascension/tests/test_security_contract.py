@@ -230,4 +230,6 @@ def test_native_browser_does_not_expose_privileged_javascript_bridge():
     assert "setAllowFileAccess(false)" in browser
     assert "setAllowContentAccess(false)" in browser
     assert "WebSettings.MIXED_CONTENT_NEVER_ALLOW" in browser
-    assert '("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))' in browser
+    assert "String scheme = uri.getScheme()" in browser
+    assert '"https".equalsIgnoreCase(scheme)' in browser
+    assert '"http".equalsIgnoreCase(scheme)' in browser
