@@ -35,7 +35,11 @@
       apiBase = normalizeApiBase($('#api-base').value);
       localStorage.setItem('omega-api-base', apiBase);
       $('#api-base').value = apiBase;
-    
+      startPolling();
+      if (token) loadRuns();
+    } catch (e) { alert(e.message || 'Enter a valid API server URL.'); }
+  });
+
   // Local on-device model mode: talks directly to a llama.cpp OpenAI-compatible server.
   let localAiBase = localStorage.getItem('omega-local-ai-base') || 'http://127.0.0.1:8080';
   let localAiMessages = [];
@@ -152,10 +156,7 @@
     }
   });
 
-  startPolling();
-      if (token) loadRuns();
-    } catch (e) { alert(e.message || 'Enter a valid API server URL.'); }
-  });
+  renderLocalAiMessages();
 
   $('#jwt-token').value = token;
   setConnected(false);
