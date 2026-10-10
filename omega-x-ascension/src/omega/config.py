@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -53,6 +54,9 @@ class Settings(BaseSettings):
 
     # Webhooks & External Notifications
     github_webhook_secret: SecretStr | None = None
+    webhook_tenant_id: UUID = Field(
+        default_factory=lambda: UUID("00000000-0000-0000-0000-000000000001")
+    )
     slack_webhook_url: SecretStr | None = None
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
