@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     jwt_audience: str = "omega-x-api"
     jwt_algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"
     model_providers: list[ProviderConfig] = Field(default_factory=list)
+    # Optional OpenAI flagship gateway; set the API key only in a deployment secret store.
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-6-astra"
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_priority: int = Field(default=100, ge=0, le=100)
+    openai_timeout_seconds: float = Field(default=180, gt=0, le=600)
     # Optional hosted inference: set a narrowly scoped Hugging Face token in the secret store.
     hf_inference_token: SecretStr | None = None
     hf_inference_model: str = "Qwen/Qwen3-4B:featherless-ai"
