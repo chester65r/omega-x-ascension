@@ -19,7 +19,9 @@ def provision_roles()->None:
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname=%s",(role,))
             if cur.fetchone() is None: cur.execute(sql.SQL("CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS").format(sql.Identifier(role)))
             cur.execute(sql.SQL("ALTER ROLE {} PASSWORD {}").format(sql.Identifier(role), sql.Literal(password)))
-            cur.execute(sql.SQL("GRANT CONNECT ON DATABASE omega TO {}").format(sql.Identifier(role)))
+            cur.execute("SELECT current_database()")
+            database_name = cur.fetchone()[0]
+            cur.execute(sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(sql.Identifier(database_name), sql.Identifier(role)))
             cur.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(role)))
 
 async def checkpoint_schema()->None:
