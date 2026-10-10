@@ -190,6 +190,22 @@ class SqlRunRepository:
             ).scalar_one_or_none()
             return None if row is None else self._run_from_row(row)
 
+    async def list_runs(self, tenant_id: UUID, limit: int = 50) -> list[WorkflowRun]:
+        """Return recent runs for one tenant, newest first."""
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+
+        async with self._tenant_session(tenant_id) as session:
+            rows = (
+                await session.execute(
+                    select(RunRow)
+                    .where(RunRow.tenant_id == tenant_id)
+                    .order_by(RunRow.created_at.desc(), RunRow.id.desc())
+                    .limit(limit)
+                )
+            ).scalars().all()
+            return [self._run_from_row(row) for row in rows]
+
     async def save(self, tenant_id: UUID, run: WorkflowRun) -> None:
         if tenant_id != run.tenant_id:
             raise PermissionError("cross-tenant write rejected")
