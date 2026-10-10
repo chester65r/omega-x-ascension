@@ -33,7 +33,13 @@ class Services:
 async def lifespan(app: FastAPI):
     cfg=get_settings(); engine=build_engine(cfg.database_url); maker=async_sessionmaker(engine,expire_on_commit=False); http=httpx.AsyncClient()
     model_router=ModelRouter(StaticRegistry([OpenAICompatibleGateway(p,http) for p in cfg.model_providers])); redis=Redis.from_url(cfg.redis_url,decode_responses=True)
-    browser=BrowserTool(http); computer=ComputerTool(enabled=cfg.enable_computer_execution)
+    browser=BrowserTool(http)
+    computer=ComputerTool(
+        client=http,
+        base_url=cfg.sandbox_url,
+        token=cfg.sandbox_token.get_secret_value() if cfg.sandbox_token else None,
+        enabled=cfg.enable_computer_execution,
+    )
     app.state.services=Services(SqlRunRepository(maker),model_router,redis,engine,http,browser,computer)
     try: yield
     finally: await http.aclose(); await redis.aclose(); await engine.dispose()
@@ -70,6 +76,8 @@ async def ready():
     try:
         async with svc.engine.connect() as conn: await conn.execute(text("SELECT 1"))
         await svc.redis.ping()
+        if svc.computer.enabled and not await svc.computer.health():
+            raise RuntimeError("sandbox_unavailable")
         return {"status":"ready","configured_models":len(svc.router._registry.all())}
     except Exception as exc:
         return Response(content=f'{{"status":"not_ready","reason":"{type(exc).__name__}"}}',status_code=503,media_type="application/json")

@@ -123,6 +123,19 @@ class ComputerCommand(BaseModel):
     command: str = Field(min_length=1, max_length=1000)
 
 
+class ComputerFileWrite(BaseModel):
+    path: str = Field(min_length=1, max_length=240)
+    content: str = Field(max_length=100_000)
+
+
+def require_computer_enabled(svc) -> None:
+    if not svc.computer.enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="computer tools are disabled; enable them only with the isolated sandbox configured",
+        )
+
+
 @router.get("/browser/search")
 async def browser_search(
     q: str,
@@ -156,21 +169,69 @@ async def browser_proxy(
 @router.post("/computer/execute")
 async def computer_execute(
     body: ComputerCommand,
-    principal: Principal = Security(current_principal, scopes=["runs:write"]),
+    principal: Principal = Security(
+        current_principal,
+        scopes=["runs:write", "runs:approve", "computer:execute"],
+    ),
     svc=Depends(services),
 ):
-    if not svc.computer.enabled:
-        raise HTTPException(
-            503,
-            "computer execution is disabled; enable it only in a trusted deployment",
-        )
+    require_computer_enabled(svc)
     try:
-        return await svc.computer.execute(body.command)
+        return await svc.computer.execute(body.command, workspace_id=str(principal.tenant_id))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
 
+
+@router.get("/computer/files")
+async def computer_files(
+    path: str = Query(default=".", min_length=1, max_length=240),
+    principal: Principal = Security(current_principal, scopes=["runs:read", "computer:read"]),
+    svc=Depends(services),
+):
+    require_computer_enabled(svc)
+    try:
+        return await svc.computer.list_dir(path, workspace_id=str(principal.tenant_id))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@router.get("/computer/files/read")
+async def computer_file_read(
+    path: str = Query(min_length=1, max_length=240),
+    principal: Principal = Security(current_principal, scopes=["runs:read", "computer:read"]),
+    svc=Depends(services),
+):
+    require_computer_enabled(svc)
+    try:
+        return await svc.computer.read_file(path, workspace_id=str(principal.tenant_id))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@router.put("/computer/files")
+async def computer_file_write(
+    body: ComputerFileWrite,
+    principal: Principal = Security(
+        current_principal,
+        scopes=["runs:write", "runs:approve", "computer:write"],
+    ),
+    svc=Depends(services),
+):
+    require_computer_enabled(svc)
+    try:
+        return await svc.computer.write_file(
+            body.path, body.content, workspace_id=str(principal.tenant_id)
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
 
 @router.get("/computer/files")
 async def computer_files(

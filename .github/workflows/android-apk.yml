@@ -46,7 +46,7 @@ jobs:
 
       - name: Verify APK signature and package
         run: |
-          APK=omega-x-ascension-0.5.1-debug.apk
+          APK=omega-x-ascension-0.6.0-debug.apk
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
 
@@ -54,6 +54,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: omega-x-ascension-android-debug
-          path: omega-x-ascension-0.5.1-debug.apk
+          path: omega-x-ascension-0.6.0-debug.apk
           if-no-files-found: error
           retention-days: 14

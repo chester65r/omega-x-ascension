@@ -53,22 +53,52 @@ class BrowserTool:
                 raise ValueError("private, local, or non-public network targets are blocked")
 
     async def _get_public(self, url: str, **kwargs) -> tuple[httpx.Response, str]:
+        """Fetch public content with redirect revalidation and a hard decompressed-size ceiling."""
         current = url
         for _ in range(self._MAX_REDIRECTS + 1):
             await self._validate_url(current)
-            response = await self._client.get(
+            async with self._client.stream(
+                "GET",
                 current,
                 follow_redirects=False,
                 **kwargs,
-            )
-            if not response.is_redirect:
-                return response, current
+            ) as streamed:
+                if streamed.is_redirect:
+                    location = streamed.headers.get("location")
+                    if not location:
+                        raise ValueError("redirect response did not include a location header")
+                    current = urljoin(current, location)
+                    continue
 
-            location = response.headers.get("location")
-            await response.aclose()
-            if not location:
-                raise ValueError("redirect response did not include a location header")
-            current = urljoin(current, location)
+                content_length = streamed.headers.get("content-length")
+                if content_length:
+                    try:
+                        if int(content_length) > 2_000_000:
+                            raise ValueError("browser response exceeds the 2 MB limit")
+                    except ValueError as exc:
+                        if "2 MB limit" in str(exc):
+                            raise
+                        raise ValueError("invalid Content-Length from target page") from exc
+
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in streamed.aiter_bytes():
+                    size += len(chunk)
+                    if size > 2_000_000:
+                        raise ValueError("browser response exceeds the 2 MB limit")
+                    chunks.append(chunk)
+
+                headers = dict(streamed.headers)
+                headers.pop("content-length", None)
+                headers.pop("content-encoding", None)
+                response = httpx.Response(
+                    status_code=streamed.status_code,
+                    headers=headers,
+                    content=b"".join(chunks),
+                    request=streamed.request,
+                    extensions=dict(streamed.extensions),
+                )
+                return response, current
 
         raise ValueError("too many redirects")
 

@@ -273,3 +273,17 @@ form textarea, form select, form input { font-size: 12px; }
 .local-ai-form button { min-height:44px; }
 #local-ai-status.connected { color:var(--success, #4fc99a); border-color:currentColor; }
 @media(max-width:520px) { .local-ai-connect, .local-ai-form { grid-template-columns:minmax(0,1fr); } .local-ai-connect button, .local-ai-form button { width:100%; } }
+
+/* Isolated sandbox file manager */
+.computer-files-toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; margin:12px 0; }
+.computer-files-toolbar input, .computer-file-editor input, .computer-file-editor textarea { width:100%; min-width:0; border:1px solid var(--border); border-radius:10px; background:var(--surface-soft); color:var(--text); padding:11px 12px; font:inherit; }
+.computer-files-layout { display:grid; grid-template-columns:minmax(190px,.72fr) minmax(0,1.6fr); gap:14px; align-items:start; }
+.computer-files-list { display:flex; flex-direction:column; gap:6px; min-width:0; max-height:460px; overflow:auto; padding:6px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+.computer-file-entry { width:100%; text-align:left; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--text); padding:9px 10px; font:inherit; font-size:12px; overflow-wrap:anywhere; cursor:pointer; }
+.computer-file-entry:hover, .computer-file-entry:focus-visible { background:var(--surface-soft); border-color:var(--border); }
+.computer-file-editor { min-width:0; display:grid; gap:8px; }
+.computer-file-editor label { color:var(--muted); font-size:12px; }
+.computer-file-editor textarea { resize:vertical; min-height:220px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:12px; line-height:1.5; }
+.computer-file-actions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }
+#computer-file-status { overflow-wrap:anywhere; }
+@media(max-width:640px) { .computer-files-layout { grid-template-columns:minmax(0,1fr); } .computer-files-list { max-height:220px; } .computer-files-toolbar { grid-template-columns:minmax(0,1fr); } .computer-files-toolbar button { width:100%; } }

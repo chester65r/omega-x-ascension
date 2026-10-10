@@ -3,7 +3,7 @@ import secrets
 from pathlib import Path
 
 def secret(): return secrets.token_urlsafe(36)
-owner, app, worker, checkpoint, redis, jwt = secret(), secret(), secret(), secret(), secret(), secret()
+owner, app, worker, checkpoint, redis, jwt, sandbox = secret(), secret(), secret(), secret(), secret(), secret(), secret()
 content=f'''OMEGA_ENV=development
 POSTGRES_PASSWORD={owner}
 OMEGA_APP_PASSWORD={app}
@@ -16,6 +16,9 @@ OMEGA_WORKER_DATABASE_URL=postgresql+asyncpg://omega_worker:{worker}@postgres:54
 OMEGA_CHECKPOINT_DATABASE_URL=postgresql://omega_checkpoint:{checkpoint}@postgres:5432/omega
 OMEGA_REDIS_URL=redis://:{redis}@redis:6379/0
 OMEGA_JWT_SECRET={jwt}
+OMEGA_SANDBOX_TOKEN={sandbox}
+OMEGA_SANDBOX_URL=http://sandbox:8090
+OMEGA_ENABLE_COMPUTER_EXECUTION=false
 OMEGA_JWT_ISSUER=omega-x
 OMEGA_JWT_AUDIENCE=omega-x-api
 OMEGA_JWT_ALGORITHM=HS256

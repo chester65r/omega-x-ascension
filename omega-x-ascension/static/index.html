@@ -20,7 +20,7 @@
           <h1>OMEGA<span>-X</span></h1>
           <p>ASCENSION CONTROL</p>
         </div>
-        <span class="version" id="app-version">v0.5.1</span>
+        <span class="version" id="app-version">v0.6.0</span>
       </div>
       <div class="connection-panel" aria-label="Server connection">
         <label class="sr-only" for="api-base">API server URL</label>
@@ -170,7 +170,27 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-heading"><div><p class="eyebrow">AUTHORIZED EXECUTION</p><h3>Computer terminal</h3></div><span class="section-chip">POLICY CONTROLLED</span></div>
+          <div class="card computer-files-card">
+          <div class="card-heading"><div><p class="eyebrow">ISOLATED WORKSPACE</p><h3>Files and editor</h3></div><span class="section-chip">SANDBOX</span></div>
+          <p class="form-hint">Files are stored only in your workspace inside the isolated sandbox. They are ephemeral and may be cleared when the sandbox container is recreated. File operations require explicit computer permissions.</p>
+          <div class="computer-files-toolbar">
+            <label class="sr-only" for="computer-path">Workspace folder path</label>
+            <input id="computer-path" type="text" value="." maxlength="240" placeholder="Workspace folder, e.g. .">
+            <button id="computer-files-refresh" class="btn btn-quiet" type="button">List files</button>
+          </div>
+          <div class="computer-files-layout">
+            <div id="computer-files-list" class="computer-files-list" aria-label="Workspace files"><div class="empty-state">Connect to the API and choose List files.</div></div>
+            <div class="computer-file-editor">
+              <label for="computer-file-editor-path">File path</label>
+              <input id="computer-file-editor-path" type="text" maxlength="240" placeholder="notes.txt">
+              <label for="computer-file-content">Text content (100 KB limit)</label>
+              <textarea id="computer-file-content" rows="12" maxlength="100000" placeholder="Open a text file or create a new file by entering a path here…"></textarea>
+              <div class="computer-file-actions"><button id="computer-file-read" class="btn btn-quiet" type="button">Open file</button><button id="computer-file-save" class="btn btn-primary" type="button">Save file</button></div>
+              <p id="computer-file-status" class="form-hint" role="status">Requires computer:read and computer:write scopes.</p>
+            </div>
+          </div>
+        </div>
+        <div class="card-heading"><div><p class="eyebrow">AUTHORIZED EXECUTION</p><h3>Computer terminal</h3></div><span class="section-chip">POLICY CONTROLLED</span></div>
           <div class="terminal"><div class="terminal-topline"><span></span><span></span><span></span><label>TERMINAL SESSION</label></div><div id="terminal-output" class="terminal-output">$ ready&#10;</div><div class="terminal-input-row"><span class="terminal-prompt">$</span><input type="text" id="terminal-input" placeholder="Enter command..." aria-label="Terminal command"><button id="terminal-run" class="btn btn-primary" type="button">Run</button></div></div>
         </div>
         <div class="card">
@@ -179,7 +199,7 @@
         </div>
       </section>
     </main>
-    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.5.1</span></footer>
+    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.6.0</span></footer>
   </div>
   <script src="/static/app.js"></script>
   <script>

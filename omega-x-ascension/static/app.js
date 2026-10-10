@@ -21,6 +21,10 @@
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
       throw new Error('Use a valid HTTP or HTTPS server URL without login details.');
     }
+    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+    if (parsed.protocol === 'http:' && !loopback) {
+      throw new Error('Remote API servers must use HTTPS. Plain HTTP is allowed only for localhost.');
+    }
     return parsed.origin + parsed.pathname.replace(/\/+$/, '');
   }
 
@@ -487,6 +491,110 @@
     if (browserHistoryIdx >= 0) navigateTo(browserHistory[browserHistoryIdx], false);
   });
 
+  // Sandbox file manager — the API validates permissions and the sandbox confines paths.
+  async function loadComputerFiles(directory) {
+    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    const path = (directory ?? $('#computer-path').value).trim() || '.';
+    $('#computer-path').value = path;
+    const list = $('#computer-files-list');
+    list.replaceChildren();
+    $('#computer-file-status').textContent = 'Loading workspace files…';
+    try {
+      const res = await api('/v1/computer/files?path=' + encodeURIComponent(path));
+      const data = await res.json();
+      const entries = Array.isArray(data.entries) ? data.entries : [];
+      if (path !== '.') {
+        const parent = path.replace(/\/+$/, '').split('/').slice(0, -1).join('/') || '.';
+        const up = document.createElement('button');
+        up.type = 'button';
+        up.className = 'computer-file-entry';
+        up.textContent = '↰  .. (parent folder)';
+        up.addEventListener('click', () => loadComputerFiles(parent));
+        list.appendChild(up);
+      }
+      if (!entries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'This folder is empty.';
+        list.appendChild(empty);
+      }
+      for (const entry of entries) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'computer-file-entry';
+        const label = entry.type === 'dir' ? '▸  ' : entry.type === 'link' ? '↗  ' : '·  ';
+        button.textContent = label + entry.name + (entry.type === 'file' ? '  (' + String(entry.size) + ' B)' : '');
+        button.title = entry.type === 'link' ? 'Symbolic links cannot be opened from the file manager.' : entry.name;
+        button.addEventListener('click', () => {
+          if (entry.type === 'dir') {
+            const base = path === '.' ? '' : path.replace(/\/+$/, '');
+            loadComputerFiles((base ? base + '/' : '') + entry.name);
+          } else if (entry.type === 'file') {
+            const base = path === '.' ? '' : path.replace(/\/+$/, '') + '/';
+            openComputerFile(base + entry.name);
+          } else {
+            $('#computer-file-status').textContent = 'Symbolic links are not opened by the file manager.';
+          }
+        });
+        list.appendChild(button);
+      }
+      $('#computer-file-status').textContent = data.truncated
+        ? 'Showing up to 200 entries. Use a narrower folder path.'
+        : 'Workspace: ' + path + ' · ' + entries.length + ' item(s)';
+    } catch (error) {
+      const message = document.createElement('div');
+      message.className = 'empty-state';
+      message.textContent = 'Cannot list files: ' + (error.message || String(error)) + '. Check computer:read permission and server policy.';
+      list.appendChild(message);
+      $('#computer-file-status').textContent = 'File listing failed.';
+    }
+  }
+
+  async function openComputerFile(path) {
+    if (!path || path.startsWith('/')) {
+      $('#computer-file-status').textContent = 'Enter a relative workspace path.';
+      return;
+    }
+    $('#computer-file-editor-path').value = path;
+    $('#computer-file-status').textContent = 'Opening ' + path + '…';
+    try {
+      const res = await api('/v1/computer/files/read?path=' + encodeURIComponent(path));
+      const data = await res.json();
+      $('#computer-file-content').value = data.content ?? '';
+      $('#computer-file-status').textContent = 'Opened ' + path;
+    } catch (error) {
+      $('#computer-file-status').textContent = 'Open failed: ' + (error.message || String(error)) + '. New files can be created by entering a relative path and saving.';
+    }
+  }
+
+  $('#computer-files-refresh').addEventListener('click', () => loadComputerFiles());
+  $('#computer-file-read').addEventListener('click', () => openComputerFile($('#computer-file-editor-path').value.trim()));
+  $('#computer-file-save').addEventListener('click', async () => {
+    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    const path = $('#computer-file-editor-path').value.trim();
+    if (!path || path.startsWith('/')) {
+      $('#computer-file-status').textContent = 'Enter a relative workspace file path first.';
+      return;
+    }
+    if (!window.confirm('Save this text into the isolated workspace file "' + path + '"?')) return;
+    const button = $('#computer-file-save');
+    button.disabled = true;
+    $('#computer-file-status').textContent = 'Saving ' + path + '…';
+    try {
+      await api('/v1/computer/files', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, content: $('#computer-file-content').value }),
+      });
+      $('#computer-file-status').textContent = 'Saved ' + path;
+      await loadComputerFiles();
+    } catch (error) {
+      $('#computer-file-status').textContent = 'Save failed: ' + (error.message || String(error)) + '. Requires computer:write and runs:approve.';
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   // Terminal — server policy remains authoritative.
   function termPrint(message) {
     const output = $('#terminal-output');
@@ -499,6 +607,7 @@
     const input = $('#terminal-input');
     const command = input.value.trim();
     if (!command) return;
+    if (!window.confirm('Run this command inside the isolated computer sandbox?\n\n' + command)) return;
     termPrint('$ ' + command);
     input.value = '';
     const button = $('#terminal-run');

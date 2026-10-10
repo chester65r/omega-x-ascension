@@ -24,3 +24,29 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 - Protect backups, provider keys, and the `.env` file. Never commit them.
 - A debug APK is for testing. A production Android release needs a privately held signing key and a release build.
 - Mark deployment and live inference complete only after testing on the actual host and Android device.
+
+
+## Isolated computer sandbox
+
+The API and worker do **not** execute shell commands in their own containers. The computer tool is routed to a separate sandbox service on a Docker internal network. The sandbox has a read-only image layer, bounded CPU/RAM/processes/output, no external network route, and a shared credential kept out of command environments.
+
+Start with `OMEGA_ENABLE_COMPUTER_EXECUTION=false`. Only after reviewing your deployment, change it to `true`, rebuild/restart the stack, and issue a short-lived operator token that explicitly includes `computer:execute`, `computer:read`, and/or `computer:write`. The interactive terminal also requires `runs:approve`. Agent workflows cannot run computer commands unless the task requests `execute_code` and the run passes the existing human approval gate.
+
+**Security boundary:** this container sandbox is intended for a trusted single-operator deployment and development tasks. It is not a replacement for a hardened per-job VM, gVisor, or Firecracker boundary for untrusted multi-tenant public SaaS. Leave computer execution off on public-facing deployments. Workspace contents are ephemeral and clear when the sandbox container is recreated.
+
+## Local model without a paid API
+
+For a local Ollama service on the same Docker host, start the optional profile:
+
+```bash
+docker compose --profile local-model up --build -d
+docker compose exec ollama ollama pull qwen2.5:0.5b
+python scripts/configure_provider.py --name local-ollama --base-url http://ollama:11434/v1 --model qwen2.5:0.5b
+docker compose up --build -d api worker
+```
+
+The first model download needs storage and CPU/RAM. A Termux model running on the phone powers the Android **Local AI** chat tab only; it does not host PostgreSQL, Redis, the workflow API, or a remotely reachable backend.
+
+## Provider key setup
+
+Run `python scripts/configure_provider.py` inside the backend project. It prompts for the provider endpoint, model ID, capabilities and API key without echoing the key, then writes only to `.env` with restrictive permissions. External endpoints should use HTTPS. This tool cannot create credentials for a third-party account; obtain an API key from that provider's official dashboard. Never commit `.env`.

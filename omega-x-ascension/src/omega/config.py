@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     model_providers: list[ProviderConfig] = Field(default_factory=list)
     log_level: str = "INFO"
     enable_computer_execution: bool = False
+    sandbox_url: str = "http://sandbox:8090"
+    sandbox_token: SecretStr | None = None
 
 
 @lru_cache

@@ -22,7 +22,7 @@ def main() -> None:
     parser.add_argument(
         "--scopes",
         default="runs:read runs:write runs:approve",
-        help="Space-separated scopes (default grants run read/write/approve)",
+        help="Space-separated scopes. Computer scopes are powerful and must be granted explicitly.",
     )
     parser.add_argument(
         "--minutes",
@@ -39,7 +39,7 @@ def main() -> None:
     except ValueError:
         parser.error("--tenant-id must be a valid UUID")
     scopes = set(args.scopes.split())
-    allowed = {"runs:read", "runs:write", "runs:approve"}
+    allowed = {"runs:read", "runs:write", "runs:approve", "computer:read", "computer:write", "computer:execute"}
     if not scopes or scopes - allowed:
         parser.error(f"--scopes must contain only: {' '.join(sorted(allowed))}")
 

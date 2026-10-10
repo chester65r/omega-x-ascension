@@ -27,7 +27,7 @@ async def process(repo,workflow,tenant_id,run_id,job_id,attempt,worker_id):
             await repo.finish_job(tenant_id,job_id,attempt,worker_id,True); return
         run.status=RunStatus.RUNNING; await repo.save(tenant_id,run); await repo.append_event(tenant_id,run_id,'run.started',{'attempt':attempt})
         try:
-            result=await workflow.run(tenant_id,run_id,run.goal,run.task_type)
+            result=await workflow.run(tenant_id,run_id,run.goal,run.task_type,requested_actions=run.requested_actions)
             if lease_task.done(): await lease_task
             if not await repo.complete_success(tenant_id,job_id,attempt,worker_id,result['final']): raise RuntimeError("stale worker completion rejected")
         except Exception as exc:
@@ -44,7 +44,13 @@ async def main():
     engine=build_engine(cfg.worker_database_url); maker=async_sessionmaker(engine,expire_on_commit=False); repo=SqlRunRepository(maker)
     http=httpx.AsyncClient(); router=ModelRouter(StaticRegistry([OpenAICompatibleGateway(p,http) for p in cfg.model_providers])); worker_id=f'{socket.gethostname()}:{os.getpid()}'
     try:
-        browser=BrowserTool(http); computer=ComputerTool(enabled=cfg.enable_computer_execution)
+        browser=BrowserTool(http)
+        computer=ComputerTool(
+            client=http,
+            base_url=cfg.sandbox_url,
+            token=cfg.sandbox_token.get_secret_value() if cfg.sandbox_token else None,
+            enabled=cfg.enable_computer_execution,
+        )
         async with AsyncPostgresSaver.from_conn_string(cfg.checkpoint_database_url) as saver:
             workflow=CoreWorkflow(router,saver,browser,computer)
             while True:

@@ -13,6 +13,31 @@ services:
     volumes: ["redis_data:/data"]
     healthcheck: {test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping"], interval: 5s, timeout: 5s, retries: 20}
     environment: {REDIS_PASSWORD: "${REDIS_PASSWORD:?set REDIS_PASSWORD}"}
+  sandbox:
+    build: .
+    command: ["python", "-m", "omega.sandbox_service"]
+    env_file: .env
+    networks: [sandbox_internal]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+      - /workspace:rw,nosuid,nodev,size=256m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    init: true
+    pids_limit: 64
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    restart: unless-stopped
+    healthcheck: {test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health')"], interval: 10s, timeout: 3s, retries: 5}
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-model"]
+    volumes: ["ollama_data:/root/.ollama"]
+    restart: unless-stopped
+
   migrate:
     build: .
     command: ["python", "scripts/migrate.py"]
@@ -22,8 +47,12 @@ services:
   api:
     build: .
     env_file: .env
+    networks: [default, sandbox_internal]
     ports: ["127.0.0.1:8000:8000"]
-    depends_on: {migrate: {condition: service_completed_successfully}, redis: {condition: service_healthy}}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+      sandbox: {condition: service_healthy}
     restart: unless-stopped
     read_only: true
     tmpfs: ["/tmp"]
@@ -33,9 +62,16 @@ services:
     build: .
     command: ["python", "-m", "omega.worker"]
     env_file: .env
-    depends_on: {migrate: {condition: service_completed_successfully}, redis: {condition: service_healthy}}
+    networks: [default, sandbox_internal]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+      sandbox: {condition: service_healthy}
     restart: unless-stopped
     read_only: true
     tmpfs: ["/tmp"]
     security_opt: ["no-new-privileges:true"]
-volumes: {postgres_data: {}, redis_data: {}}
+volumes: {postgres_data: {}, redis_data: {}, ollama_data: {}}
+networks:
+  sandbox_internal:
+    internal: true

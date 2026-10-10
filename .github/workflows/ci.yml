@@ -33,6 +33,11 @@ jobs:
         run: python -m compileall -q src scripts tests
       - name: Validate dashboard JavaScript syntax
         run: node --check static/app.js
+      - name: Validate Docker Compose topology
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          rm -f .env
 
       - name: Run tests
         run: pytest -q

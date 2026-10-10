@@ -59,3 +59,11 @@ def test_dashboard_has_local_ai_tab_and_chat_controls():
         'id="local-ai-send"',
     ):
         assert required in html
+
+
+def test_local_ai_android_mixed_content_is_restricted_to_loopback():
+    main_activity = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text()
+    network_config = Path("../android/app/src/main/res/xml/network_security_config.xml").read_text()
+    assert "MIXED_CONTENT_COMPATIBILITY_MODE" in main_activity
+    assert 'cleartextTrafficPermitted="false"' in network_config
+    assert "127.0.0.1" in network_config and "localhost" in network_config
