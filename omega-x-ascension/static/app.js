@@ -10,10 +10,9 @@
   let browserHistoryIdx = -1;
   const startTime = Date.now();
 
-  // ── Token / Auth ──
   function setConnected(connected) {
     const badge = $('#conn-status');
-    badge.textContent = connected ? 'Connected' : 'Disconnected';
+    badge.innerHTML = '<span class="status-dot"></span> ' + (connected ? 'Connected' : 'Disconnected');
     badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
   }
 
@@ -22,7 +21,7 @@
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
       throw new Error('Use a valid HTTP or HTTPS server URL without login details.');
     }
-    return parsed.origin + parsed.pathname.replace(/\\/+$/, '');
+    return parsed.origin + parsed.pathname.replace(/\/+$/, '');
   }
 
   async function apiFetch(path, options = {}) {
@@ -42,12 +41,23 @@
   });
 
   $('#jwt-token').value = token;
-  if (token) setConnected(true);
+  setConnected(false);
   $('#connect-btn').addEventListener('click', () => {
     token = $('#jwt-token').value.trim();
+    if (!token) {
+      sessionStorage.removeItem('omega-jwt');
+      setConnected(false);
+      alert('Paste a signed JWT token first.');
+      return;
+    }
+    if (!apiBase) {
+      alert('Save your API server URL first.');
+      return;
+    }
     sessionStorage.setItem('omega-jwt', token);
-    setConnected(!!token);
-    if (token) { startPolling(); loadRuns(); }
+    setConnected(true);
+    startPolling();
+    loadRuns();
   });
 
   function authHeaders() {
@@ -63,37 +73,53 @@
     return res;
   }
 
-  // ── Tabs ──
-  $$('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      $$('.tab').forEach((t) => t.classList.remove('active'));
-      $$('.tab-content').forEach((c) => c.classList.remove('active'));
-      tab.classList.add('active');
-      $('#' + tab.dataset.tab).classList.add('active');
+  // Main navigation
+  function activateTab(name) {
+    const target = $('#' + name);
+    if (!target || !target.classList.contains('tab-content')) return;
+    $$('.tab').forEach((tab) => {
+      const active = tab.dataset.tab === name;
+      tab.classList.toggle('active', active);
+      if (active) tab.setAttribute('aria-current', 'page');
+      else tab.removeAttribute('aria-current');
     });
-  });
+    $$('.tab-content').forEach((panel) => panel.classList.toggle('active', panel.id === name));
+    target.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+  $$('.tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+  $$('[data-go-tab]').forEach((button) => button.addEventListener('click', () => activateTab(button.dataset.goTab)));
 
-  // ── Overview ──
+  // Overview
   async function pollHealth() {
     try {
-      const live = await (await apiFetch('/health/live')).json();
-      $('#health-live').textContent = live.status === 'ok' ? 'OK' : 'ERR';
+      const response = await apiFetch('/health/live');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const live = await response.json();
+      $('#health-live').textContent = live.status === 'ok' ? 'Online' : 'Error';
       $('#card-live').className = 'card stat-card ' + (live.status === 'ok' ? 'ok' : 'err');
-    } catch { $('#health-live').textContent = 'ERR'; $('#card-live').className = 'card stat-card err'; }
-
+    } catch {
+      $('#health-live').textContent = 'Offline';
+      $('#card-live').className = 'card stat-card err';
+    }
     try {
-      const ready = await (await apiFetch('/health/ready')).json();
+      const response = await apiFetch('/health/ready');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const ready = await response.json();
       if (ready.status === 'ready') {
         $('#health-ready').textContent = 'Ready';
         $('#card-ready').className = 'card stat-card ok';
         $('#model-count').textContent = ready.configured_models ?? 0;
         loadModels();
       } else {
-        $('#health-ready').textContent = 'Not Ready';
+        $('#health-ready').textContent = 'Waiting';
         $('#card-ready').className = 'card stat-card err';
+        $('#model-count').textContent = ready.configured_models ?? 0;
       }
-    } catch { $('#health-ready').textContent = 'ERR'; $('#card-ready').className = 'card stat-card err'; }
-
+    } catch {
+      $('#health-ready').textContent = 'Offline';
+      $('#card-ready').className = 'card stat-card err';
+      $('#model-count').textContent = '--';
+    }
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const m = Math.floor(elapsed / 60), s = elapsed % 60;
     $('#uptime').textContent = `${m}m ${s}s`;
@@ -101,90 +127,120 @@
 
   async function loadModels() {
     try {
-      const ready = await (await apiFetch('/health/ready')).json();
+      const response = await apiFetch('/health/ready');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const ready = await response.json();
       const count = ready.configured_models ?? 0;
       const list = $('#models-list');
       if (count === 0) {
-        list.textContent = 'No models configured';
+        list.innerHTML = '<div class="empty-state">No model providers are configured.</div>';
         return;
       }
-      list.textContent = count + ' provider(s) configured';
+      list.innerHTML = '';
+      const item = document.createElement('div');
+      item.className = 'model-item';
+      const name = document.createElement('div');
+      name.className = 'model-name';
+      name.textContent = count + (count === 1 ? ' provider configured' : ' providers configured');
+      const url = document.createElement('div');
+      url.className = 'model-url';
+      url.textContent = 'Provider endpoints are configured on the server.';
+      item.append(name, url);
+      list.appendChild(item);
     } catch {
-      $('#models-list').textContent = 'Failed to load model status';
+      $('#models-list').innerHTML = '<div class="empty-state">Unable to read model status. Check the API server.</div>';
     }
   }
 
   async function loadMetrics() {
     try {
       const res = await apiFetch('/metrics');
-      const text = await res.text();
-      const lines = text.split('\n').filter((l) => !l.startsWith('#')).slice(0, 30);
-      $('#metrics').textContent = lines.join('\n');
-    } catch { $('#metrics').textContent = 'Failed to load metrics'; }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const content = await res.text();
+      const lines = content.split('\n').filter((line) => line && !line.startsWith('#')).slice(0, 30);
+      $('#metrics').textContent = lines.length ? lines.join('\n') : 'No metrics reported yet.';
+    } catch {
+      $('#metrics').textContent = apiBase ? 'Metrics unavailable. Verify the server connection.' : 'Save your API server URL to view metrics.';
+    }
   }
 
   function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
     if (!apiBase) {
-      $('#health-live').textContent = 'Set server URL';
-      $('#health-ready').textContent = 'Set server URL';
-      $('#models-list').textContent = 'Save your API server URL to connect.';
+      $('#health-live').textContent = 'Set URL';
+      $('#health-ready').textContent = 'Set URL';
+      $('#models-list').innerHTML = '<div class="empty-state">Save your API server URL to inspect model status.</div>';
       $('#metrics').textContent = 'Waiting for server configuration.';
       return;
     }
     pollHealth();
     loadMetrics();
-    pollTimer = setInterval(() => { pollHealth(); loadMetrics(); }, 5000);
+    pollTimer = setInterval(() => { pollHealth(); loadMetrics(); }, 10000);
   }
 
-  // ── Runs ──
+  // Runs
   let selectedRunId = null;
 
   async function loadRuns() {
-    if (!token) return;
-    // Note: the API doesn't have a list endpoint, so we track runs locally
+    if (!token) {
+      $('#runs-list').innerHTML = '<div class="empty-state">Connect with a signed JWT to manage runs.</div>';
+      return;
+    }
     const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
     const list = $('#runs-list');
-    if (runs.length === 0) { list.textContent = 'No runs yet. Create one!'; return; }
+    if (runs.length === 0) {
+      list.innerHTML = '<div class="empty-state">No runs in this session yet. Create your first task.</div>';
+      return;
+    }
     list.innerHTML = '';
-    for (const r of runs) {
-      const div = document.createElement('div');
-      div.className = 'run-item' + (r.id === selectedRunId ? ' active' : '');
-      div.innerHTML = `
-        <div class="run-id">${escapeHtml(r.id.substring(0, 8))}</div>
-        <div class="run-goal">${escapeHtml(r.goal.substring(0, 80))}</div>
-        <span class="run-status ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span>`;
-      div.addEventListener('click', () => { selectedRunId = r.id; loadRunDetail(r.id); loadRuns(); });
-      list.appendChild(div);
+    for (const run of runs) {
+      const item = document.createElement('div');
+      item.className = 'run-item' + (run.id === selectedRunId ? ' active' : '');
+      const id = document.createElement('div');
+      id.className = 'run-id';
+      id.textContent = String(run.id).substring(0, 8);
+      const goal = document.createElement('div');
+      goal.className = 'run-goal';
+      goal.textContent = String(run.goal || '').substring(0, 120);
+      const status = document.createElement('span');
+      status.className = 'run-status ' + String(run.status || 'pending').replace(/[^a-z_]/g, '');
+      status.textContent = String(run.status || 'pending').replace(/_/g, ' ');
+      item.append(id, goal, status);
+      item.addEventListener('click', () => { selectedRunId = run.id; loadRunDetail(run.id); loadRuns(); });
+      list.appendChild(item);
     }
   }
 
   async function loadRunDetail(runId) {
     if (!token) return;
     try {
-      const res = await api(`/v1/runs/${runId}`);
+      const res = await api(`/v1/runs/${encodeURIComponent(runId)}`);
       const run = await res.json();
-      // Update local store
       const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
-      const idx = runs.findIndex((r) => r.id === runId);
-      if (idx >= 0) { runs[idx].status = run.status; runs[idx].output = run.output; runs[idx].error = run.error; sessionStorage.setItem('omega-runs', JSON.stringify(runs)); }
+      const idx = runs.findIndex((item) => item.id === runId);
+      if (idx >= 0) {
+        runs[idx].status = run.status;
+        runs[idx].output = run.output;
+        runs[idx].error = run.error;
+        sessionStorage.setItem('omega-runs', JSON.stringify(runs));
+      }
       const detail = $('#run-detail');
       detail.innerHTML = `
         <dl>
           <dt>ID</dt><dd><code>${escapeHtml(run.id)}</code></dd>
           <dt>Goal</dt><dd>${escapeHtml(run.goal)}</dd>
-          <dt>Task Type</dt><dd>${escapeHtml(run.task_type)}</dd>
-          <dt>Status</dt><dd><span class="run-status ${escapeHtml(run.status)}">${escapeHtml(run.status)}</span></dd>
+          <dt>Task type</dt><dd>${escapeHtml(run.task_type)}</dd>
+          <dt>Status</dt><dd><span class="run-status ${escapeHtml(run.status)}">${escapeHtml(String(run.status || '').replace(/_/g, ' '))}</span></dd>
           <dt>Output</dt><dd>${run.output ? '<pre>' + escapeHtml(run.output) + '</pre>' : '—'}</dd>
           <dt>Error</dt><dd>${run.error ? '<pre style="color:var(--error)">' + escapeHtml(run.error) + '</pre>' : '—'}</dd>
-        </dl>${run.status === 'waiting_approval' ? '<button id="approve-run" class="btn btn-primary">Approve run</button>' : ''}`;
+        </dl>${run.status === 'waiting_approval' ? '<button id="approve-run" class="btn btn-primary" type="button">Approve run</button>' : ''}`;
       const approveButton = $('#approve-run');
       if (approveButton) {
         approveButton.addEventListener('click', async () => {
           approveButton.disabled = true;
           try {
-            await api(`/v1/runs/${runId}/approve`, { method: 'POST' });
-            addAgentLog('success', `Approved run ${runId.substring(0, 8)}`);
+            await api(`/v1/runs/${encodeURIComponent(runId)}/approve`, { method: 'POST' });
+            addAgentLog('success', `Approved run ${String(runId).substring(0, 8)}`);
             await loadRunDetail(runId);
             await loadRuns();
           } catch (e) {
@@ -193,19 +249,20 @@
           }
         });
       }
-      addAgentLog('info', `Run ${runId.substring(0, 8)} status: ${run.status}`);
-      if (run.status === 'running') {
-        setTimeout(() => loadRunDetail(runId), 3000);
-      }
+      addAgentLog('info', `Run ${String(runId).substring(0, 8)} status: ${run.status}`);
+      if (run.status === 'running') setTimeout(() => loadRunDetail(runId), 3000);
     } catch (e) { $('#run-detail').textContent = 'Error: ' + e.message; }
   }
 
-  $('#create-run-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!token) { alert('Connect with a JWT token first'); return; }
+  $('#create-run-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!token) { alert('Connect with a signed JWT token first.'); return; }
     const goal = $('#run-goal').value.trim();
     const task_type = $('#run-task-type').value;
-    const actions = $('#run-actions').value.split(',').map((s) => s.trim()).filter(Boolean);
+    const actions = $('#run-actions').value.split(',').map((value) => value.trim()).filter(Boolean);
+    const submit = $('#create-run-form').querySelector('[type="submit"]');
+    submit.disabled = true;
+    submit.textContent = 'Launching…';
     try {
       const res = await api('/v1/runs', {
         method: 'POST',
@@ -214,41 +271,47 @@
       });
       const run = await res.json();
       const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
-      runs.unshift({ id: run.id, goal: run.goal, status: run.status, output: null, error: null });
+      runs.unshift({ id: run.id, goal: run.goal || goal, status: run.status || 'pending', output: null, error: null });
       sessionStorage.setItem('omega-runs', JSON.stringify(runs));
       selectedRunId = run.id;
-      loadRuns();
-      loadRunDetail(run.id);
-      addAgentLog('success', `Created run ${run.id.substring(0, 8)} — ${task_type}`);
+      await loadRuns();
+      await loadRunDetail(run.id);
+      addAgentLog('success', `Created run ${String(run.id).substring(0, 8)} — ${task_type}`);
       $('#run-goal').value = '';
       $('#run-actions').value = '';
     } catch (e) { alert('Failed to create run: ' + e.message); }
-  });
-
-  $('#refresh-runs').addEventListener('click', () => {
-    const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
-    runs.forEach((r) => loadRunDetail(r.id));
-    loadRuns();
-  });
-
-  // ── Browser ──
-  async function navigateTo(url) {
-    if (!token) { alert('Connect with a JWT token first'); return; }
-    if (!url) return;
-    // If it doesn't look like a URL, treat it as a search query
-    if (!/^https?:\/\//i.test(url)) {
-      if (url.includes('.') && !url.includes(' ')) { url = 'https://' + url; }
-      else { url = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(url); }
+    finally {
+      submit.disabled = false;
+      submit.innerHTML = 'Launch workflow <span aria-hidden="true">↗</span>';
     }
-    $('#browser-status').textContent = 'Loading ' + url + '...';
+  });
+
+  $('#refresh-runs').addEventListener('click', async () => {
+    const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
+    await Promise.all(runs.map((run) => loadRunDetail(run.id)));
+    await loadRuns();
+  });
+
+  // Browser
+  async function navigateTo(value, recordHistory = true) {
+    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    if (!value) return;
+    let url = value;
+    if (!/^https?:\/\//i.test(url)) {
+      if (url.includes('.') && !url.includes(' ')) url = 'https://' + url;
+      else url = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(url);
+    }
+    $('#browser-status').textContent = 'Loading ' + url + '…';
     try {
       const res = await api('/v1/browser/proxy?url=' + encodeURIComponent(url));
       const html = await res.text();
       $('#browser-frame').srcdoc = html;
       $('#browser-status').textContent = 'Loaded ' + url;
-      browserHistory = browserHistory.slice(0, browserHistoryIdx + 1);
-      browserHistory.push(url);
-      browserHistoryIdx = browserHistory.length - 1;
+      if (recordHistory) {
+        browserHistory = browserHistory.slice(0, browserHistoryIdx + 1);
+        browserHistory.push(url);
+        browserHistoryIdx = browserHistory.length - 1;
+      }
       $('#browser-url').value = url;
     } catch (e) {
       $('#browser-status').textContent = 'Error: ' + e.message;
@@ -256,62 +319,76 @@
   }
 
   $('#browser-go').addEventListener('click', () => navigateTo($('#browser-url').value.trim()));
-  $('#browser-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') navigateTo(e.target.value.trim()); });
+  $('#browser-url').addEventListener('keydown', (event) => { if (event.key === 'Enter') navigateTo(event.target.value.trim()); });
   $('#browser-back').addEventListener('click', () => {
-    if (browserHistoryIdx > 0) { browserHistoryIdx--; navigateTo(browserHistory[browserHistoryIdx]); }
+    if (browserHistoryIdx > 0) {
+      browserHistoryIdx--;
+      navigateTo(browserHistory[browserHistoryIdx], false);
+    }
   });
   $('#browser-forward').addEventListener('click', () => {
-    if (browserHistoryIdx < browserHistory.length - 1) { browserHistoryIdx++; navigateTo(browserHistory[browserHistoryIdx]); }
+    if (browserHistoryIdx < browserHistory.length - 1) {
+      browserHistoryIdx++;
+      navigateTo(browserHistory[browserHistoryIdx], false);
+    }
   });
   $('#browser-reload').addEventListener('click', () => {
-    if (browserHistoryIdx >= 0) navigateTo(browserHistory[browserHistoryIdx]);
+    if (browserHistoryIdx >= 0) navigateTo(browserHistory[browserHistoryIdx], false);
   });
 
-  // ── Terminal ──
-  function termPrint(text) {
-    const out = $('#terminal-output');
-    out.textContent += text + '\n';
-    out.scrollTop = out.scrollHeight;
+  // Terminal — server policy remains authoritative.
+  function termPrint(message) {
+    const output = $('#terminal-output');
+    if (output.querySelector('.empty-state')) output.textContent = '';
+    output.textContent += message + '\n';
+    output.scrollTop = output.scrollHeight;
   }
-
   async function runCommand() {
-    if (!token) { alert('Connect with a JWT token first'); return; }
-    const cmd = $('#terminal-input').value.trim();
-    if (!cmd) return;
-    termPrint('$ ' + cmd);
-    $('#terminal-input').value = '';
+    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    const input = $('#terminal-input');
+    const command = input.value.trim();
+    if (!command) return;
+    termPrint('$ ' + command);
+    input.value = '';
+    const button = $('#terminal-run');
+    button.disabled = true;
     try {
       const res = await api('/v1/computer/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: cmd }),
+        body: JSON.stringify({ command }),
       });
       const result = await res.json();
       if (result.stdout) termPrint(result.stdout);
       if (result.stderr) termPrint(result.stderr);
       termPrint(`[exit ${result.returncode}]`);
     } catch (e) { termPrint('Error: ' + e.message); }
+    finally { button.disabled = false; }
   }
-
   $('#terminal-run').addEventListener('click', runCommand);
-  $('#terminal-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') runCommand(); });
+  $('#terminal-input').addEventListener('keydown', (event) => { if (event.key === 'Enter') runCommand(); });
 
-  // ── Agent Log ──
-  function addAgentLog(level, msg) {
+  // Agent log
+  function addAgentLog(level, message) {
     const log = $('#agent-log');
-    const time = new Date().toLocaleTimeString();
+    const empty = log.querySelector('.empty-state');
+    if (empty) empty.remove();
     const entry = document.createElement('div');
     entry.className = 'log-entry';
-    entry.innerHTML = `<span class="log-time">${time}</span> <span class="log-level ${level}">[${level}]</span> ${escapeHtml(msg)}`;
+    const time = document.createElement('span');
+    time.className = 'log-time';
+    time.textContent = new Date().toLocaleTimeString();
+    const label = document.createElement('span');
+    label.className = 'log-level ' + level;
+    label.textContent = '[' + level + ']';
+    entry.append(time, document.createTextNode(' '), label, document.createTextNode(' ' + String(message)));
     log.prepend(entry);
   }
 
-  // ── Utils ──
-  function escapeHtml(s) {
-    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // ── Init ──
   startPolling();
   loadRuns();
 })();
