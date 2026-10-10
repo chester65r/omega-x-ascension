@@ -121,18 +121,26 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
       - name: Run Android emulator UI smoke test
-        timeout-minutes: 10
+        timeout-minutes: 18
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
-          target: google_atd
+          target: google_apis
           arch: x86_64
           profile: pixel_2
           cores: 2
           ram-size: 2048M
           heap-size: 512M
-          emulator-boot-timeout: 420
+          emulator-boot-timeout: 600
           disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: cd android && ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
