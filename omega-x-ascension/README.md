@@ -74,3 +74,7 @@ docker compose up --build
 Never use the example secrets outside local development.
 
 Computer/shell execution is disabled by default and is not a hardened public sandbox. Keep OMEGA_ENABLE_COMPUTER_EXECUTION=false for internet-facing or multi-tenant deployments.
+
+## Deployment and first-run verification
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for provider configuration, secure environment setup, operator-token issuance, backend health checks, and Android connection guidance. Live model inference requires a real provider endpoint and key; the default configuration intentionally does not pretend to have one.
