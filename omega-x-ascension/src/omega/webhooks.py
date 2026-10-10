@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, SecretStr
 
 from omega.auth import Principal, current_principal
 from omega.config import Capability, get_settings
-from omega.domain import ApprovalPolicy, Principal, RunStatus, WorkflowRun
+from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
 from omega.notifications import (
     notify_approval_requested,
     notify_run_status_change,
