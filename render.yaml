@@ -63,7 +63,7 @@ services:
       - key: OMEGA_HF_INFERENCE_TOKEN
         sync: false
       - key: OMEGA_HF_INFERENCE_MODEL
-        value: Qwen/Qwen3-4B
+        value: Qwen/Qwen3-4B:featherless-ai
       - key: OMEGA_HF_INFERENCE_BASE_URL
         value: https://router.huggingface.co/v1
       - key: OMEGA_ENABLE_COMPUTER_EXECUTION
