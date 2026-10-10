@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     sandbox_url: str = "http://sandbox:8090"
     sandbox_token: SecretStr | None = None
 
+    # Webhooks & External Notifications
+    github_webhook_secret: SecretStr | None = None
+    slack_webhook_url: SecretStr | None = None
+    telegram_bot_token: SecretStr | None = None
+    telegram_chat_id: str | None = None
+    notifications_enabled: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

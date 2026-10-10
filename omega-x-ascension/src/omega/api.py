@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security, status
@@ -7,9 +8,10 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from omega.auth import Principal, current_principal
-from omega.config import Capability
+from omega.config import Capability, get_settings
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
 from omega.model_router import NoEligibleModel
+from omega.notifications import notify_approval_requested
 
 router = APIRouter()
 
@@ -71,6 +73,20 @@ async def create_run(
         principal.user_id,
         run.status == RunStatus.PENDING,
     )
+
+    if run.status == RunStatus.WAITING_APPROVAL:
+        cfg = get_settings()
+        if cfg.notifications_enabled:
+            asyncio.create_task(
+                notify_approval_requested(
+                    run,
+                    slack_webhook_url=cfg.slack_webhook_url,
+                    telegram_bot_token=cfg.telegram_bot_token,
+                    telegram_chat_id=cfg.telegram_chat_id,
+                    client=svc.http,
+                )
+            )
+
     return view(run)
 
 

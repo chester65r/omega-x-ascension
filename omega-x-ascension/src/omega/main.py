@@ -20,6 +20,7 @@ from omega.adapters.database import SqlRunRepository, build_engine
 from omega.adapters.models import StaticRegistry, build_gateways
 from omega.api import router
 from omega.mcp import router as mcp_router
+from omega.webhooks import router as webhooks_router
 from omega.config import get_settings
 from omega.model_router import ModelRouter
 from omega.tools import BrowserTool, ComputerTool
@@ -86,11 +87,14 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-GitHub-Event", "X-Hub-Signature-256"],
 )
 app.include_router(router, prefix="/v1")
 app.include_router(mcp_router, prefix="/mcp")
 app.include_router(mcp_router, prefix="/v1/mcp")
+app.include_router(webhooks_router, prefix="/webhooks")
+app.include_router(webhooks_router, prefix="/v1/webhooks")
+
 _static_candidates = (
     Path(__file__).resolve().parents[2] / "static",
     Path.cwd() / "static",
@@ -157,8 +161,16 @@ async def version_info():
         "name": "OMEGA-X ASCENSION",
         "version": __import__("omega").__version__,
         "api_version": "v1",
-        "features": ["langgraph_feedback_loop", "mcp_server", "hitl_approval"],
+        "features": [
+            "langgraph_feedback_loop",
+            "mcp_server",
+            "hitl_approval",
+            "github_webhooks",
+            "slack_notifications",
+            "telegram_notifications",
+        ],
     }
+
 
 @app.get("/metrics")
 async def metrics():
