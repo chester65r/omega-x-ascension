@@ -24,6 +24,9 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v7
 
+      - name: Validate Termux setup script syntax
+        run: bash -n android/setup-local-ai-termux.sh
+
       - name: Set up Java 17
         uses: actions/setup-java@v6
         with:
