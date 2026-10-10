@@ -19,7 +19,9 @@ curl -fsSL https://raw.githubusercontent.com/chester65r/omega-x-ascension/main/a
 bash ~/setup-omega-local-ai.sh
 ```
 
-The setup needs at least 5 GB free storage and may take a while. Keep the Termux session open while chatting. The server binds only to `127.0.0.1:8080` and does not enable model shell tools.
+The setup needs at least 5 GB free storage and may take a while. It checks the phone's total RAM: devices with around 5 GB RAM or more use **Qwen3-1.7B Q4_K_M** (about 1.28 GB); lower-memory devices fall back to **Qwen2.5-0.5B Q4_K_M** (about 491 MB) to reduce out-of-memory risk. Both are local, downloadable model weights; the larger model is more capable but still smaller than hosted frontier models. Keep the Termux session open while chatting. The server binds only to `127.0.0.1:8080` and does not enable model shell tools.
+
+To explicitly choose a model before running the script, use `OMEGA_LOCAL_AI_MODEL=qwen3-1.7b bash ~/setup-omega-local-ai.sh` or `OMEGA_LOCAL_AI_MODEL=qwen2.5-0.5b bash ~/setup-omega-local-ai.sh`. Choose the larger one only if the phone has enough RAM and storage.
 
 The manual steps below are available if the script fails or you want to inspect each command.
 
@@ -40,12 +42,12 @@ Keep `-j2` to reduce memory pressure. If Android closes Termux or the build fail
 
 ## 3. Download a small model
 
-This Qwen 2.5 0.5B quantized model is a compact starting point, not a high-capability model. The model file is about 491 MB and is published under the Apache-2.0 license on Hugging Face.
+The script selects a stronger Qwen3 1.7B quantized model when memory allows, and keeps Qwen 2.5 0.5B as the fallback. The Qwen3 Q4_K_M file is about 1.28 GB; the Qwen 2.5 Q4_K_M file is about 491 MB. These local models are useful for on-device chat but are not a substitute for a larger hosted model for complex multi-step agent jobs.
 
 ```bash
 cd ~
-curl -L --fail --retry 3 -o qwen2.5-0.5b-instruct-q4_k_m.gguf \
-  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+curl -L --fail --retry 3 -o Qwen_Qwen3-1.7B-Q4_K_M.gguf \
+  https://huggingface.co/bartowski/Qwen_Qwen3-1.7B-GGUF/resolve/136153a4f0744c0fa07aa2807d15c4bc6dd28709/Qwen_Qwen3-1.7B-Q4_K_M.gguf
 ```
 
 ## 4. Start the local server
@@ -54,8 +56,8 @@ From the `llama.cpp` directory, run:
 
 ```bash
 ./build/bin/llama-server \
-  -m ~/qwen2.5-0.5b-instruct-q4_k_m.gguf \
-  -c 1024 -t 2 \
+  -m ~/Qwen_Qwen3-1.7B-Q4_K_M.gguf \
+  -c 2048 -t 2 \
   --host 127.0.0.1 --port 8080 \
   --cors-origins https://appassets.androidplatform.net \
   --no-webui
@@ -69,7 +71,7 @@ If the server says the model is loaded, open OMEGA-X ASCENSION and choose **Loca
 
 - **Build fails / Android kills Termux:** this phone may not have enough free RAM for a native build. Stop here and use a computer or a hosted inference provider instead; do not expect the OMEGA backend to run inside the Android app.
 - **Test connection fails:** confirm the server is still running and shows port 8080. Re-check the CORS option and that the URL in the app is `http://127.0.0.1:8080`.
-- **Responses are slow or basic:** expected for a 0.5B model on a phone. Close other apps and keep context size small.
+- **Responses are slow or basic:** expected for small local models on a phone. Close other apps and keep context size small; use the 0.5B model if the larger model runs out of memory.
 - **Server exits when switching apps:** set Termux battery usage to unrestricted in Android settings, then retry.
 - **Local chat works but Runs does not:** this is expected without the separate OMEGA backend; Local AI chat does not enable workflow execution or agent tools.
 
