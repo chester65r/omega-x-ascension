@@ -42,9 +42,10 @@
 
   $('#jwt-token').value = token;
   setConnected(false);
-  $('#connect-btn').addEventListener('click', () => {
-    token = $('#jwt-token').value.trim();
-    if (!token) {
+  $('#connect-btn').addEventListener('click', async () => {
+    const candidate = $('#jwt-token').value.trim();
+    if (!candidate) {
+      token = '';
       sessionStorage.removeItem('omega-jwt');
       setConnected(false);
       alert('Paste a signed JWT token first.');
@@ -54,10 +55,26 @@
       alert('Save your API server URL first.');
       return;
     }
+    const button = $('#connect-btn');
+    button.disabled = true;
+    button.textContent = 'Checking…';
+    token = candidate;
     sessionStorage.setItem('omega-jwt', token);
-    setConnected(true);
-    startPolling();
-    loadRuns();
+    try {
+      await api('/v1/runs?limit=1');
+      setConnected(true);
+      startPolling();
+      await loadRuns();
+      addAgentLog('success', 'API token verified successfully.');
+    } catch (error) {
+      token = '';
+      sessionStorage.removeItem('omega-jwt');
+      setConnected(false);
+      alert('Connection failed. Verify the API URL, token validity, and runs:read scope. ' + (error.message || ''));
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Connect';
+    }
   });
 
   function authHeaders() {
@@ -176,6 +193,11 @@
     pollHealth();
     loadMetrics();
     pollTimer = setInterval(() => { pollHealth(); loadMetrics(); }, 10000);
+    if (runPollTimer) clearInterval(runPollTimer);
+    runPollTimer = token ? setInterval(() => {
+      loadRuns();
+      if (selectedRunId) loadRunDetail(selectedRunId);
+    }, 10000) : null;
   }
 
   // Runs
