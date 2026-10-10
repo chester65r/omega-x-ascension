@@ -21,7 +21,9 @@ def database_url(user: str, password: str, driver: str) -> str:
 
 def main() -> None:
     import uvicorn
-    from scripts.migrate import main as migrate_main
+    # The script directory is sys.path[0] when launched as
+    # "python scripts/render_entrypoint.py"; import the sibling module directly.
+    from migrate import main as migrate_main
 
     owner = required("OMEGA_DB_OWNER_USER")
     owner_password = required("OMEGA_DB_OWNER_PASSWORD")
