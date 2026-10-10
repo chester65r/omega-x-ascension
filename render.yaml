@@ -60,6 +60,14 @@ services:
         generateValue: true
       - key: OMEGA_JWT_SECRET
         generateValue: true
+      - key: OMEGA_OPENAI_API_KEY
+        sync: false
+      - key: OMEGA_OPENAI_MODEL
+        value: gpt-6-astra
+      - key: OMEGA_OPENAI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: OMEGA_OPENAI_PRIORITY
+        value: "100"
       - key: OMEGA_HF_INFERENCE_TOKEN
         sync: false
       - key: OMEGA_HF_INFERENCE_MODEL
