@@ -36,6 +36,12 @@ public class MainActivity extends Activity {
     private static final int REQUEST_SPEECH = 4102;
 
     private WebView webView;
+    private volatile boolean dashboardLoaded = false;
+
+    // Package-private readiness signal for deterministic Android instrumentation tests.
+    boolean isDashboardLoaded() {
+        return dashboardLoaded;
+    }
     private WebViewAssetLoader assetLoader;
     private TextToSpeech textToSpeech;
     private boolean textToSpeechReady = false;
@@ -79,6 +85,14 @@ public class MainActivity extends Activity {
         configureNativeMessageChannel();
 
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                Uri uri = Uri.parse(url);
+                if (isTrustedAppAsset(uri)) {
+                    dashboardLoaded = true;
+                }
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(
                     WebView view, WebResourceRequest request) {
