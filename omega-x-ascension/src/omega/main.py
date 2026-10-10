@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import os
@@ -42,8 +43,22 @@ async def lifespan(app: FastAPI):
         files_enabled=cfg.enable_computer_files,
     )
     app.state.services=Services(SqlRunRepository(maker),model_router,redis,engine,http,browser,computer)
-    try: yield
-    finally: await http.aclose(); await redis.aclose(); await engine.dispose()
+    worker_task = None
+    if os.environ.get("OMEGA_EMBEDDED_WORKER", "").lower() == "true":
+        from omega.worker import main as worker_main
+        worker_task = asyncio.create_task(worker_main(), name="omega-embedded-worker")
+    try:
+        yield
+    finally:
+        if worker_task is not None:
+            worker_task.cancel()
+            try:
+                await worker_task
+            except asyncio.CancelledError:
+                pass
+        await http.aclose()
+        await redis.aclose()
+        await engine.dispose()
 
 app=FastAPI(title="OMEGA-X ASCENSION",version=__import__("omega").__version__,lifespan=lifespan)
 allowed_origins = ["https://appassets.androidplatform.net"]

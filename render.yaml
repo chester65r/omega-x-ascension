@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: omega-x-ascension-api
+    runtime: docker
+    repo: https://github.com/chester65r/omega-x-ascension
+    branch: main
+    region: frankfurt
+    plan: free
+    dockerContext: ./omega-x-ascension
+    dockerfilePath: ./omega-x-ascension/Dockerfile
+    dockerCommand: python scripts/render_entrypoint.py
+    autoDeploy: true
+    healthCheckPath: /health/live
+    envVars:
+      - key: OMEGA_DB_HOST
+        fromDatabase:
+          name: omega-x-ascension-db
+          property: host
+      - key: OMEGA_DB_PORT
+        fromDatabase:
+          name: omega-x-ascension-db
+          property: port
+      - key: OMEGA_DB_NAME
+        fromDatabase:
+          name: omega-x-ascension-db
+          property: database
+      - key: OMEGA_DB_OWNER_USER
+        fromDatabase:
+          name: omega-x-ascension-db
+          property: user
+      - key: OMEGA_DB_OWNER_PASSWORD
+        fromDatabase:
+          name: omega-x-ascension-db
+          property: password
+      - key: OMEGA_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: omega-x-ascension-kv
+          property: connectionString
+      - key: OMEGA_APP_PASSWORD
+        generateValue: true
+      - key: OMEGA_WORKER_PASSWORD
+        generateValue: true
+      - key: OMEGA_CHECKPOINT_PASSWORD
+        generateValue: true
+      - key: OMEGA_JWT_SECRET
+        generateValue: true
+      - key: OMEGA_ENABLE_COMPUTER_EXECUTION
+        value: "false"
+      - key: OMEGA_ENABLE_COMPUTER_FILES
+        value: "false"
