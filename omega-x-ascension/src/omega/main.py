@@ -14,7 +14,7 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from omega.adapters.database import SqlRunRepository, build_engine
-from omega.adapters.models import OpenAICompatibleGateway, StaticRegistry
+from omega.adapters.models import build_gateways
 from omega.api import router
 from omega.config import get_settings
 from omega.model_router import ModelRouter
@@ -33,7 +33,7 @@ class Services:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     cfg=get_settings(); engine=build_engine(cfg.database_url); maker=async_sessionmaker(engine,expire_on_commit=False); http=httpx.AsyncClient()
-    model_router=ModelRouter(StaticRegistry([OpenAICompatibleGateway(p,http) for p in cfg.model_providers])); redis=Redis.from_url(cfg.redis_url,decode_responses=True)
+    model_router=ModelRouter(__import__("omega.adapters.models", fromlist=["StaticRegistry"]).StaticRegistry(build_gateways(cfg,http))); redis=Redis.from_url(cfg.redis_url,decode_responses=True)
     browser=BrowserTool(http)
     computer=ComputerTool(
         client=http,
@@ -94,7 +94,19 @@ async def ready():
         await svc.redis.ping()
         if (svc.computer.enabled or svc.computer.files_enabled) and not await svc.computer.health():
             raise RuntimeError("sandbox_unavailable")
-        return {"status":"ready","configured_models":len(svc.router._registry.all())}
+        providers = await svc.router.status()
+        healthy_models = sum(1 for provider in providers if provider["healthy"])
+        if healthy_models == 0:
+            return Response(
+                content='{"status":"not_ready","reason":"no_healthy_model_configured"}',
+                status_code=503,
+                media_type="application/json",
+            )
+        return {
+            "status": "ready",
+            "configured_models": len(providers),
+            "healthy_models": healthy_models,
+        }
     except Exception as exc:
         return Response(content=f'{{"status":"not_ready","reason":"{type(exc).__name__}"}}',status_code=503,media_type="application/json")
 @app.get("/health/models")
