@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     jwt_audience: str = "omega-x-api"
     jwt_algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"
     model_providers: list[ProviderConfig] = Field(default_factory=list)
+    # Optional hosted inference: set a narrowly scoped Hugging Face token in the secret store.
+    hf_inference_token: SecretStr | None = None
+    hf_inference_model: str = "Qwen/Qwen3-4B"
+    hf_inference_base_url: str = "https://router.huggingface.co/v1"
+    hf_inference_priority: int = Field(default=80, ge=0, le=100)
     log_level: str = "INFO"
     enable_computer_execution: bool = False
     enable_computer_files: bool = True
