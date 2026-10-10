@@ -1,0 +1,21 @@
+services:
+  mock-model:
+    build: .
+    command: ["python", "scripts/mock_model_server.py"]
+    networks: [default]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
+
+  api:
+    depends_on:
+      mock-model:
+        condition: service_healthy
+
+  worker:
+    depends_on:
+      mock-model:
+        condition: service_healthy
