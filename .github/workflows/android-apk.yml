@@ -44,6 +44,16 @@ jobs:
       - name: Build debug APK
         run: ./android/build-apk.sh
 
+      - name: Run Android emulator UI smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: cd android && ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+
       - name: Validate packaged dashboard assets and navigation policy
         run: |
           python3 - <<'PY'
