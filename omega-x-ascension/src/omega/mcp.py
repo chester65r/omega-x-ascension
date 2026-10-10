@@ -138,7 +138,7 @@ async def mcp_info():
 @router.post("")
 @router.post("/")
 async def handle_mcp(request: Request, body: JsonRpcRequest):
-    svc = request.app.state.services
+    svc = getattr(request.app.state, "services", None)
     method = body.method
     req_id = body.id
     params = body.params or {}
@@ -188,6 +188,8 @@ async def handle_mcp(request: Request, body: JsonRpcRequest):
                 )
 
             elif tool_name == "omega_search_web":
+                if svc is None:
+                    return _jsonrpc_error(req_id, -32000, "Service layer not initialized")
                 query = args.get("query", "").strip()
                 if not query:
                     return _jsonrpc_error(req_id, -32602, "Missing query parameter")
@@ -201,6 +203,8 @@ async def handle_mcp(request: Request, body: JsonRpcRequest):
                 )
 
             elif tool_name == "omega_create_run":
+                if svc is None:
+                    return _jsonrpc_error(req_id, -32000, "Service layer not initialized")
                 goal = args.get("goal")
                 task_type = args.get("task_type")
                 actions = args.get("requested_actions", [])
