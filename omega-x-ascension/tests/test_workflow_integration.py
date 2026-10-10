@@ -110,3 +110,66 @@ def test_agent_workflow_executes_all_model_roles_and_research_with_fixtures():
         assert "computer_output" not in result
 
     asyncio.run(check())
+
+
+def test_agent_workflow_self_correcting_feedback_loop():
+    async def check():
+        class RevisingGateway:
+            name = "workflow-revision-test"
+            capabilities = frozenset(
+                {"reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"}
+            )
+            priority = 10
+
+            def __init__(self):
+                self.calls = []
+                self.specialist_calls = 0
+                self.critic_calls = 0
+
+            async def healthy(self):
+                return True
+
+            async def complete(self, *, system, prompt):
+                self.calls.append(system)
+                if "CEO agent" in system:
+                    return "CEO objective analysis"
+                if "Planner agent" in system:
+                    return "1. Step one\n2. Step two"
+                if "research agent" in system:
+                    return "example research query"
+                if "assigned specialist" in system:
+                    self.specialist_calls += 1
+                    if self.specialist_calls == 1:
+                        return "First attempt with flaw"
+                    return "Second corrected attempt addressing flaw"
+                if "Critic" in system:
+                    self.critic_calls += 1
+                    if self.critic_calls == 1:
+                        return "Found defect in attempt 1. [STATUS: REVISE]"
+                    return "Corrected solution verified. [STATUS: APPROVED]"
+                if "Judge" in system:
+                    return "Final verified test result after revision"
+                return "Unexpected role"
+
+        gateway = RevisingGateway()
+        workflow = CoreWorkflow(
+            router=FakeRouter(gateway),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=DisabledComputer(),
+        )
+        result = await workflow.run(
+            tenant_id=uuid4(),
+            run_id=uuid4(),
+            goal="Build a secure and revised plan",
+            task_type="planning",
+            requested_actions=[],
+        )
+        assert gateway.specialist_calls == 2, f"Expected 2 specialist calls, got {gateway.specialist_calls}"
+        assert gateway.critic_calls == 2, f"Expected 2 critic calls, got {gateway.critic_calls}"
+        assert result["revision_count"] == 1
+        assert result["critique_approved"] is True
+        assert result["solution"] == "Second corrected attempt addressing flaw"
+        assert result["final"] == "Final verified test result after revision"
+
+    asyncio.run(check())

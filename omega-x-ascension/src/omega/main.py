@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from omega.adapters.database import SqlRunRepository, build_engine
 from omega.adapters.models import StaticRegistry, build_gateways
 from omega.api import router
+from omega.mcp import router as mcp_router
 from omega.config import get_settings
 from omega.model_router import ModelRouter
 from omega.tools import BrowserTool, ComputerTool
@@ -88,6 +89,8 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(router, prefix="/v1")
+app.include_router(mcp_router, prefix="/mcp")
+app.include_router(mcp_router, prefix="/v1/mcp")
 _static_candidates = (
     Path(__file__).resolve().parents[2] / "static",
     Path.cwd() / "static",
@@ -147,6 +150,15 @@ async def model_health():
         "providers": providers,
     }
 
+
+@app.get("/version")
+async def version_info():
+    return {
+        "name": "OMEGA-X ASCENSION",
+        "version": __import__("omega").__version__,
+        "api_version": "v1",
+        "features": ["langgraph_feedback_loop", "mcp_server", "hitl_approval"],
+    }
 
 @app.get("/metrics")
 async def metrics():
