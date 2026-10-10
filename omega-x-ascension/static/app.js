@@ -181,7 +181,7 @@
     } catch (error) {
       pending.content = error.name === 'AbortError'
         ? 'Local inference timed out after 180 seconds. On-device generation can be slow; reduce the prompt or close other apps and retry.'
-        : 'Local inference failed: ' + (error.message || String(error)) + '\\n\\nCheck that llama-server is running, the model has finished loading, and CORS allows https://appassets.androidplatform.net.';
+        : 'Local inference failed: ' + (error.message || String(error)) + '\n\nCheck that llama-server is running, the model has finished loading, and CORS allows https://appassets.androidplatform.net.';
       setLocalAiStatus('REQUEST FAILED', false);
       addAgentLog('error', 'Local inference failed: ' + (error.message || String(error)).slice(0, 300));
     } finally {
