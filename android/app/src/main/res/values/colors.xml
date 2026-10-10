@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="omega_bg">#0d1117</color>
-    <color name="omega_accent">#58a6ff</color>
+    <color name="omega_bg">#050607</color>
+    <color name="omega_accent">#e8ecef</color>
 </resources>
