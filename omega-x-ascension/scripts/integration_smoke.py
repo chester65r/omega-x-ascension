@@ -75,13 +75,13 @@ def main() -> None:
             require(response.status_code == 200,
                     f"Run polling failed: HTTP {response.status_code}, body={response.text[:300]}")
             last = response.json()
-            if last["status"] == "completed":
+            if last["status"] == "succeeded":
                 break
-            if last["status"] in {"failed", "cancelled"}:
+            if last["status"] == "failed":
                 raise RuntimeError(f"Worker did not complete fixture run: {last}")
             time.sleep(1)
 
-        require(last["status"] == "completed",
+        require(last["status"] == "succeeded",
                 f"Timed out waiting for worker completion; last status={last.get('status')}")
         require("E2E integration completed" in (last.get("output") or ""),
                 "Final output was not produced by the expected test model response")
