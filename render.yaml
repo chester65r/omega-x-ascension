@@ -60,6 +60,12 @@ services:
         generateValue: true
       - key: OMEGA_JWT_SECRET
         generateValue: true
+      - key: OMEGA_HF_INFERENCE_TOKEN
+        sync: false
+      - key: OMEGA_HF_INFERENCE_MODEL
+        value: Qwen/Qwen3-4B
+      - key: OMEGA_HF_INFERENCE_BASE_URL
+        value: https://router.huggingface.co/v1
       - key: OMEGA_ENABLE_COMPUTER_EXECUTION
         value: "false"
       - key: OMEGA_ENABLE_COMPUTER_FILES
