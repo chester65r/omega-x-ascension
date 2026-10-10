@@ -115,10 +115,7 @@ async def approve(
     run = await svc.repo.get(principal.tenant_id, run_id)
     if not run:
         raise HTTPException(404, "run not found")
-    if (
-        run.status != RunStatus.WAITING_APPROVAL
-        or run.approval_digest != run.digest()
-    ):
+    if run.status != RunStatus.WAITING_APPROVAL or run.approval_digest != run.digest():
         raise HTTPException(409, "approval request is stale or invalid")
     if not await svc.repo.approve_and_enqueue(
         run.tenant_id,
@@ -250,4 +247,3 @@ async def computer_file_write(
         raise HTTPException(400, str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
-

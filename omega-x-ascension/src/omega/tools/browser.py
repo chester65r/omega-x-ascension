@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import socket
+from typing import cast
 from urllib.parse import parse_qs, urljoin, urlparse
 
 import httpx
@@ -174,20 +175,33 @@ class BrowserTool:
                 if not title_elem:
                     continue
 
-                raw_url = title_elem.get("href", "")
+                raw_url = cast(str, title_elem.get("href") or "")
                 candidate = urljoin("https://duckduckgo.com/", raw_url)
                 parsed = urlparse(candidate)
-                if parsed.hostname and parsed.hostname.lower().endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
-                    candidate = parse_qs(parsed.query).get("uddg", [""])[0]
+                if (
+                    parsed.hostname
+                    and parsed.hostname.lower().endswith("duckduckgo.com")
+                    and parsed.path.startswith("/l/")
+                ):
+                    candidate = cast(str, parse_qs(parsed.query).get("uddg", [""])[0])
                     parsed = urlparse(candidate)
-                if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+                if (
+                    parsed.scheme not in {"http", "https"}
+                    or not parsed.hostname
+                    or parsed.username
+                    or parsed.password
+                ):
                     continue
 
-                results.append({
-                    "title": title_elem.get_text(" ", strip=True)[:240],
-                    "url": candidate,
-                    "snippet": snippet_elem.get_text(" ", strip=True)[:600] if snippet_elem else "",
-                })
+                results.append(
+                    {
+                        "title": title_elem.get_text(" ", strip=True)[:240],
+                        "url": candidate,
+                        "snippet": snippet_elem.get_text(" ", strip=True)[:600]
+                        if snippet_elem
+                        else "",
+                    }
+                )
             return {"query": query, "results": results}
         except (httpx.HTTPError, ValueError) as exc:
             return {
@@ -214,6 +228,7 @@ class BrowserTool:
         body = response.text
         if "text/html" not in content_type:
             from html import escape
+
             body = (
                 "<!doctype html><html><head><meta charset='utf-8'></head>"
                 "<body><pre style='white-space:pre-wrap;overflow-wrap:anywhere'>"
@@ -222,6 +237,7 @@ class BrowserTool:
             )
 
         import html
+
         safe_base = html.escape(final_url, quote=True)
         navigation_bridge = r"""<script data-omega-browser-bridge>
 (() => {
@@ -280,11 +296,18 @@ class BrowserTool:
 </script>"""
 
         import re
+
         injection = f'<base href="{safe_base}">{navigation_bridge}'
         head_pattern = re.compile(r"(<head\b[^>]*>)", re.IGNORECASE)
         if head_pattern.search(body):
             body = head_pattern.sub(lambda match: match.group(1) + injection, body, count=1)
         else:
-            body = "<!doctype html><html><head>" + injection + "</head><body>" + body + "</body></html>"
+            body = (
+                "<!doctype html><html><head>"
+                + injection
+                + "</head><body>"
+                + body
+                + "</body></html>"
+            )
 
         return body, "text/html; charset=utf-8"

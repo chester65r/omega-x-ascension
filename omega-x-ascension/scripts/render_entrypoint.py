@@ -48,20 +48,32 @@ def migration_database_url() -> str:
 
 def main() -> None:
     import uvicorn
+
     # The script directory is sys.path[0] when launched as
     # "python scripts/render_entrypoint.py"; import the sibling module directly.
     from migrate import main as migrate_main
 
     os.environ["OMEGA_MIGRATION_DATABASE_URL"] = migration_database_url()
-    os.environ["OMEGA_DATABASE_URL"] = database_url("omega_app", required("OMEGA_APP_PASSWORD"), "postgresql+asyncpg")
-    os.environ["OMEGA_WORKER_DATABASE_URL"] = database_url("omega_worker", required("OMEGA_WORKER_PASSWORD"), "postgresql+asyncpg")
-    os.environ["OMEGA_CHECKPOINT_DATABASE_URL"] = database_url("omega_checkpoint", required("OMEGA_CHECKPOINT_PASSWORD"), "postgresql")
+    os.environ["OMEGA_DATABASE_URL"] = database_url(
+        "omega_app", required("OMEGA_APP_PASSWORD"), "postgresql+asyncpg"
+    )
+    os.environ["OMEGA_WORKER_DATABASE_URL"] = database_url(
+        "omega_worker", required("OMEGA_WORKER_PASSWORD"), "postgresql+asyncpg"
+    )
+    os.environ["OMEGA_CHECKPOINT_DATABASE_URL"] = database_url(
+        "omega_checkpoint", required("OMEGA_CHECKPOINT_PASSWORD"), "postgresql"
+    )
     os.environ["OMEGA_ENV"] = "production"
     os.environ["OMEGA_EMBEDDED_WORKER"] = "true"
 
     print("OMEGA startup: applying database migrations and checkpoint schema.", flush=True)
     migrate_main()
-    uvicorn.run("omega.main:app", host="0.0.0.0", port=int(os.environ.get("PORT", "10000")), proxy_headers=True)
+    uvicorn.run(
+        "omega.main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", "10000")),
+        proxy_headers=True,
+    )
 
 
 if __name__ == "__main__":

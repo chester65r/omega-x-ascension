@@ -1,6 +1,6 @@
+import re
 from html.parser import HTMLParser
 from pathlib import Path
-import re
 
 
 class DashboardParser(HTMLParser):
@@ -79,12 +79,13 @@ def test_dashboard_has_local_ai_tab_and_chat_controls():
 
 
 def test_local_ai_android_mixed_content_is_restricted_to_loopback():
-    main_activity = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text()
+    main_activity = Path(
+        "../android/app/src/main/java/com/omega/ascension/MainActivity.java"
+    ).read_text()
     network_config = Path("../android/app/src/main/res/xml/network_security_config.xml").read_text()
     assert "MIXED_CONTENT_COMPATIBILITY_MODE" in main_activity
     assert 'cleartextTrafficPermitted="false"' in network_config
     assert "127.0.0.1" in network_config and "localhost" in network_config
-
 
 
 def test_personal_assistant_does_not_fake_backend_responses():
@@ -104,12 +105,15 @@ def test_model_health_ui_uses_real_provider_status_endpoint():
     assert "await gateway.healthy()" in router
 
 
-
 def test_native_browser_is_available_without_cloud_backend():
     html = Path("static/index.html").read_text(encoding="utf-8")
     js = Path("static/app.js").read_text(encoding="utf-8")
-    main = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text(encoding="utf-8")
-    browser = Path("../android/app/src/main/java/com/omega/ascension/BrowserActivity.java").read_text(encoding="utf-8")
+    main = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text(
+        encoding="utf-8"
+    )
+    browser = Path(
+        "../android/app/src/main/java/com/omega/ascension/BrowserActivity.java"
+    ).read_text(encoding="utf-8")
     assert 'id="browser-full-open"' in html
     assert "openNativeBrowser(cleanQuery)" in js
     assert "nativeBrowserTarget" in js

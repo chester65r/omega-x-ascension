@@ -5,9 +5,9 @@ from __future__ import annotations
 import os
 import time
 
+import uvicorn
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
-import uvicorn
 
 app = FastAPI(title="OMEGA test-only model fixture")
 
@@ -41,7 +41,9 @@ async def chat(request: ChatRequest, authorization: str | None = Header(default=
     if "CEO agent" in system:
         content = "Set a clear objective and verify the connected workflow components."
     elif "Planner agent" in system:
-        content = "1. Submit an authenticated task.\n2. Verify the persisted result and audit events."
+        content = (
+            "1. Submit an authenticated task.\n2. Verify the persisted result and audit events."
+        )
     elif "research agent" in system:
         # Empty query intentionally causes BrowserTool to return locally without external browsing.
         content = ""

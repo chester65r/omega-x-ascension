@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 import pytest
 
-
 verify_live_inference = runpy.run_path("scripts/verify_model_provider.py")["verify_live_inference"]
 
 

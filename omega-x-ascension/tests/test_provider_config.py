@@ -1,7 +1,7 @@
 import asyncio
 
-from pydantic import SecretStr
 import httpx
+from pydantic import SecretStr
 
 from omega.adapters.models import build_gateways
 from omega.config import Settings
@@ -42,12 +42,16 @@ def test_hugging_face_token_adds_qwen_gateway_with_all_agent_capabilities():
         assert gateway._config.model == "Qwen/Qwen3-4B:featherless-ai"
         assert gateway._config.api_key.get_secret_value() == "hf_test_only_not_a_real_token"
         assert gateway.capabilities == {
-            "reasoning", "coding", "mathematics", "planning",
-            "analysis", "summarization", "research",
+            "reasoning",
+            "coding",
+            "mathematics",
+            "planning",
+            "analysis",
+            "summarization",
+            "research",
         }
 
     asyncio.run(check())
-
 
 
 def test_openai_flagship_gateway_uses_configured_secret():

@@ -8,7 +8,9 @@ from omega.workflow import CoreWorkflow
 
 class FakeGateway:
     name = "workflow-test"
-    capabilities = frozenset({"reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"})
+    capabilities = frozenset(
+        {"reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"}
+    )
     priority = 10
 
     def __init__(self):
@@ -54,7 +56,13 @@ class FakeBrowser:
         assert query == "example research query"
         return {
             "query": query,
-            "results": [{"title": "Fixture source", "url": "https://fixture.example/article", "snippet": "fixture"}],
+            "results": [
+                {
+                    "title": "Fixture source",
+                    "url": "https://fixture.example/article",
+                    "snippet": "fixture",
+                }
+            ],
         }
 
     async def fetch(self, url):

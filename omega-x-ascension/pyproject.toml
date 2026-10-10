@@ -37,3 +37,7 @@ line-length = 100
 target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+# FastAPI dependency declarations intentionally call Depends/Security/Query in
+# function signatures; startup scripts import after path setup; migration SQL
+# and model prompts are kept readable as long strings.
+ignore = ["B008", "E402", "E501", "UP042"]

@@ -1,19 +1,27 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 from omega.config import Capability
 from omega.ports import ModelGateway, ModelRegistry
 
-class NoEligibleModel(RuntimeError): pass
+
+class NoEligibleModel(RuntimeError):
+    pass
+
 
 @dataclass(frozen=True)
 class RouteDecision:
     gateway: ModelGateway
     score: float
 
+
 class ModelRouter:
-    def __init__(self, registry: ModelRegistry): self._registry = registry
+    def __init__(self, registry: ModelRegistry):
+        self._registry = registry
+
     async def select(self, capability: Capability) -> RouteDecision:
-        candidates=[]
+        candidates = []
         for gateway in self._registry.all():
             if capability in gateway.capabilities and await gateway.healthy():
                 candidates.append(RouteDecision(gateway, float(gateway.priority)))
@@ -29,10 +37,12 @@ class ModelRouter:
                 healthy = bool(await gateway.healthy())
             except Exception:
                 healthy = False
-            providers.append({
-                "name": str(gateway.name),
-                "healthy": healthy,
-                "priority": int(gateway.priority),
-                "capabilities": sorted(str(item) for item in gateway.capabilities),
-            })
+            providers.append(
+                {
+                    "name": str(gateway.name),
+                    "healthy": healthy,
+                    "priority": int(gateway.priority),
+                    "capabilities": sorted(str(item) for item in gateway.capabilities),
+                }
+            )
         return providers

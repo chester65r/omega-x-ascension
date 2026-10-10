@@ -39,7 +39,14 @@ def main() -> None:
     except ValueError:
         parser.error("--tenant-id must be a valid UUID")
     scopes = set(args.scopes.split())
-    allowed = {"runs:read", "runs:write", "runs:approve", "computer:read", "computer:write", "computer:execute"}
+    allowed = {
+        "runs:read",
+        "runs:write",
+        "runs:approve",
+        "computer:read",
+        "computer:write",
+        "computer:execute",
+    }
     if not scopes or scopes - allowed:
         parser.error(f"--scopes must contain only: {' '.join(sorted(allowed))}")
 

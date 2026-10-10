@@ -1,9 +1,7 @@
 import json
 import runpy
-from pathlib import Path
 
 import pytest
-
 
 _module = runpy.run_path("scripts/configure_provider.py")
 validate_base_url = _module["validate_base_url"]

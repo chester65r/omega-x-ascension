@@ -4,9 +4,9 @@ from pathlib import Path
 import httpx
 import pytest
 
+from omega.sandbox_service import SandboxRuntime
 from omega.tools.browser import BrowserTool
 from omega.tools.computer import ComputerTool
-from omega.sandbox_service import SandboxRuntime
 
 
 def test_computer_execution_is_disabled_by_default():
@@ -22,7 +22,11 @@ def test_workspace_files_can_work_without_enabling_shell_execution():
             assert request.url.path == "/files"
             return httpx.Response(
                 200,
-                json={"path": ".", "entries": [{"name": "note.txt", "type": "file", "size": 2}], "truncated": False},
+                json={
+                    "path": ".",
+                    "entries": [{"name": "note.txt", "type": "file", "size": 2}],
+                    "truncated": False,
+                },
                 request=request,
             )
 
@@ -43,9 +47,11 @@ def test_workspace_files_can_work_without_enabling_shell_execution():
 
 def test_workspace_file_tools_can_be_disabled_independently():
     async def check():
-        async with httpx.AsyncClient(transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, json={}, request=request)
-        )) as client:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, json={}, request=request)
+            )
+        ) as client:
             tool = ComputerTool(
                 client=client,
                 token="s" * 32,
@@ -61,7 +67,9 @@ def test_workspace_file_tools_can_be_disabled_independently():
 def test_file_routes_use_separate_policy_and_are_not_duplicated():
     api = Path("src/omega/api.py").read_text(encoding="utf-8")
     assert api.count('@router.get("/computer/files")') == 1
-    assert api.count("require_computer_files_enabled(svc)") == 4  # declaration plus three route checks
+    assert (
+        api.count("require_computer_files_enabled(svc)") == 4
+    )  # declaration plus three route checks
     assert 'scopes=["runs:write", "runs:approve", "computer:execute"]' in api
 
 
@@ -72,7 +80,7 @@ def test_sandbox_workspace_file_crud_is_tenant_scoped(tmp_path):
 
     written = runtime.write_file(tenant_a, "src/main.py", "print('ok')\\n")
     assert written["written"] is True
-    assert written["bytes"] == len("print('ok')\\n".encode("utf-8"))
+    assert written["bytes"] == len(b"print('ok')\\n")
     assert runtime.read_file(tenant_a, "src/main.py")["content"] == "print('ok')\\n"
     assert runtime.list_dir(tenant_a, "src")["entries"][0]["name"] == "main.py"
     assert runtime.list_dir(tenant_b)["entries"] == []
@@ -91,22 +99,26 @@ def test_sandbox_workspace_blocks_path_traversal(tmp_path):
 def test_sandbox_commands_do_not_inherit_service_secrets(tmp_path, monkeypatch):
     runtime = SandboxRuntime(tmp_path / "workspace")
     monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "do-not-inherit-this")
-    result = asyncio.run(runtime.execute(
-        "00000000-0000-0000-0000-000000000001",
-        "printf '%s' \"$OMEGA_SANDBOX_TOKEN\"",
-        timeout=3,
-    ))
+    result = asyncio.run(
+        runtime.execute(
+            "00000000-0000-0000-0000-000000000001",
+            "printf '%s' \"$OMEGA_SANDBOX_TOKEN\"",
+            timeout=3,
+        )
+    )
     assert result["stdout"] == ""
     assert result["returncode"] == 0
 
 
 def test_sandbox_output_is_bounded(tmp_path):
     runtime = SandboxRuntime(tmp_path / "workspace")
-    result = asyncio.run(runtime.execute(
-        "00000000-0000-0000-0000-000000000001",
-        "python -c 'print(\"x\" * 200000)'",
-        timeout=5,
-    ))
+    result = asyncio.run(
+        runtime.execute(
+            "00000000-0000-0000-0000-000000000001",
+            "python -c 'print(\"x\" * 200000)'",
+            timeout=5,
+        )
+    )
     assert result["output_limited"] is True
     assert len(result["stdout"]) <= 16_000
 
@@ -211,21 +223,35 @@ def test_mobile_assistant_logs_and_about_controls_exist():
     html = Path("static/index.html").read_text(encoding="utf-8")
     js = Path("static/app.js").read_text(encoding="utf-8")
     for element_id in (
-        "assistant-form", "assistant-prompt", "assistant-voice", "assistant-speak",
-        "assistant-share", "assistant-clear", "logs-list", "server-audit-list",
-        "logs-export", "about-title", "about-device-refresh", "browser-results",
+        "assistant-form",
+        "assistant-prompt",
+        "assistant-voice",
+        "assistant-speak",
+        "assistant-share",
+        "assistant-clear",
+        "logs-list",
+        "server-audit-list",
+        "logs-export",
+        "about-title",
+        "about-device-refresh",
+        "browser-results",
     ):
         assert f'id="{element_id}"' in html
     for behavior in (
-        "/v1/runs", "/v1/events?limit=100", "/health/models",
-        "omega:native", "postMessage", "Clear local app logs",
+        "/v1/runs",
+        "/v1/events?limit=100",
+        "/health/models",
+        "omega:native",
+        "postMessage",
+        "Clear local app logs",
     ):
         assert behavior in js or behavior in html
 
 
-
 def test_native_browser_does_not_expose_privileged_javascript_bridge():
-    browser = Path("../android/app/src/main/java/com/omega/ascension/BrowserActivity.java").read_text(encoding="utf-8")
+    browser = Path(
+        "../android/app/src/main/java/com/omega/ascension/BrowserActivity.java"
+    ).read_text(encoding="utf-8")
     assert "addJavascriptInterface" not in browser
     assert "setAllowFileAccess(false)" in browser
     assert "setAllowContentAccess(false)" in browser
