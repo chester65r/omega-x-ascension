@@ -6,10 +6,10 @@ import logging
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, Security, status
 from pydantic import BaseModel, Field, SecretStr
 
-from omega.api import get_current_principal
+from omega.auth import Principal, current_principal
 from omega.config import Capability, get_settings
 from omega.domain import ApprovalPolicy, Principal, RunStatus, WorkflowRun
 from omega.notifications import (
@@ -208,7 +208,7 @@ async def github_webhook(
 @router.post("/test-notification")
 async def test_notification(
     body: NotificationTestRequest,
-    principal: Principal = Depends(get_current_principal),
+    principal: Principal = Security(current_principal, scopes=["runs:write"]),
     svc=Depends(services),
 ):
     cfg = get_settings()
