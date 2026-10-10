@@ -1,7 +1,7 @@
 from __future__ import annotations
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
-from omega.config import ProviderConfig
+from omega.config import Capability, ProviderConfig, Settings
 
 class OpenAICompatibleGateway:
     def __init__(self, config: ProviderConfig, client: httpx.AsyncClient):
@@ -24,3 +24,26 @@ class OpenAICompatibleGateway:
 class StaticRegistry:
     def __init__(self, gateways: list[OpenAICompatibleGateway]): self._gateways=gateways
     def all(self): return tuple(self._gateways)
+
+
+
+def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[OpenAICompatibleGateway]:
+    """Build gateways identically for API and worker processes; never invent a fallback model."""
+    providers = list(config.model_providers)
+    token = config.hf_inference_token
+    if token is not None and token.get_secret_value().strip():
+        providers.append(
+            ProviderConfig(
+                name="huggingface-inference",
+                base_url=config.hf_inference_base_url.rstrip("/"),
+                api_key=token,
+                model=config.hf_inference_model,
+                capabilities=frozenset({
+                    "reasoning", "coding", "mathematics", "planning",
+                    "analysis", "summarization", "research",
+                }),
+                priority=config.hf_inference_priority,
+                timeout_seconds=90,
+            )
+        )
+    return [OpenAICompatibleGateway(provider, client) for provider in providers]
