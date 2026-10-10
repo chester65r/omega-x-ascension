@@ -14,6 +14,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: omega-x-ascension
@@ -37,6 +38,7 @@ jobs:
         run: |
           cp .env.example .env
           docker compose config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.integration.yml config --quiet
           rm -f .env
 
       - name: Run tests
@@ -49,3 +51,64 @@ jobs:
       - name: Import application from production image
         working-directory: .
         run: docker run --rm omega-x-ascension:ci python -c "from omega.main import app; print(app.title)"
+
+      - name: Prepare isolated full-stack test credentials
+        run: |
+          python - <<'PY'
+          import json
+          import secrets
+          from pathlib import Path
+
+          pg = secrets.token_hex(24)
+          app = secrets.token_hex(24)
+          worker = secrets.token_hex(24)
+          checkpoint = secrets.token_hex(24)
+          redis = secrets.token_hex(24)
+          providers = [{
+              "name": "integration-mock",
+              "base_url": "http://mock-model:8001/v1",
+              "api_key": "fixture",
+              "model": "omega-test",
+              "capabilities": ["reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"],
+              "priority": 100
+          }]
+          values = {
+              "POSTGRES_PASSWORD": pg,
+              "OMEGA_APP_PASSWORD": app,
+              "OMEGA_WORKER_PASSWORD": worker,
+              "OMEGA_CHECKPOINT_PASSWORD": checkpoint,
+              "REDIS_PASSWORD": redis,
+              "OMEGA_MIGRATION_DATABASE_URL": f"postgresql+psycopg://omega:{pg}@postgres:5432/omega",
+              "OMEGA_DATABASE_URL": f"postgresql+asyncpg://omega_app:{app}@postgres:5432/omega",
+              "OMEGA_WORKER_DATABASE_URL": f"postgresql+asyncpg://omega_worker:{worker}@postgres:5432/omega",
+              "OMEGA_CHECKPOINT_DATABASE_URL": f"postgresql://omega_checkpoint:{checkpoint}@postgres:5432/omega",
+              "OMEGA_REDIS_URL": f"redis://:{redis}@redis:6379/0",
+              "OMEGA_JWT_SECRET": secrets.token_hex(32),
+              "OMEGA_SANDBOX_TOKEN": secrets.token_hex(32),
+              "OMEGA_SANDBOX_URL": "http://sandbox:8090",
+              "OMEGA_JWT_ISSUER": "omega-x",
+              "OMEGA_JWT_AUDIENCE": "omega-x-api",
+              "OMEGA_JWT_ALGORITHM": "HS256",
+              "OMEGA_ENV": "test",
+              "OMEGA_MODEL_PROVIDERS": "'" + json.dumps(providers, separators=(",", ":")) + "'",
+              "OMEGA_LOG_LEVEL": "WARNING",
+              "OMEGA_ENABLE_COMPUTER_EXECUTION": "false",
+              "OMEGA_ENABLE_COMPUTER_FILES": "false",
+              "LANGGRAPH_STRICT_MSGPACK": "true",
+          }
+          Path(".env").write_text("\n".join(f"{key}={value}" for key, value in values.items()) + "\n", encoding="utf-8")
+          PY
+
+      - name: Start isolated API, database, queue, worker and fixture model
+        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml up --detach --build --wait --wait-timeout 180
+
+      - name: Run API-to-worker end-to-end test
+        run: python scripts/integration_smoke.py
+
+      - name: Collect full-stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml logs --no-color --tail=150 api worker migrate postgres redis sandbox mock-model
+
+      - name: Tear down full-stack integration
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml down --volumes --remove-orphans
