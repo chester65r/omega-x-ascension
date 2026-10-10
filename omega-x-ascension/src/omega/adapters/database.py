@@ -230,6 +230,37 @@ class SqlRunRepository:
             row.error = run.error
             row.updated_at = datetime.now(UTC)
 
+    async def list_events(
+        self,
+        tenant_id: UUID,
+        limit: int = 100,
+        run_id: UUID | None = None,
+    ) -> list[dict[str, object]]:
+        """Read recent audit events for the active tenant only."""
+        if not 1 <= limit <= 200:
+            raise ValueError("limit must be between 1 and 200")
+
+        async with self._tenant_session(tenant_id) as session:
+            statement = (
+                select(AuditEventRow)
+                .where(AuditEventRow.tenant_id == tenant_id)
+                .order_by(AuditEventRow.created_at.desc(), AuditEventRow.id.desc())
+                .limit(limit)
+            )
+            if run_id is not None:
+                statement = statement.where(AuditEventRow.run_id == run_id)
+            rows = (await session.execute(statement)).scalars().all()
+            return [
+                {
+                    "id": row.id,
+                    "run_id": str(row.run_id),
+                    "kind": row.kind,
+                    "payload": row.payload,
+                    "created_at": row.created_at.isoformat(),
+                }
+                for row in rows
+            ]
+
     async def append_event(
         self,
         tenant_id: UUID,

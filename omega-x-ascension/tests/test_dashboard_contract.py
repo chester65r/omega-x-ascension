@@ -84,3 +84,21 @@ def test_local_ai_android_mixed_content_is_restricted_to_loopback():
     assert "MIXED_CONTENT_COMPATIBILITY_MODE" in main_activity
     assert 'cleartextTrafficPermitted="false"' in network_config
     assert "127.0.0.1" in network_config and "localhost" in network_config
+
+
+
+def test_personal_assistant_does_not_fake_backend_responses():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    assert "Cloud agent tasks require a signed JWT" in js
+    assert "No fake answer was generated." in js
+    assert "run.status === 'succeeded'" in js
+    assert "run.status === 'failed'" in js
+
+
+def test_model_health_ui_uses_real_provider_status_endpoint():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    main = Path("src/omega/main.py").read_text(encoding="utf-8")
+    router = Path("src/omega/model_router.py").read_text(encoding="utf-8")
+    assert "apiFetch('/health/models')" in js
+    assert '@app.get("/health/models")' in main
+    assert "await gateway.healthy()" in router

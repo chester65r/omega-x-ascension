@@ -91,15 +91,16 @@ jobs:
           java = (root / "android" / "app" / "src" / "main" / "java" /
                   "com" / "omega" / "ascension" / "MainActivity.java").read_text(encoding="utf-8")
           for required in ("request.isForMainFrame()", "isTrustedAppAsset(uri)",
-                           "Intent.ACTION_VIEW", 'setAllowFileAccess(false)',
-                           'setAllowContentAccess(false)'):
+                           "Intent.ACTION_VIEW", "WebViewCompat.addWebMessageListener",
+                           "isMainFrame", "sourceOrigin", "startVoiceInput", "shareText",
+                           'setAllowFileAccess(false)', 'setAllowContentAccess(false)'):
               assert required in java, f"Android WebView security guard missing: {required}"
           print(f"Validated {len(parser.ids)} unique dashboard IDs and {6} bundled assets.")
           PY
 
       - name: Verify APK signature and package
         run: |
-          APK=omega-x-ascension-0.6.0-debug.apk
+          APK=omega-x-ascension-0.7.0-debug.apk
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
 
@@ -107,6 +108,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: omega-x-ascension-android-debug
-          path: omega-x-ascension-0.6.0-debug.apk
+          path: omega-x-ascension-0.7.0-debug.apk
           if-no-files-found: error
           retention-days: 14

@@ -13,3 +13,26 @@ def test_selects_highest_priority_healthy_capable_model():
     assert decision.gateway.name=='high'
 def test_rejects_missing_capability():
     with pytest.raises(NoEligibleModel): asyncio.run(ModelRouter(Registry(Gateway('x',{'coding'},1))).select('research'))
+
+
+def test_provider_status_reports_unhealthy_models_without_leaking_urls():
+    router = ModelRouter(Registry(
+        Gateway("healthy-model", {"reasoning", "planning"}, 50, True),
+        Gateway("offline-model", {"coding"}, 10, False),
+    ))
+    status = asyncio.run(router.status())
+    assert status == [
+        {
+            "name": "healthy-model",
+            "healthy": True,
+            "priority": 50,
+            "capabilities": ["planning", "reasoning"],
+        },
+        {
+            "name": "offline-model",
+            "healthy": False,
+            "priority": 10,
+            "capabilities": ["coding"],
+        },
+    ]
+    assert all("url" not in provider and "api_key" not in provider for provider in status)

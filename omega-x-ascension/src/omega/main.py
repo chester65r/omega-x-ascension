@@ -82,5 +82,15 @@ async def ready():
         return {"status":"ready","configured_models":len(svc.router._registry.all())}
     except Exception as exc:
         return Response(content=f'{{"status":"not_ready","reason":"{type(exc).__name__}"}}',status_code=503,media_type="application/json")
+@app.get("/health/models")
+async def model_health():
+    svc = app.state.services
+    providers = await svc.router.status()
+    return {
+        "configured_models": len(providers),
+        "healthy_models": sum(1 for provider in providers if provider["healthy"]),
+        "providers": providers,
+    }
+
 @app.get("/metrics")
 async def metrics(): return Response(generate_latest(),media_type=CONTENT_TYPE_LATEST)

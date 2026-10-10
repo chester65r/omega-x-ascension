@@ -84,6 +84,16 @@ async def list_runs(
     return [view(run) for run in runs]
 
 
+@router.get("/events", response_model=list[dict[str, object]])
+async def list_events(
+    limit: int = Query(default=100, ge=1, le=200),
+    run_id: UUID | None = Query(default=None),
+    principal: Principal = Security(current_principal, scopes=["runs:read"]),
+    svc=Depends(services),
+):
+    return await svc.repo.list_events(principal.tenant_id, limit, run_id)
+
+
 @router.get("/runs/{run_id}", response_model=RunView)
 async def get_run(
     run_id: UUID,

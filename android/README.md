@@ -1,6 +1,6 @@
 # OMEGA-X Ascension Android app
 
-The Android app packages the dashboard in a WebView using AndroidX WebKit's secure asset loader. The dashboard includes Overview, Runs, Browser, Local AI, Agents & tools, an isolated computer terminal, and a sandbox workspace file editor; the app does not host the API or model by itself.
+The Android app packages the dashboard in a WebView using AndroidX WebKit's secure asset loader. The dashboard includes Overview, Personal Assistant, Runs, Browser, Local AI, Workspace, Logs, About, an isolated computer terminal, and a sandbox workspace file editor; the app does not host the API or model by itself.
 
 ## Build a debug APK
 
@@ -10,7 +10,7 @@ From the repository root, with Java 17 and Android SDK platform/build-tools 34 i
 ./android/build-apk.sh
 ```
 
-The installable, debug-signed APK is written to `omega-x-ascension-0.6.0-debug.apk`. The CI workflow builds it and validates the signing block and package ID before publishing a temporary workflow artifact. It is a debug build, not a Play Store release.
+The installable, debug-signed APK is written to `omega-x-ascension-0.7.0-debug.apk`. The CI workflow builds it and validates the signing block and package ID before publishing a temporary workflow artifact. It is a debug build, not a Play Store release.
 
 For Docker, build from the repository root and export the APK:
 

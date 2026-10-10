@@ -20,25 +20,30 @@
           <h1>OMEGA<span>-X</span></h1>
           <p>ASCENSION CONTROL</p>
         </div>
-        <span class="version" id="app-version">v0.6.0</span>
+        <span class="version" id="app-version">v0.7.0</span>
       </div>
-      <div class="connection-panel" aria-label="Server connection">
-        <label class="sr-only" for="api-base">API server URL</label>
-        <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url">
-        <button id="save-server-btn" class="btn btn-quiet">Save</button>
-        <label class="sr-only" for="jwt-token">JWT access token</label>
-        <input type="password" id="jwt-token" placeholder="JWT access token" autocomplete="off">
-        <button id="connect-btn" class="btn btn-primary">Connect</button>
-        <span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span>
-      </div>
+      <details class="connection-details" id="connection-details" open>
+        <summary><span class="connection-title">BACKEND CONNECTION</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
+        <div class="connection-panel" aria-label="Server connection">
+          <label class="sr-only" for="api-base">API server URL</label>
+          <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url">
+          <button id="save-server-btn" class="btn btn-quiet" type="button">Save</button>
+          <label class="sr-only" for="jwt-token">JWT access token</label>
+          <input type="password" id="jwt-token" placeholder="JWT access token" autocomplete="off">
+          <button id="connect-btn" class="btn btn-primary" type="button">Connect</button>
+        </div>
+      </details>
     </header>
 
     <nav class="tabs" aria-label="Main navigation">
-      <button class="tab active" data-tab="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Overview</span></button>
+      <button class="tab active" data-tab="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Home</span></button>
+      <button class="tab" data-tab="assistant"><span class="nav-icon" aria-hidden="true">✳</span><span>Assistant</span></button>
       <button class="tab" data-tab="runs"><span class="nav-icon" aria-hidden="true">↗</span><span>Runs</span></button>
       <button class="tab" data-tab="browser"><span class="nav-icon" aria-hidden="true">◎</span><span>Browser</span></button>
-      <button class="tab" data-tab="local-ai"><span class="nav-icon" aria-hidden="true">✳</span><span>Local AI</span></button>
-      <button class="tab" data-tab="agents"><span class="nav-icon" aria-hidden="true">⌘</span><span>Agents &amp; tools</span></button>
+      <button class="tab" data-tab="local-ai"><span class="nav-icon" aria-hidden="true">◉</span><span>Local AI</span></button>
+      <button class="tab" data-tab="agents"><span class="nav-icon" aria-hidden="true">⌘</span><span>Workspace</span></button>
+      <button class="tab" data-tab="logs"><span class="nav-icon" aria-hidden="true">≋</span><span>Logs</span></button>
+      <button class="tab" data-tab="about"><span class="nav-icon" aria-hidden="true">ⓘ</span><span>About</span></button>
     </nav>
 
     <main>
@@ -89,6 +94,44 @@
         </div>
       </section>
 
+
+      <section id="assistant" class="tab-content" aria-labelledby="assistant-title">
+        <div class="page-heading">
+          <div><p class="eyebrow">PERSONAL ASSISTANT</p><h2 id="assistant-title">What can I help with?</h2><p class="page-subtitle">Send a task to the configured OMEGA agent workflow and track its real result.</p></div>
+          <span class="section-chip">SERVER AGENT</span>
+        </div>
+        <div class="card assistant-card">
+          <div id="assistant-backend-notice" class="assistant-notice" role="status">Cloud tasks require a reachable OMEGA backend, a valid access token with runs:write, and a healthy model provider. No simulated responses are used.</div>
+          <div class="assistant-quick-actions" aria-label="Suggested tasks">
+            <button class="quick-action" type="button" data-assistant-prompt="Research the topic and summarize the most useful findings with source links.">Research</button>
+            <button class="quick-action" type="button" data-assistant-prompt="Create a practical plan with clear steps, priorities, and measurable outcomes.">Plan</button>
+            <button class="quick-action" type="button" data-assistant-prompt="Analyze this problem, state assumptions, compare options, and recommend a verifiable next step.">Analyze</button>
+            <button class="quick-action" type="button" data-assistant-prompt="Help me organize my tasks into an actionable checklist for today.">Organize</button>
+          </div>
+          <div id="assistant-messages" class="assistant-messages" role="log" aria-live="polite">
+            <div class="assistant-welcome">Your task history appears here during this app session. Responses are returned by the configured model provider, not generated by a placeholder.</div>
+          </div>
+          <form id="assistant-form" class="assistant-form">
+            <label class="sr-only" for="assistant-prompt">Task for the assistant</label>
+            <textarea id="assistant-prompt" maxlength="20000" rows="3" placeholder="Describe what you need done…" required></textarea>
+            <div class="assistant-controls">
+              <label class="sr-only" for="assistant-task-type">Task type</label>
+              <select id="assistant-task-type" aria-label="Task type">
+                <option value="planning">Plan</option><option value="reasoning">Reasoning</option><option value="research">Research</option><option value="analysis">Analysis</option><option value="coding">Coding</option><option value="summarization">Summarization</option><option value="mathematics">Mathematics</option>
+              </select>
+              <button id="assistant-voice" class="btn btn-quiet" type="button">Voice</button>
+              <button id="assistant-send" class="btn btn-primary" type="submit">Ask assistant <span aria-hidden="true">↗</span></button>
+            </div>
+          </form>
+          <div class="assistant-response-actions">
+            <button id="assistant-speak" class="btn btn-quiet" type="button">Read answer aloud</button>
+            <button id="assistant-share" class="btn btn-quiet" type="button">Share answer</button>
+            <button id="assistant-clear" class="btn btn-quiet" type="button">Clear session</button>
+          </div>
+          <p id="assistant-status" class="form-hint" role="status">Ready. Connect the backend before sending an agent task.</p>
+        </div>
+      </section>
+
       <section id="runs" class="tab-content" aria-labelledby="runs-title">
         <div class="page-heading">
           <div><p class="eyebrow">WORKFLOW MANAGEMENT</p><h2 id="runs-title">Runs</h2><p class="page-subtitle">Create work, track execution, and inspect results.</p></div>
@@ -128,7 +171,8 @@
             <button id="browser-back" class="icon-button" type="button" title="Back" aria-label="Back">←</button><button id="browser-forward" class="icon-button" type="button" title="Forward" aria-label="Forward">→</button><button id="browser-reload" class="icon-button" type="button" title="Reload" aria-label="Reload">↻</button>
             <label class="sr-only" for="browser-url">URL or search query</label><input type="text" id="browser-url" placeholder="Enter a URL or search the web..."><button id="browser-go" class="btn btn-primary" type="button">Go <span aria-hidden="true">↗</span></button>
           </div>
-          <div class="browser-content"><iframe id="browser-frame" title="Browser page preview" sandbox="allow-scripts allow-forms allow-popups"></iframe></div>
+          <div class="browser-content"><iframe id="browser-frame" title="Browser page preview" sandbox="allow-scripts allow-forms"></iframe></div>
+          <div id="browser-results" class="browser-results" hidden aria-live="polite"></div>
           <div class="browser-info"><span class="status-dot"></span><span id="browser-status">Ready — enter a URL above</span></div>
         </div>
       </section>
@@ -199,8 +243,34 @@
           <div id="agent-log" class="agent-log"><div class="empty-state">No activity yet. Create a run to see agent activity.</div></div>
         </div>
       </section>
+
+      <section id="logs" class="tab-content" aria-labelledby="logs-title">
+        <div class="page-heading"><div><p class="eyebrow">OBSERVABILITY</p><h2 id="logs-title">Logs</h2><p class="page-subtitle">Local app events and tenant-scoped server audit records.</p></div><span class="section-chip">DIAGNOSTICS</span></div>
+        <div class="card">
+          <div class="card-heading"><div><p class="eyebrow">THIS DEVICE</p><h3>Application activity</h3></div><div class="log-actions"><button id="logs-refresh" class="btn btn-quiet" type="button">Refresh</button><button id="logs-export" class="btn btn-primary" type="button">Export</button><button id="logs-clear" class="btn btn-quiet" type="button">Clear local</button></div></div>
+          <div id="logs-list" class="log-list"><div class="empty-state">No local events recorded yet.</div></div>
+        </div>
+        <div class="card">
+          <div class="card-heading"><div><p class="eyebrow">SERVER AUDIT</p><h3>Workflow events</h3></div><span class="heading-icon">≋</span></div>
+          <p class="form-hint">Server records are read-only and limited to the connected tenant. They are not deleted when local logs are cleared.</p>
+          <div id="server-audit-list" class="log-list"><div class="empty-state">Connect with a signed JWT carrying runs:read to load server audit records.</div></div>
+        </div>
+      </section>
+
+      <section id="about" class="tab-content" aria-labelledby="about-title">
+        <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.7.0</span></div>
+        <div class="about-hero card">
+          <div class="about-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div><p class="eyebrow">OMEGA-X ASCENSION</p><h3>Useful automation. Verifiable status.</h3><p>The app does not pretend that cloud tasks work without a backend and an available model provider. Local AI is a separate llama.cpp server running on this device.</p></div>
+        </div>
+        <div class="about-grid">
+          <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.7.0</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Requires backend URL, signed JWT, database, queue, and healthy model endpoint</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
+          <div class="card"><p class="eyebrow">PHONE FEATURES</p><h3>Device integrations</h3><ul class="about-feature-list"><li>Native Android share sheet</li><li>System speech dictation with permission prompt</li><li>Text-to-speech through Android TTS</li><li>Short haptic feedback for task completion</li><li>Exportable diagnostics and audit logs</li></ul><p id="device-info" class="form-hint">Device details are shown only when the secure Android WebView messaging feature is available.</p><button id="about-device-refresh" class="btn btn-quiet" type="button">Read device info</button></div>
+        </div>
+        <div class="card about-links"><p class="eyebrow">PROJECT</p><h3>Source and checks</h3><p>Review the source code, release workflow, and automated tests in the public repository.</p><p><a href="https://github.com/chester65r/omega-x-ascension" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a></p><p><a href="https://github.com/chester65r/omega-x-ascension/actions" target="_blank" rel="noopener noreferrer">Builds and automated tests ↗</a></p><p id="about-runtime-status" class="form-hint">Runtime status has not been verified on this device yet.</p></div>
+      </section>
     </main>
-    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.6.0</span></footer>
+    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.7.0</span></footer>
   </div>
   <script src="/static/app.js"></script>
   <script>

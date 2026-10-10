@@ -122,8 +122,12 @@ def test_browser_blocks_private_literal_addresses():
 
 def test_dashboard_iframe_does_not_grant_same_origin():
     index = Path("static/index.html").read_text()
-    assert 'sandbox="allow-scripts allow-forms allow-popups"' in index
+    assert 'sandbox="allow-scripts allow-forms"' in index
     assert "allow-same-origin" not in index
+    java = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text()
+    assert "WebViewCompat.addWebMessageListener" in java
+    assert "if (!isMainFrame || !isTrustedAppOrigin(sourceOrigin))" in java
+    assert "addJavascriptInterface" not in java
 
 
 def test_docker_image_copies_static_assets():
@@ -182,3 +186,38 @@ def test_sandbox_does_not_receive_backend_env_file_or_model_credentials():
     assert "OMEGA_SANDBOX_TOKEN:" in sandbox
     assert "OMEGA_DATABASE_URL" not in sandbox
     assert "OMEGA_MODEL_PROVIDERS" not in sandbox
+
+
+def test_browser_navigation_is_routed_through_proxy():
+    browser = Path("src/omega/tools/browser.py").read_text(encoding="utf-8")
+    dashboard = Path("static/app.js").read_text(encoding="utf-8")
+    assert "data-omega-browser-bridge" in browser
+    assert "window.parent.postMessage" in browser
+    assert "event.source !== frame.contentWindow" in dashboard
+    assert "navigateTo(url.href)" in dashboard
+    assert "Only public HTTP/HTTPS navigation is allowed" in dashboard
+
+
+def test_audit_log_endpoint_is_authenticated_and_tenant_scoped():
+    api = Path("src/omega/api.py").read_text(encoding="utf-8")
+    database = Path("src/omega/adapters/database.py").read_text(encoding="utf-8")
+    assert '@router.get("/events"' in api
+    assert 'scopes=["runs:read"]' in api
+    assert "self._tenant_session(tenant_id)" in database
+    assert "AuditEventRow.tenant_id == tenant_id" in database
+
+
+def test_mobile_assistant_logs_and_about_controls_exist():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    for element_id in (
+        "assistant-form", "assistant-prompt", "assistant-voice", "assistant-speak",
+        "assistant-share", "assistant-clear", "logs-list", "server-audit-list",
+        "logs-export", "about-title", "about-device-refresh", "browser-results",
+    ):
+        assert f'id="{element_id}"' in html
+    for behavior in (
+        "/v1/runs", "/v1/events?limit=100", "/health/models",
+        "omega:native", "postMessage", "Clear local app logs",
+    ):
+        assert behavior in js or behavior in html

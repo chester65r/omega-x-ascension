@@ -20,3 +20,19 @@ class ModelRouter:
         if not candidates:
             raise NoEligibleModel(f"no healthy model configured for capability={capability}")
         return max(candidates, key=lambda item: item.score)
+
+    async def status(self) -> list[dict[str, object]]:
+        """Return real health checks without exposing provider URLs or credentials."""
+        providers = []
+        for gateway in self._registry.all():
+            try:
+                healthy = bool(await gateway.healthy())
+            except Exception:
+                healthy = False
+            providers.append({
+                "name": str(gateway.name),
+                "healthy": healthy,
+                "priority": int(gateway.priority),
+                "capabilities": sorted(str(item) for item in gateway.capabilities),
+            })
+        return providers

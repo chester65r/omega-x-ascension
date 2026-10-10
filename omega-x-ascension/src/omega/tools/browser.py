@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import socket
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -152,50 +152,139 @@ class BrowserTool:
             }
 
     async def search(self, query: str) -> dict:
-        """Search the web using DuckDuckGo HTML."""
+        """Search the public web and normalize DuckDuckGo redirect links."""
+        query = query.strip()
+        if not query or len(query) > 300:
+            return {"query": query[:300], "results": [], "error": "query must be 1–300 characters"}
+
         try:
             response = await self._client.get(
                 "https://html.duckduckgo.com/html/",
                 params={"q": query},
                 follow_redirects=True,
-                timeout=30,
+                timeout=20,
                 headers=self._headers,
             )
+            response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
             results = []
             for result in soup.select(".result")[:10]:
                 title_elem = result.select_one(".result__title a")
                 snippet_elem = result.select_one(".result__snippet")
-                if title_elem:
-                    results.append(
-                        {
-                            "title": title_elem.get_text(strip=True),
-                            "url": title_elem.get("href", ""),
-                            "snippet": (
-                                snippet_elem.get_text(strip=True) if snippet_elem else ""
-                            ),
-                        }
-                    )
+                if not title_elem:
+                    continue
+
+                raw_url = title_elem.get("href", "")
+                candidate = urljoin("https://duckduckgo.com/", raw_url)
+                parsed = urlparse(candidate)
+                if parsed.hostname and parsed.hostname.lower().endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
+                    candidate = parse_qs(parsed.query).get("uddg", [""])[0]
+                    parsed = urlparse(candidate)
+                if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+                    continue
+
+                results.append({
+                    "title": title_elem.get_text(" ", strip=True)[:240],
+                    "url": candidate,
+                    "snippet": snippet_elem.get_text(" ", strip=True)[:600] if snippet_elem else "",
+                })
             return {"query": query, "results": results}
-        except httpx.HTTPError as exc:
-            return {"query": query, "results": [], "error": str(exc)}
+        except (httpx.HTTPError, ValueError) as exc:
+            return {
+                "query": query,
+                "results": [],
+                "error": f"Search request failed: {type(exc).__name__}",
+            }
 
     async def proxy(self, url: str) -> tuple[str, str]:
-        """Fetch a public URL for isolated iframe display."""
+        """Fetch a page and route navigation through the SSRF-checked proxy."""
         response, final_url = await self._get_public(
             url,
             timeout=30,
             headers=self._headers,
         )
-        content_type = response.headers.get("content-type", "text/html")
-        html = response.text
+        content_type = response.headers.get("content-type", "text/html").lower()
+        if not (
+            "text/html" in content_type
+            or "text/plain" in content_type
+            or "application/json" in content_type
+        ):
+            raise ValueError("this browser preview supports HTML, text, and JSON pages only")
 
-        if "text/html" in content_type and "<head>" in html:
-            safe_base = final_url.replace('"', "%22")
-            html = html.replace(
-                "<head>",
-                f'<head><base href="{safe_base}">',
-                1,
+        body = response.text
+        if "text/html" not in content_type:
+            from html import escape
+            body = (
+                "<!doctype html><html><head><meta charset='utf-8'></head>"
+                "<body><pre style='white-space:pre-wrap;overflow-wrap:anywhere'>"
+                + escape(body[:100_000])
+                + "</pre></body></html>"
             )
 
-        return html, content_type
+        import html
+        safe_base = html.escape(final_url, quote=True)
+        navigation_bridge = r"""<script data-omega-browser-bridge>
+(() => {
+  const send = (url) => {
+    try {
+      const target = new URL(url, document.baseURI);
+      if (target.protocol !== 'http:' && target.protocol !== 'https:') return;
+      if (target.username || target.password) return;
+      window.parent.postMessage({
+        source: 'omega-browser',
+        action: 'navigate',
+        url: target.href
+      }, '*');
+    } catch (_) {}
+  };
+
+  document.addEventListener('click', (event) => {
+    if (event.defaultPrevented || event.button !== 0 ||
+        event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target && event.target.closest
+      ? event.target.closest('a[href]') : null;
+    if (!anchor || anchor.hasAttribute('download')) return;
+    const target = (anchor.getAttribute('target') || '').toLowerCase();
+    if (target === '_blank' || target === '_parent' || target === '_top') {
+      event.preventDefault();
+      send(anchor.href);
+      return;
+    }
+    if (anchor.href) {
+      event.preventDefault();
+      send(anchor.href);
+    }
+  }, true);
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const method = (form.method || 'get').toLowerCase();
+    event.preventDefault();
+    if (method !== 'get') {
+      window.parent.postMessage({
+        source: 'omega-browser',
+        action: 'notice',
+        message: 'This preview supports GET search forms only.'
+      }, '*');
+      return;
+    }
+    const target = new URL(form.action || location.href, document.baseURI);
+    const data = new FormData(form);
+    for (const [key, value] of data.entries()) {
+      if (typeof value === 'string') target.searchParams.append(key, value);
+    }
+    send(target.href);
+  }, true);
+})();
+</script>"""
+
+        import re
+        injection = f'<base href="{safe_base}">{navigation_bridge}'
+        head_pattern = re.compile(r"(<head\b[^>]*>)", re.IGNORECASE)
+        if head_pattern.search(body):
+            body = head_pattern.sub(lambda match: match.group(1) + injection, body, count=1)
+        else:
+            body = "<!doctype html><html><head>" + injection + "</head><body>" + body + "</body></html>"
+
+        return body, "text/html; charset=utf-8"
