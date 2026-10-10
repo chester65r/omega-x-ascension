@@ -4,7 +4,7 @@ import httpx
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from omega.adapters.database import SqlRunRepository, build_engine
-from omega.adapters.models import OpenAICompatibleGateway, StaticRegistry
+from omega.adapters.models import build_gateways, StaticRegistry
 from omega.config import get_settings
 from omega.domain import RunStatus
 from omega.model_router import ModelRouter
@@ -42,7 +42,7 @@ async def main():
     cfg=get_settings()
     if not cfg.worker_database_url: raise RuntimeError('OMEGA_WORKER_DATABASE_URL is required')
     engine=build_engine(cfg.worker_database_url); maker=async_sessionmaker(engine,expire_on_commit=False); repo=SqlRunRepository(maker)
-    http=httpx.AsyncClient(); router=ModelRouter(StaticRegistry([OpenAICompatibleGateway(p,http) for p in cfg.model_providers])); worker_id=f'{socket.gethostname()}:{os.getpid()}'
+    http=httpx.AsyncClient(); router=ModelRouter(StaticRegistry(build_gateways(cfg,http))); worker_id=f'{socket.gethostname()}:{os.getpid()}'
     try:
         browser=BrowserTool(http)
         computer=ComputerTool(
