@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 import httpx
@@ -9,7 +10,7 @@ _DEFAULT_WORKSPACE = "00000000-0000-0000-0000-000000000001"
 
 
 class ComputerTool:
-    """Client for the separately isolated sandbox service; never runs commands in the API process."""
+    """Client for the sandbox service with independent file and command permissions."""
 
     def __init__(
         self,
@@ -17,11 +18,13 @@ class ComputerTool:
         base_url: str = "http://sandbox:8090",
         token: str | None = None,
         enabled: bool = False,
+        files_enabled: bool = True,
     ):
         self._client = client
         self._base_url = base_url.rstrip("/")
         self._token = token or ""
         self.enabled = enabled
+        self.files_enabled = files_enabled
 
     def _workspace_id(self, workspace_id: str | UUID | None) -> str:
         try:
@@ -29,10 +32,20 @@ class ComputerTool:
         except ValueError as exc:
             raise ValueError("workspace_id must be a UUID") from exc
 
-    async def _request(self, method: str, path: str, *, workspace_id: str | UUID | None = None,
-                       timeout: float = 15, **kwargs) -> dict:
-        if not self.enabled:
-            raise RuntimeError("computer tools are disabled by server policy")
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        feature: Literal["files", "execution"] = "files",
+        workspace_id: str | UUID | None = None,
+        timeout: float = 15,
+        **kwargs,
+    ) -> dict:
+        if feature == "execution" and not self.enabled:
+            raise RuntimeError("computer command execution is disabled by server policy")
+        if feature == "files" and not self.files_enabled:
+            raise RuntimeError("computer workspace file tools are disabled by server policy")
         if self._client is None or len(self._token) < 32:
             raise RuntimeError("sandbox service is not configured; set OMEGA_SANDBOX_TOKEN")
         headers = dict(kwargs.pop("headers", {}))
@@ -63,7 +76,7 @@ class ComputerTool:
         return body
 
     async def health(self) -> bool:
-        if not self.enabled:
+        if not (self.enabled or self.files_enabled):
             return True
         if self._client is None or len(self._token) < 32:
             return False
@@ -82,7 +95,7 @@ class ComputerTool:
             raise ValueError("command must be 1000 characters or fewer")
         timeout = min(max(int(timeout), 1), 120)
         return await self._request(
-            "POST", "/execute", workspace_id=workspace_id, timeout=timeout + 10,
+            "POST", "/execute", feature="execution", workspace_id=workspace_id, timeout=timeout + 10,
             json={"command": command, "timeout": timeout},
         )
 

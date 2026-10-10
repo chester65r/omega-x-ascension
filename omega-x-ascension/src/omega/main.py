@@ -39,6 +39,7 @@ async def lifespan(app: FastAPI):
         base_url=cfg.sandbox_url,
         token=cfg.sandbox_token.get_secret_value() if cfg.sandbox_token else None,
         enabled=cfg.enable_computer_execution,
+        files_enabled=cfg.enable_computer_files,
     )
     app.state.services=Services(SqlRunRepository(maker),model_router,redis,engine,http,browser,computer)
     try: yield
@@ -76,7 +77,7 @@ async def ready():
     try:
         async with svc.engine.connect() as conn: await conn.execute(text("SELECT 1"))
         await svc.redis.ping()
-        if svc.computer.enabled and not await svc.computer.health():
+        if (svc.computer.enabled or svc.computer.files_enabled) and not await svc.computer.health():
             raise RuntimeError("sandbox_unavailable")
         return {"status":"ready","configured_models":len(svc.router._registry.all())}
     except Exception as exc:

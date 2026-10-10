@@ -50,6 +50,7 @@ async def main():
             base_url=cfg.sandbox_url,
             token=cfg.sandbox_token.get_secret_value() if cfg.sandbox_token else None,
             enabled=cfg.enable_computer_execution,
+            files_enabled=cfg.enable_computer_files,
         )
         async with AsyncPostgresSaver.from_conn_string(cfg.checkpoint_database_url) as saver:
             workflow=CoreWorkflow(router,saver,browser,computer)

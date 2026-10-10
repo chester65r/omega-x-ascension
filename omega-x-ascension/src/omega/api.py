@@ -132,7 +132,15 @@ def require_computer_enabled(svc) -> None:
     if not svc.computer.enabled:
         raise HTTPException(
             status_code=503,
-            detail="computer tools are disabled; enable them only with the isolated sandbox configured",
+            detail="computer command execution is disabled by server policy",
+        )
+
+
+def require_computer_files_enabled(svc) -> None:
+    if not svc.computer.files_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="computer workspace file tools are disabled by server policy",
         )
 
 
@@ -190,7 +198,7 @@ async def computer_files(
     principal: Principal = Security(current_principal, scopes=["runs:read", "computer:read"]),
     svc=Depends(services),
 ):
-    require_computer_enabled(svc)
+    require_computer_files_enabled(svc)
     try:
         return await svc.computer.list_dir(path, workspace_id=str(principal.tenant_id))
     except ValueError as exc:
@@ -205,7 +213,7 @@ async def computer_file_read(
     principal: Principal = Security(current_principal, scopes=["runs:read", "computer:read"]),
     svc=Depends(services),
 ):
-    require_computer_enabled(svc)
+    require_computer_files_enabled(svc)
     try:
         return await svc.computer.read_file(path, workspace_id=str(principal.tenant_id))
     except ValueError as exc:
@@ -223,7 +231,7 @@ async def computer_file_write(
     ),
     svc=Depends(services),
 ):
-    require_computer_enabled(svc)
+    require_computer_files_enabled(svc)
     try:
         return await svc.computer.write_file(
             body.path, body.content, workspace_id=str(principal.tenant_id)
@@ -233,15 +241,3 @@ async def computer_file_write(
     except RuntimeError as exc:
         raise HTTPException(503, str(exc)) from exc
 
-@router.get("/computer/files")
-async def computer_files(
-    path: str = ".",
-    principal: Principal = Security(current_principal, scopes=["runs:read"]),
-    svc=Depends(services),
-):
-    if not svc.computer.enabled:
-        raise HTTPException(
-            503,
-            "computer execution is disabled; enable it only in a trusted deployment",
-        )
-    return await svc.computer.list_dir(path)
