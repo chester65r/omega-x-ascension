@@ -9,14 +9,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, SecretStr
 
+from omega.api import get_current_principal
 from omega.config import Capability, get_settings
-from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
-from omega.notifications import notify_approval_requested, send_slack_notification, send_telegram_notification
+from omega.domain import ApprovalPolicy, Principal, RunStatus, WorkflowRun
+from omega.notifications import (
+    notify_approval_requested,
+    notify_run_status_change,
+    send_slack_notification,
+    send_telegram_notification,
+)
 
 logger = logging.getLogger("omega.webhooks")
 router = APIRouter()
-
-SYSTEM_WEBHOOK_TENANT = UUID("00000000-0000-0000-0000-000000000001")
 
 
 def verify_github_signature(
@@ -25,7 +29,9 @@ def verify_github_signature(
     secret: SecretStr | str | None,
 ) -> bool:
     if secret is None:
-        # If no secret configured, allow (optional signature enforcement)
+        logger.warning(
+            "OMEGA_GITHUB_WEBHOOK_SECRET is not configured; allowing unverified webhook in development mode."
+        )
         return True
     if not signature_header:
         return False
@@ -105,12 +111,13 @@ async def github_webhook(
             f"Description:\n{body}"
         )
 
+        requested_actions = ["analyze_issue", "propose_solution"]
         run = WorkflowRun(
             goal=goal,
             task_type=task_type,
-            tenant_id=SYSTEM_WEBHOOK_TENANT,
+            tenant_id=cfg.webhook_tenant_id,
             created_by="github-webhook",
-            requested_actions=["analyze_issue", "propose_solution"],
+            requested_actions=requested_actions,
         )
 
         await svc.repo.create_run(run, run.created_by, is_enqueued=True)
@@ -118,13 +125,23 @@ async def github_webhook(
 
         # Notify via Slack / Telegram
         if cfg.notifications_enabled:
-            await notify_approval_requested(
-                run,
-                slack_webhook_url=cfg.slack_webhook_url,
-                telegram_bot_token=cfg.telegram_bot_token,
-                telegram_chat_id=cfg.telegram_chat_id,
-                client=svc.http,
-            )
+            if ApprovalPolicy.is_approval_required(run.requested_actions):
+                await notify_approval_requested(
+                    run,
+                    slack_webhook_url=cfg.slack_webhook_url,
+                    telegram_bot_token=cfg.telegram_bot_token,
+                    telegram_chat_id=cfg.telegram_chat_id,
+                    client=svc.http,
+                )
+            else:
+                await notify_run_status_change(
+                    run,
+                    RunStatus.PENDING,
+                    slack_webhook_url=cfg.slack_webhook_url,
+                    telegram_bot_token=cfg.telegram_bot_token,
+                    telegram_chat_id=cfg.telegram_chat_id,
+                    client=svc.http,
+                )
 
         return {
             "status": "triaged",
@@ -155,16 +172,27 @@ async def github_webhook(
             f"PR Summary:\n{body}"
         )
 
+        requested_actions = ["code_review", "security_check"]
         run = WorkflowRun(
             goal=goal,
             task_type="coding",
-            tenant_id=SYSTEM_WEBHOOK_TENANT,
+            tenant_id=cfg.webhook_tenant_id,
             created_by="github-webhook",
-            requested_actions=["code_review", "security_check"],
+            requested_actions=requested_actions,
         )
 
         await svc.repo.create_run(run, run.created_by, is_enqueued=True)
         logger.info("Triaged GitHub PR #%s into review run %s", pr_num, run.id)
+
+        if cfg.notifications_enabled:
+            await notify_run_status_change(
+                run,
+                RunStatus.PENDING,
+                slack_webhook_url=cfg.slack_webhook_url,
+                telegram_bot_token=cfg.telegram_bot_token,
+                telegram_chat_id=cfg.telegram_chat_id,
+                client=svc.http,
+            )
 
         return {
             "status": "triaged",
@@ -180,6 +208,7 @@ async def github_webhook(
 @router.post("/test-notification")
 async def test_notification(
     body: NotificationTestRequest,
+    principal: Principal = Depends(get_current_principal),
     svc=Depends(services),
 ):
     cfg = get_settings()
