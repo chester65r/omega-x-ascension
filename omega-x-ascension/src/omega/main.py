@@ -14,7 +14,7 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from omega.adapters.database import SqlRunRepository, build_engine
-from omega.adapters.models import build_gateways
+from omega.adapters.models import StaticRegistry, build_gateways
 from omega.api import router
 from omega.config import get_settings
 from omega.model_router import ModelRouter
@@ -33,7 +33,7 @@ class Services:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     cfg=get_settings(); engine=build_engine(cfg.database_url); maker=async_sessionmaker(engine,expire_on_commit=False); http=httpx.AsyncClient()
-    model_router=ModelRouter(__import__("omega.adapters.models", fromlist=["StaticRegistry"]).StaticRegistry(build_gateways(cfg,http))); redis=Redis.from_url(cfg.redis_url,decode_responses=True)
+    model_router=ModelRouter(StaticRegistry(build_gateways(cfg,http))); redis=Redis.from_url(cfg.redis_url,decode_responses=True)
     browser=BrowserTool(http)
     computer=ComputerTool(
         client=http,
