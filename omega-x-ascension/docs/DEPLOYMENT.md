@@ -2,6 +2,12 @@
 
 This repository can be built, but live AI inference requires an actual provider endpoint and credentials. Do not commit secrets or paste them into chat.
 
+## OpenAI flagship model
+
+The backend supports the OpenAI API as a first-class provider. The Render blueprint declares `OMEGA_OPENAI_API_KEY` as a secret-only variable and defaults `OMEGA_OPENAI_MODEL` to `gpt-6-astra`, the flagship model for demanding reasoning and coding tasks. Create a key in the OpenAI Platform account and enter it only in the deployment secret field; never commit it to GitHub or paste it into chat.
+
+To reduce cost, set `OMEGA_OPENAI_MODEL=gpt-6.1-sol` in the Render service environment. API usage is billed separately from a ChatGPT subscription. After deployment, run `python scripts/verify_model_provider.py` to prove a real non-empty completion; `/health/models` alone only checks provider access.
+
 ## Local backend
 
 1. Install Docker Engine and Docker Compose on a Linux host.
