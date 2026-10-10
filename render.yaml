@@ -1,4 +1,19 @@
+databases:
+  - name: omega-x-ascension-db
+    databaseName: omega_x_ascension_db
+    user: omega_x_ascension_db_user
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: 16
+
 services:
+  - type: keyvalue
+    name: omega-x-ascension-kv
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
   - type: web
     name: omega-x-ascension-api
     runtime: docker
