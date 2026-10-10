@@ -259,12 +259,12 @@ form textarea, form select, form input { font-size: 12px; }
 /* Local AI on-device chat */
 .local-ai-setup label { display:block; margin:12px 0 7px; color:var(--muted); font-size:12px; }
 .local-ai-connect { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; }
-.local-ai-connect input, .local-ai-form textarea { width:100%; min-width:0; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); padding:12px; font:inherit; }
+.local-ai-connect input, .local-ai-form textarea { width:100%; min-width:0; border:1px solid var(--border); border-radius:10px; background:var(--surface-soft); color:var(--text); padding:12px; font:inherit; }
 .local-ai-note { color:var(--muted); font-size:12px; line-height:1.6; }
 .local-ai-messages { display:flex; flex-direction:column; gap:10px; min-height:180px; max-height:48vh; overflow:auto; padding:6px 0 14px; }
 .local-ai-welcome { padding:24px 12px; color:var(--muted); text-align:center; font-size:13px; }
 .local-ai-message { max-width:95%; padding:12px 14px; border:1px solid var(--border); border-radius:12px; overflow-wrap:anywhere; }
-.local-ai-message.user { align-self:flex-end; background:var(--surface-2); }
+.local-ai-message.user { align-self:flex-end; background:var(--surface-soft); }
 .local-ai-message.assistant { align-self:flex-start; background:var(--surface); }
 .local-ai-message-role { margin-bottom:7px; color:var(--muted); font-size:10px; letter-spacing:.12em; font-weight:700; }
 .local-ai-message-body { white-space:pre-wrap; line-height:1.55; font-size:13px; }
