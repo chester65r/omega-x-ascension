@@ -143,16 +143,7 @@ jobs:
           disable-linux-hw-accel: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: |
-            set +e
-            cd android
-            ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
-            test_status=$?
-            adb logcat -d -v threadtime > app/build/ci-logcat.txt 2>&1
-            adb shell dumpsys activity exit-info com.omega.ascension > app/build/ci-exit-info.txt 2>&1
-            adb exec-out screencap -p > app/build/ci-final-screen.png 2>/dev/null
-            find app/build/reports/androidTests/connected/debug -type f -maxdepth 4 -print 2>/dev/null
-            exit "$test_status"
+          script: bash android/run-instrumented-tests.sh
 
       - name: Upload Android test diagnostics
         if: always()
