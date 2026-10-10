@@ -16,7 +16,9 @@ services:
   sandbox:
     build: .
     command: ["python", "-m", "omega.sandbox_service"]
-    env_file: .env
+    environment:
+      OMEGA_SANDBOX_TOKEN: ${OMEGA_SANDBOX_TOKEN:?set OMEGA_SANDBOX_TOKEN}
+      OMEGA_SANDBOX_WORKSPACE: /workspace
     networks: [sandbox_internal]
     read_only: true
     tmpfs:

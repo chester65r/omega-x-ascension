@@ -108,3 +108,12 @@ def test_browser_response_size_is_bounded_without_external_network(tmp_path):
                 await tool._get_public("https://example.invalid")
 
     asyncio.run(check())
+
+
+def test_sandbox_does_not_receive_backend_env_file_or_model_credentials():
+    compose = Path("docker-compose.yml").read_text()
+    sandbox = compose.split("  sandbox:\n", 1)[1].split("\n  ollama:", 1)[0]
+    assert "env_file: .env" not in sandbox
+    assert "OMEGA_SANDBOX_TOKEN:" in sandbox
+    assert "OMEGA_DATABASE_URL" not in sandbox
+    assert "OMEGA_MODEL_PROVIDERS" not in sandbox
