@@ -19,7 +19,8 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 
 ## Production cautions
 
-- Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` on internet-facing or multi-tenant deployments. The built-in command tool is not a hardened sandbox.
+- Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` on internet-facing or multi-tenant deployments. The built-in command tool is not a hardened per-job sandbox.
+- `OMEGA_ENABLE_COMPUTER_FILES=true` enables the authenticated file editor independently; the terminal remains off unless explicitly enabled.
 - Do not expose PostgreSQL or Redis publicly.
 - Protect backups, provider keys, and the `.env` file. Never commit them.
 - A debug APK is for testing. A production Android release needs a privately held signing key and a release build.
@@ -30,9 +31,9 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 
 The API and worker do **not** execute shell commands in their own containers. The computer tool is routed to a separate sandbox service on a Docker internal network. The sandbox has a read-only image layer, bounded CPU/RAM/processes/output, no external network route, and a shared credential kept out of command environments.
 
-Start with `OMEGA_ENABLE_COMPUTER_EXECUTION=false`. Only after reviewing your deployment, change it to `true`, rebuild/restart the stack, and issue a short-lived operator token that explicitly includes `computer:execute`, `computer:read`, and/or `computer:write`. The interactive terminal also requires `runs:approve`. Agent workflows cannot run computer commands unless the task requests `execute_code` and the run passes the existing human approval gate.
+Set `OMEGA_ENABLE_COMPUTER_FILES=true` to enable file listing, reading and writing independently of command execution. File operations still require the corresponding tenant-bound JWT scopes. Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` unless commands are required for a trusted test environment. If enabled, issue a short-lived operator token that explicitly includes `computer:execute` and `runs:approve`; agent workflows cannot run computer commands unless the task requests `execute_code` and the run passes the existing human approval gate.
 
-**Security boundary:** this container sandbox is intended for a trusted single-operator deployment and development tasks. It is not a replacement for a hardened per-job VM, gVisor, or Firecracker boundary for untrusted multi-tenant public SaaS. Leave computer execution off on public-facing deployments. Workspace contents are ephemeral and clear when the sandbox container is recreated.
+**Security boundary:** the sandbox is a separate resource-limited container on a private Docker network, but shell processes in it share the same OS identity. Therefore workspace file permissions do not fully isolate one tenant from another when arbitrary shell execution is on. It is suitable for local development and trusted single-operator testing, not untrusted multi-tenant public SaaS. A hardened per-job container/VM or equivalent runtime isolation is required before enabling arbitrary command execution for untrusted users. Workspace contents are ephemeral and clear when the sandbox container is recreated.
 
 ## Local model without a paid API
 

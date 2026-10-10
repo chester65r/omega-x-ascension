@@ -150,7 +150,7 @@
           <div id="local-ai-messages" class="local-ai-messages" role="log" aria-live="polite"><div class="local-ai-welcome">Your local conversation will appear here. Messages stay in this page session.</div></div>
           <form id="local-ai-form" class="local-ai-form">
             <label class="sr-only" for="local-ai-prompt">Message for local AI</label>
-            <textarea id="local-ai-prompt" rows="3" maxlength="8000" placeholder="اكتب رسالتك هنا… / Ask your local model" required></textarea>
+            <textarea id="local-ai-prompt" rows="3" maxlength="1200" placeholder="اكتب رسالتك هنا… / Ask your local model (1200 characters max)" required></textarea>
             <button id="local-ai-send" class="btn btn-primary" type="submit">Send</button>
           </form>
         </div>
@@ -172,7 +172,7 @@
         <div class="card">
           <div class="card computer-files-card">
           <div class="card-heading"><div><p class="eyebrow">ISOLATED WORKSPACE</p><h3>Files and editor</h3></div><span class="section-chip">SANDBOX</span></div>
-          <p class="form-hint">Files are stored only in your workspace inside the isolated sandbox. They are ephemeral and may be cleared when the sandbox container is recreated. File operations require explicit computer permissions.</p>
+          <p class="form-hint">File browsing and editing have a separate server setting (OMEGA_ENABLE_COMPUTER_FILES) and require computer:read / computer:write permissions. Files are temporary and may be cleared when the sandbox container is recreated. Shell commands are a different capability and remain disabled by default; do not enable them on a shared or internet-facing deployment until per-job isolation is added.</p>
           <div class="computer-files-toolbar">
             <label class="sr-only" for="computer-path">Workspace folder path</label>
             <input id="computer-path" type="text" value="." maxlength="240" placeholder="Workspace folder, e.g. .">
@@ -191,6 +191,7 @@
           </div>
         </div>
         <div class="card-heading"><div><p class="eyebrow">AUTHORIZED EXECUTION</p><h3>Computer terminal</h3></div><span class="section-chip">POLICY CONTROLLED</span></div>
+          <p class="form-hint">Command execution requires OMEGA_ENABLE_COMPUTER_EXECUTION=true plus a token with computer:execute and runs:approve. Keep it off on multi-tenant or internet-facing systems; the current container is resource-limited but is not a hardened per-job VM.</p>
           <div class="terminal"><div class="terminal-topline"><span></span><span></span><span></span><label>TERMINAL SESSION</label></div><div id="terminal-output" class="terminal-output">$ ready&#10;</div><div class="terminal-input-row"><span class="terminal-prompt">$</span><input type="text" id="terminal-input" placeholder="Enter command..." aria-label="Terminal command"><button id="terminal-run" class="btn btn-primary" type="button">Run</button></div></div>
         </div>
         <div class="card">

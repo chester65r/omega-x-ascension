@@ -15,6 +15,56 @@ def test_computer_execution_is_disabled_by_default():
         asyncio.run(tool.execute("echo blocked"))
 
 
+def test_workspace_files_can_work_without_enabling_shell_execution():
+    async def check():
+        async def handler(request):
+            assert request.headers.get("X-OMEGA-SANDBOX-TOKEN") == "s" * 32
+            assert request.url.path == "/files"
+            return httpx.Response(
+                200,
+                json={"path": ".", "entries": [{"name": "note.txt", "type": "file", "size": 2}], "truncated": False},
+                request=request,
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            tool = ComputerTool(
+                client=client,
+                token="s" * 32,
+                enabled=False,
+                files_enabled=True,
+            )
+            result = await tool.list_dir(".", workspace_id="00000000-0000-0000-0000-000000000001")
+            assert result["entries"][0]["name"] == "note.txt"
+            with pytest.raises(RuntimeError, match="execution is disabled"):
+                await tool.execute("echo blocked")
+
+    asyncio.run(check())
+
+
+def test_workspace_file_tools_can_be_disabled_independently():
+    async def check():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={}, request=request)
+        )) as client:
+            tool = ComputerTool(
+                client=client,
+                token="s" * 32,
+                enabled=True,
+                files_enabled=False,
+            )
+            with pytest.raises(RuntimeError, match="file tools are disabled"):
+                await tool.list_dir(".")
+
+    asyncio.run(check())
+
+
+def test_file_routes_use_separate_policy_and_are_not_duplicated():
+    api = Path("src/omega/api.py").read_text(encoding="utf-8")
+    assert api.count('@router.get("/computer/files")') == 1
+    assert api.count("require_computer_files_enabled(svc)") == 3
+    assert 'scopes=["runs:write", "runs:approve", "computer:execute"]' in api
+
+
 def test_sandbox_workspace_blocks_path_traversal(tmp_path):
     runtime = SandboxRuntime(tmp_path / "workspace")
     tenant_id = "00000000-0000-0000-0000-000000000001"

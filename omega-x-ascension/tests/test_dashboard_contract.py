@@ -48,6 +48,23 @@ def test_local_ai_event_handlers_are_registered_on_page_load():
     assert "renderLocalAiMessages();" in js[local_ai_block:]
 
 
+def test_local_ai_chat_bounds_context_and_has_a_timeout():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    assert "localAiMessages.filter((m) => m !== pending).slice(-4)" in js
+    assert "window.setTimeout(() => requestController.abort(), 180000)" in js
+    assert "window.clearTimeout(requestTimeout)" in js
+    assert "max_tokens: 256" in js
+    assert 'id="local-ai-prompt" rows="3" maxlength="1200"' in html
+
+
+def test_dashboard_calls_out_file_and_shell_flags_separately():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    assert "OMEGA_ENABLE_COMPUTER_FILES" in html
+    assert "OMEGA_ENABLE_COMPUTER_EXECUTION" in html
+    assert "not a hardened per-job VM" in html
+
+
 def test_dashboard_has_local_ai_tab_and_chat_controls():
     html = Path("static/index.html").read_text(encoding="utf-8")
     for required in (

@@ -129,6 +129,8 @@
     const pending = { role: 'assistant', content: 'Thinking…' };
     localAiMessages.push(pending);
     renderLocalAiMessages();
+    const requestController = new AbortController();
+    const requestTimeout = window.setTimeout(() => requestController.abort(), 180000);
     try {
       localAiBase = normalizeLocalAiBase($('#local-ai-url').value);
       localStorage.setItem('omega-local-ai-base', localAiBase);
@@ -137,11 +139,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'local-model',
-          messages: [{ role: 'system', content: 'You are a helpful assistant. Answer clearly and honestly. If unsure, say so.' }, ...localAiMessages.filter((m) => m !== pending).map((m) => ({ role: m.role, content: m.content }))],
-          temperature: 0.7,
-          max_tokens: 512,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant. Answer clearly and honestly. If unsure, say so.' },
+            ...localAiMessages.filter((m) => m !== pending).slice(-4).map((m, index, messages) => ({
+              role: m.role,
+              content: String(m.content).slice(index === messages.length - 1 ? -1200 : -240)
+            }))
+          ],
+          temperature: 0.4,
+          max_tokens: 256,
           stream: false
-        })
+        }),
+        signal: requestController.signal
       });
       if (!response.ok) throw new Error('HTTP ' + response.status + ': ' + (await response.text()).slice(0, 400));
       const data = await response.json();
@@ -150,9 +159,12 @@
       pending.content = answer;
       setLocalAiStatus('MODEL SERVER ONLINE', true);
     } catch (error) {
-      pending.content = 'Local inference failed: ' + (error.message || String(error)) + '\n\nCheck that llama-server is running, the model has finished loading, and CORS allows https://appassets.androidplatform.net.';
+      pending.content = error.name === 'AbortError'
+        ? 'Local inference timed out after 180 seconds. On-device generation can be slow; reduce the prompt or close other apps and retry.'
+        : 'Local inference failed: ' + (error.message || String(error)) + '\\n\\nCheck that llama-server is running, the model has finished loading, and CORS allows https://appassets.androidplatform.net.';
       setLocalAiStatus('REQUEST FAILED', false);
     } finally {
+      window.clearTimeout(requestTimeout);
       renderLocalAiMessages();
       button.disabled = false;
       $('#local-ai-prompt').disabled = false;
