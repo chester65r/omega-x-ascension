@@ -37,6 +37,7 @@
       <button class="tab active" data-tab="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Overview</span></button>
       <button class="tab" data-tab="runs"><span class="nav-icon" aria-hidden="true">↗</span><span>Runs</span></button>
       <button class="tab" data-tab="browser"><span class="nav-icon" aria-hidden="true">◎</span><span>Browser</span></button>
+      <button class="tab" data-tab="local-ai"><span class="nav-icon" aria-hidden="true">✳</span><span>Local AI</span></button>
       <button class="tab" data-tab="agents"><span class="nav-icon" aria-hidden="true">⌘</span><span>Agents &amp; tools</span></button>
     </nav>
 
@@ -153,6 +154,28 @@
         <div class="card">
           <div class="card-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>Agent activity</h3></div><span class="heading-icon">≋</span></div>
           <div id="agent-log" class="agent-log"><div class="empty-state">No activity yet. Create a run to see agent activity.</div></div>
+        </div>
+      </section>
+      <section id="local-ai" class="tab-content" aria-labelledby="local-ai-title">
+        <div class="page-heading">
+          <div><p class="eyebrow">ON-DEVICE INFERENCE</p><h2 id="local-ai-title">Local AI</h2><p class="page-subtitle">Chat with a model running on this Android device. No cloud account or API key required.</p></div>
+          <span id="local-ai-status" class="section-chip">NOT CONNECTED</span>
+        </div>
+        <div class="card local-ai-setup">
+          <div class="card-heading"><div><p class="eyebrow">LOCAL MODEL SERVER</p><h3>Connection</h3></div><span class="heading-icon">⌁</span></div>
+          <p class="local-ai-note">Start llama.cpp's server in Termux first. The default address is this device only.</p>
+          <label for="local-ai-url">Server URL</label>
+          <div class="local-ai-connect"><input id="local-ai-url" type="url" value="http://127.0.0.1:8080" autocomplete="url"><button id="local-ai-check" class="btn btn-primary" type="button">Test connection</button></div>
+          <p class="local-ai-note">For privacy, use a loopback address only. This mode chats with the model directly; workflow runs, browser automation, and backend persistence still require the separate OMEGA API.</p>
+        </div>
+        <div class="card">
+          <div class="card-heading"><div><p class="eyebrow">PRIVATE SESSION</p><h3>Chat</h3></div><button id="local-ai-clear" class="btn btn-quiet" type="button">Clear chat</button></div>
+          <div id="local-ai-messages" class="local-ai-messages" role="log" aria-live="polite"><div class="local-ai-welcome">Your local conversation will appear here. Messages stay in this page session.</div></div>
+          <form id="local-ai-form" class="local-ai-form">
+            <label class="sr-only" for="local-ai-prompt">Message for local AI</label>
+            <textarea id="local-ai-prompt" rows="3" maxlength="8000" placeholder="اكتب رسالتك هنا… / Ask your local model" required></textarea>
+            <button id="local-ai-send" class="btn btn-primary" type="submit">Send</button>
+          </form>
         </div>
       </section>
     </main>
