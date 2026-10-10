@@ -182,32 +182,43 @@
   let selectedRunId = null;
 
   async function loadRuns() {
-    if (!token) {
-      $('#runs-list').innerHTML = '<div class="empty-state">Connect with a signed JWT to manage runs.</div>';
-      return;
-    }
-    const runs = JSON.parse(sessionStorage.getItem('omega-runs') || '[]');
     const list = $('#runs-list');
-    if (runs.length === 0) {
-      list.innerHTML = '<div class="empty-state">No runs in this session yet. Create your first task.</div>';
+    if (!token) {
+      list.innerHTML = '<div class="empty-state">Connect with a signed JWT to manage runs.</div>';
       return;
     }
-    list.innerHTML = '';
-    for (const run of runs) {
-      const item = document.createElement('div');
-      item.className = 'run-item' + (run.id === selectedRunId ? ' active' : '');
-      const id = document.createElement('div');
-      id.className = 'run-id';
-      id.textContent = String(run.id).substring(0, 8);
-      const goal = document.createElement('div');
-      goal.className = 'run-goal';
-      goal.textContent = String(run.goal || '').substring(0, 120);
-      const status = document.createElement('span');
-      status.className = 'run-status ' + String(run.status || 'pending').replace(/[^a-z_]/g, '');
-      status.textContent = String(run.status || 'pending').replace(/_/g, ' ');
-      item.append(id, goal, status);
-      item.addEventListener('click', () => { selectedRunId = run.id; loadRunDetail(run.id); loadRuns(); });
-      list.appendChild(item);
+    try {
+      const response = await api('/v1/runs?limit=50');
+      const runs = await response.json();
+      sessionStorage.setItem('omega-runs', JSON.stringify(runs));
+      if (runs.length === 0) {
+        list.innerHTML = '<div class="empty-state">No runs found for this account. Create your first task.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      for (const run of runs) {
+        const item = document.createElement('div');
+        item.className = 'run-item' + (run.id === selectedRunId ? ' active' : '');
+        const id = document.createElement('div');
+        id.className = 'run-id';
+        id.textContent = String(run.id).substring(0, 8);
+        const goal = document.createElement('div');
+        goal.className = 'run-goal';
+        goal.textContent = String(run.goal || '').substring(0, 120);
+        const status = document.createElement('span');
+        status.className = 'run-status ' + String(run.status || 'pending').replace(/[^a-z_]/g, '');
+        status.textContent = String(run.status || 'pending').replace(/_/g, ' ');
+        item.append(id, goal, status);
+        item.addEventListener('click', () => {
+          selectedRunId = run.id;
+          loadRunDetail(run.id);
+          loadRuns();
+        });
+        list.appendChild(item);
+      }
+    } catch (error) {
+      list.innerHTML = '<div class="empty-state">Unable to load server run history. Check the API connection and runs:read permission.</div>';
+      addAgentLog('error', 'Run history unavailable: ' + (error.message || 'request failed'));
     }
   }
 
