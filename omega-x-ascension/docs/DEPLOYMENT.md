@@ -9,7 +9,9 @@ This repository can be built, but live AI inference requires an actual provider 
 3. Edit `.env` and configure `OMEGA_MODEL_PROVIDERS` with your provider's real OpenAI-compatible API URL, API key, model ID, and supported capabilities. The default is deliberately empty; there is no fake AI fallback.
 4. Start services: `docker compose up --build -d`.
 5. Check: `docker compose ps`, `curl -fsS http://127.0.0.1:8000/health/live`, and `curl -fsS http://127.0.0.1:8000/health/ready`.
-6. Check `docker compose logs --tail=150 api worker migrate`. Readiness should report database/Redis status and a nonzero configured model count after a real provider is configured. Successful readiness alone does not prove inference; create a low-risk test task and verify a successful run with non-empty output.
+6. Check `docker compose logs --tail=150 api worker migrate`. Readiness should report database/Redis status and a nonzero configured model count after a real provider is configured.
+7. Run `docker compose exec api python scripts/verify_model_provider.py`. This performs an actual routed chat completion and fails on an unhealthy or empty response; unlike `/health/models`, it verifies generation rather than just the provider's models endpoint.
+8. Finally, create a low-risk API task and verify a successful persisted run with non-empty output. The CI fixture-model test validates application flow but is not proof that your live provider account has quota or can serve your chosen model.
 
 ## Connect the dashboard
 
@@ -67,3 +69,17 @@ Browser search and page preview require a connected backend with a signed JWT ca
 
 
 The standalone native Android browser is for user-directed browsing only and does not expose the app's native message bridge to websites it visits. Agent research continues to use the authenticated server-side browser proxy and requires a running OMEGA API.
+
+
+## Signed Android release
+
+The routine Android workflow builds and tests a **debug-signed** APK for development. A separately gated `Android Release` workflow builds `assembleRelease`, verifies the signing block and package identity, then runs the release variant's UI smoke test on an Android 14 emulator.
+
+Before using **Actions → Android Release → Run workflow** or pushing a `v*` tag, add these repository Actions secrets under **Settings → Secrets and variables → Actions**:
+
+- `ANDROID_KEYSTORE_BASE64`: the base64-encoded contents of your private JKS/PKCS12 keystore (one line).
+- `ANDROID_KEYSTORE_PASSWORD`: keystore password.
+- `ANDROID_KEY_ALIAS`: the release key alias.
+- `ANDROID_KEY_PASSWORD`: key password.
+
+Never commit the keystore or these values. The workflow deliberately fails closed when a secret is missing, never falls back to the debug key for a release, and does not print signing material. The signing identity must be backed up securely: replacing it later prevents in-place updates of the installed application. An emulator test cannot replace a final installation check on the target physical device.

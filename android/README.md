@@ -38,3 +38,8 @@ The Android APK workflow starts an API 34 emulator and runs an instrumentation t
 
 
 The API 34 emulator smoke test opens the bundled dashboard, verifies Home-to-About/Assistant/Browser tab navigation, and launches the standalone native browser. These tests validate UI startup, not every external website on every physical Android device.
+
+
+## Signed release APK
+
+To prepare a production release, configure the four private signing secrets documented in [Deployment readiness](../omega-x-ascension/docs/DEPLOYMENT.md#signed-android-release), then run the GitHub Actions **Android Release** workflow or push a version tag such as `v0.8.1`. Release builds are signed only when a private keystore is supplied and do not silently reuse Android's debug key. The release workflow installs/runs the release test variant on an Android 14 emulator before publishing its artifact. Do not distribute a debug APK as a production release.

@@ -15,9 +15,32 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release builds require an explicitly supplied private key; never fall back to debug signing.
+    def releaseKeystorePath = System.getenv('ANDROID_KEYSTORE_FILE')
+    def releaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+    def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS')
+    def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+    def releaseSigningConfigured = [releaseKeystorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
+            .every { value -> value != null && !value.trim().isEmpty() } &&
+            new File(releaseKeystorePath ?: '').isFile()
+
+    if (releaseSigningConfigured) {
+        signingConfigs {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
