@@ -30,6 +30,22 @@ class StaticRegistry:
 def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[OpenAICompatibleGateway]:
     """Build gateways identically for API and worker processes; never invent a fallback model."""
     providers = list(config.model_providers)
+    openai_token = config.openai_api_key
+    if openai_token is not None and openai_token.get_secret_value().strip():
+        providers.append(
+            ProviderConfig(
+                name="openai-gpt-6-astra" if config.openai_model == "gpt-6-astra" else f"openai-{config.openai_model}",
+                base_url=config.openai_base_url.rstrip("/"),
+                api_key=openai_token,
+                model=config.openai_model,
+                capabilities=frozenset({
+                    "reasoning", "coding", "mathematics", "planning",
+                    "analysis", "summarization", "research",
+                }),
+                priority=config.openai_priority,
+                timeout_seconds=config.openai_timeout_seconds,
+            )
+        )
     token = config.hf_inference_token
     if token is not None and token.get_secret_value().strip():
         providers.append(
