@@ -61,7 +61,7 @@ def test_workspace_file_tools_can_be_disabled_independently():
 def test_file_routes_use_separate_policy_and_are_not_duplicated():
     api = Path("src/omega/api.py").read_text(encoding="utf-8")
     assert api.count('@router.get("/computer/files")') == 1
-    assert api.count("require_computer_files_enabled(svc)") == 3
+    assert api.count("require_computer_files_enabled(svc)") == 4  # declaration plus three route checks
     assert 'scopes=["runs:write", "runs:approve", "computer:execute"]' in api
 
 
