@@ -22,7 +22,7 @@ services:
   api:
     build: .
     env_file: .env
-    ports: ["8000:8000"]
+    ports: ["127.0.0.1:8000:8000"]
     depends_on: {migrate: {condition: service_completed_successfully}, redis: {condition: service_healthy}}
     restart: unless-stopped
     read_only: true
