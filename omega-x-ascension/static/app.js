@@ -35,7 +35,124 @@
       apiBase = normalizeApiBase($('#api-base').value);
       localStorage.setItem('omega-api-base', apiBase);
       $('#api-base').value = apiBase;
-      startPolling();
+    
+  // Local on-device model mode: talks directly to a llama.cpp OpenAI-compatible server.
+  let localAiBase = localStorage.getItem('omega-local-ai-base') || 'http://127.0.0.1:8080';
+  let localAiMessages = [];
+  $('#local-ai-url').value = localAiBase;
+
+  function normalizeLocalAiBase(value) {
+    const parsed = new URL(value.trim());
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+      throw new Error('Enter a valid local HTTP/HTTPS URL without credentials.');
+    }
+    if (parsed.hostname !== '127.0.0.1' && parsed.hostname !== 'localhost' && parsed.hostname !== '[::1]') {
+      throw new Error('For safety, Local AI only accepts localhost / 127.0.0.1.');
+    }
+    return parsed.origin.replace(/\/$/, '');
+  }
+
+  function setLocalAiStatus(text, connected) {
+    const el = $('#local-ai-status');
+    el.textContent = text;
+    el.classList.toggle('connected', Boolean(connected));
+  }
+
+  function renderLocalAiMessages() {
+    const list = $('#local-ai-messages');
+    list.replaceChildren();
+    if (!localAiMessages.length) {
+      const welcome = document.createElement('div');
+      welcome.className = 'local-ai-welcome';
+      welcome.textContent = 'Your local conversation will appear here. Messages stay in this page session.';
+      list.appendChild(welcome);
+      return;
+    }
+    for (const message of localAiMessages) {
+      const item = document.createElement('article');
+      item.className = 'local-ai-message ' + (message.role === 'user' ? 'user' : 'assistant');
+      const label = document.createElement('div');
+      label.className = 'local-ai-message-role';
+      label.textContent = message.role === 'user' ? 'YOU' : 'LOCAL MODEL';
+      const body = document.createElement('div');
+      body.className = 'local-ai-message-body';
+      body.textContent = message.content;
+      item.append(label, body);
+      list.appendChild(item);
+    }
+    list.scrollTop = list.scrollHeight;
+  }
+
+  $('#local-ai-check').addEventListener('click', async () => {
+    const button = $('#local-ai-check');
+    button.disabled = true;
+    setLocalAiStatus('CHECKING…', false);
+    try {
+      localAiBase = normalizeLocalAiBase($('#local-ai-url').value);
+      $('#local-ai-url').value = localAiBase;
+      localStorage.setItem('omega-local-ai-base', localAiBase);
+      const response = await fetch(localAiBase + '/health', { method: 'GET' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      setLocalAiStatus('MODEL SERVER ONLINE', true);
+      addAgentLog('success', 'Local model server is reachable.');
+    } catch (error) {
+      setLocalAiStatus('NOT CONNECTED', false);
+      alert('Could not reach the local model server. Start llama-server in Termux and check its port and CORS settings. ' + (error.message || ''));
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $('#local-ai-clear').addEventListener('click', () => {
+    localAiMessages = [];
+    renderLocalAiMessages();
+  });
+
+  $('#local-ai-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const prompt = $('#local-ai-prompt').value.trim();
+    if (!prompt) return;
+    const button = $('#local-ai-send');
+    button.disabled = true;
+    $('#local-ai-prompt').disabled = true;
+    localAiMessages.push({ role: 'user', content: prompt });
+    renderLocalAiMessages();
+    $('#local-ai-prompt').value = '';
+    const pending = { role: 'assistant', content: 'Thinking…' };
+    localAiMessages.push(pending);
+    renderLocalAiMessages();
+    try {
+      localAiBase = normalizeLocalAiBase($('#local-ai-url').value);
+      localStorage.setItem('omega-local-ai-base', localAiBase);
+      const response = await fetch(localAiBase + '/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'local-model',
+          messages: [{ role: 'system', content: 'You are a helpful assistant. Answer clearly and honestly. If unsure, say so.' }, ...localAiMessages.filter((m) => m !== pending).map((m) => ({ role: m.role, content: m.content }))],
+          temperature: 0.7,
+          max_tokens: 512,
+          stream: false
+        })
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status + ': ' + (await response.text()).slice(0, 400));
+      const data = await response.json();
+      const answer = data.choices?.[0]?.message?.content;
+      if (!answer) throw new Error('The local model returned no text.');
+      pending.content = answer;
+      setLocalAiStatus('MODEL SERVER ONLINE', true);
+    } catch (error) {
+      pending.content = 'Local inference failed: ' + (error.message || String(error)) + '\n\nCheck that llama-server is running, the model has finished loading, and CORS allows https://appassets.androidplatform.net.';
+      setLocalAiStatus('REQUEST FAILED', false);
+    } finally {
+      renderLocalAiMessages();
+      button.disabled = false;
+      $('#local-ai-prompt').disabled = false;
+      $('#local-ai-prompt').focus();
+    }
+  });
+
+  startPolling();
       if (token) loadRuns();
     } catch (e) { alert(e.message || 'Enter a valid API server URL.'); }
   });
