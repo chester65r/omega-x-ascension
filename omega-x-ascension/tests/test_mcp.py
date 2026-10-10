@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from omega import __version__
 from omega.main import app
 
 
@@ -9,7 +10,7 @@ def test_mcp_info_and_version():
     res_ver = client.get("/version")
     assert res_ver.status_code == 200
     data_ver = res_ver.json()
-    assert data_ver["version"] == "0.7.0"
+    assert data_ver["version"] == __version__
     assert data_ver["api_version"] == "v1"
     assert "mcp_server" in data_ver["features"]
     assert "langgraph_feedback_loop" in data_ver["features"]
@@ -19,7 +20,7 @@ def test_mcp_info_and_version():
     assert res_mcp.status_code == 200
     data_mcp = res_mcp.json()
     assert data_mcp["server"] == "omega-x-ascension-mcp"
-    assert data_mcp["version"] == "0.7.0"
+    assert data_mcp["version"] == __version__
     assert "omega_create_run" in data_mcp["tools"]
 
 
@@ -60,4 +61,4 @@ def test_mcp_jsonrpc_protocol():
     assert res_call.status_code == 200
     result = res_call.json()["result"]
     assert result["isError"] is False
-    assert "0.7.0" in result["content"][0]["text"]
+    assert __version__ in result["content"][0]["text"]
