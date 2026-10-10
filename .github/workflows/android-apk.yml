@@ -44,6 +44,59 @@ jobs:
       - name: Build debug APK
         run: ./android/build-apk.sh
 
+      - name: Validate packaged dashboard assets and navigation policy
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import re
+
+          root = Path(".")
+          source = root / "omega-x-ascension" / "static"
+          bundle = root / "android" / "app" / "src" / "main" / "assets" / "web"
+          html_path = bundle / "index.html"
+          assert html_path.is_file(), "Bundled dashboard index.html is missing"
+          html = html_path.read_text(encoding="utf-8")
+          assert 'src="app.js"' in html, "Bundled HTML must load the local app.js"
+          assert 'href="style.css"' in html, "Bundled HTML must load the local style.css"
+          assert "/static/" not in html, "Web-only /static/ paths remain in Android HTML"
+          assert "serviceWorker.register" not in html, "PWA service-worker registration must be removed from APK"
+
+          for name in ("app.js", "style.css", "icon-192.png", "icon-512.png",
+                       "favicon.png", "apple-touch-icon.png"):
+              expected = source / name
+              actual = bundle / name
+              assert expected.is_file() and actual.is_file(), f"Missing dashboard asset: {name}"
+              assert expected.read_bytes() == actual.read_bytes(), f"Stale bundled asset: {name}"
+
+          class IdParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.ids = []
+                  self.tab_targets = []
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if "id" in attrs:
+                      self.ids.append(attrs["id"])
+                  if tag == "button" and "data-tab" in attrs:
+                      self.tab_targets.append(attrs["data-tab"])
+
+          parser = IdParser()
+          parser.feed(html)
+          duplicates = sorted({item for item in parser.ids if parser.ids.count(item) > 1})
+          assert not duplicates, f"Duplicate HTML IDs: {duplicates}"
+          id_set = set(parser.ids)
+          assert all(target in id_set for target in parser.tab_targets), "A dashboard tab points to a missing section"
+
+          java = (root / "android" / "app" / "src" / "main" / "java" /
+                  "com" / "omega" / "ascension" / "MainActivity.java").read_text(encoding="utf-8")
+          for required in ("request.isForMainFrame()", "isTrustedAppAsset(uri)",
+                           "Intent.ACTION_VIEW", 'setAllowFileAccess(false)',
+                           'setAllowContentAccess(false)'):
+              assert required in java, f"Android WebView security guard missing: {required}"
+          print(f"Validated {len(parser.ids)} unique dashboard IDs and {6} bundled assets.")
+          PY
+
       - name: Verify APK signature and package
         run: |
           APK=omega-x-ascension-0.6.0-debug.apk
