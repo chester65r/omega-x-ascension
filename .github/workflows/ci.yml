@@ -31,6 +31,8 @@ jobs:
 
       - name: Compile Python sources
         run: python -m compileall -q src scripts tests
+      - name: Validate dashboard JavaScript syntax
+        run: node --check static/app.js
 
       - name: Run tests
         run: pytest -q
