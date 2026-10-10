@@ -1,6 +1,6 @@
 # OMEGA-X Ascension Android app
 
-The Android app packages the dashboard in a WebView using AndroidX WebKit's secure asset loader. The dashboard includes Overview, Personal Assistant, Runs, Browser, Local AI, Workspace, Logs, About, an isolated computer terminal, and a sandbox workspace file editor; the app does not host the API or model by itself.
+The Android app packages the dashboard in a WebView using AndroidX WebKit's secure asset loader. A separate native internal browser can open sites and search without an OMEGA API server; the authenticated proxy remains the controlled route for agent research when connected. The dashboard includes Overview, Personal Assistant, Runs, Browser, Local AI, Workspace, Logs, About, an isolated computer terminal, and a sandbox workspace file editor; the app does not host the API or model by itself.
 
 ## Build a debug APK
 
@@ -10,7 +10,7 @@ From the repository root, with Java 17 and Android SDK platform/build-tools 34 i
 ./android/build-apk.sh
 ```
 
-The installable, debug-signed APK is written to `omega-x-ascension-0.7.0-debug.apk`. The CI workflow builds it and validates the signing block and package ID before publishing a temporary workflow artifact. It is a debug build, not a Play Store release.
+The installable, debug-signed APK is written to `omega-x-ascension-0.8.0-debug.apk`. The CI workflow builds it and validates the signing block and package ID before publishing a temporary workflow artifact. It is a debug build, not a Play Store release.
 
 For Docker, build from the repository root and export the APK:
 
@@ -35,3 +35,6 @@ The Android asset origin is allowed by default for cross-origin API calls. Add o
 ## Automated Android smoke test
 
 The Android APK workflow starts an API 34 emulator and runs an instrumentation test that opens the bundled WebView dashboard, checks critical screens, verifies tab-to-section consistency, and exercises Home-to-About, Assistant, and Browser tab navigation. The test uses the bundled UI and does not require a live API server or provider key; browser network requests and real agent inference are covered separately by mocked backend tests and still require a deployed, configured backend for an end-to-end live test.
+
+
+The API 34 emulator smoke test opens the bundled dashboard, verifies Home-to-About/Assistant/Browser tab navigation, and launches the standalone native browser. These tests validate UI startup, not every external website on every physical Android device.

@@ -19,7 +19,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import androidx.webkit.WebViewAssetLoader;
-import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
@@ -161,8 +160,12 @@ public class MainActivity extends Activity {
             JSONObject message = new JSONObject(payload == null ? "{}" : payload);
             String action = message.optString("action", "");
             String text = message.optString("text", "");
+            String url = message.optString("url", "");
 
             switch (action) {
+                case "openBrowser":
+                    openBrowser(url);
+                    break;
                 case "share":
                     shareText(text);
                     break;
@@ -188,6 +191,12 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {
             dispatchNativeEvent("native-error", "The Android action request was invalid.");
         }
+    }
+
+    private void openBrowser(String url) {
+        Intent intent = new Intent(this, BrowserActivity.class);
+        intent.putExtra(BrowserActivity.EXTRA_URL, url == null ? "" : url);
+        startActivity(intent);
     }
 
     private void shareText(String value) {

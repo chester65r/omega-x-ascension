@@ -504,6 +504,29 @@
     $('#browser-status').dataset.level = level;
   }
 
+  function nativeBrowserTarget(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 'https://duckduckgo.com/';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (!/\s/.test(raw) &&
+        /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::\d{1,5})?(?:\/[^\s]*)?$/i.test(raw) &&
+        raw.includes('.')) {
+      return 'https://' + raw;
+    }
+    return 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(raw);
+  }
+
+  function openNativeBrowser(value) {
+    const url = nativeBrowserTarget(value);
+    if (nativeMessage('openBrowser', { url })) {
+      browserStatus('Opened the built-in Android browser. Cloud proxy research for the agent still needs the OMEGA server.');
+      addAgentLog('info', 'Opened native browser: ' + url.slice(0, 160));
+      return true;
+    }
+    browserStatus('The full internal browser is available inside the Android app. Proxy browsing needs a configured API server and signed token.', 'error');
+    return false;
+  }
+
   function browserReady() {
     if (!apiBase) {
       browserStatus('Set the HTTPS API server URL in Backend Connection first.', 'error');
@@ -558,13 +581,19 @@
   }
 
   async function searchBrowser(query, recordHistory = true) {
-    if (!browserReady()) return;
     const cleanQuery = String(query || '').trim();
     if (!cleanQuery) return;
     if (cleanQuery.length > 300) {
       browserStatus('Search queries must be 300 characters or fewer.', 'error');
       return;
     }
+    if (!apiBase || !token) {
+      $('#browser-url').value = cleanQuery;
+      addBrowserHistory({ type: 'search', value: cleanQuery }, recordHistory);
+      openNativeBrowser(cleanQuery);
+      return;
+    }
+    if (!browserReady()) return;
     browserStatus('Searching the web…');
     $('#browser-frame').hidden = true;
     $('#browser-results').hidden = false;
@@ -594,9 +623,19 @@
   }
 
   async function navigateTo(value, recordHistory = true) {
-    if (!browserReady()) return;
     let raw = String(value || '').trim();
-    if (!raw) return;
+    if (!raw) {
+      openNativeBrowser('');
+      return;
+    }
+    if (!apiBase || !token) {
+      $('#browser-url').value = raw;
+      const isLikelyUrl = /^https?:\/\//i.test(raw) || (!/\s/.test(raw) && /^[^\s]+\.[^\s]+$/.test(raw));
+      addBrowserHistory({ type: isLikelyUrl ? 'url' : 'search', value: raw }, recordHistory);
+      openNativeBrowser(raw);
+      return;
+    }
+    if (!browserReady()) return;
     let url;
     if (/^https?:\/\//i.test(raw)) {
       url = raw;
@@ -642,6 +681,8 @@
   }
 
   $('#browser-go').addEventListener('click', () => navigateTo($('#browser-url').value));
+  $('#browser-full-open').addEventListener('click', () => openNativeBrowser($('#browser-url').value || ''));
+
   $('#browser-url').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -1139,7 +1180,7 @@
   $('#logs-export').addEventListener('click', () => {
     const payload = {
       app: 'OMEGA-X ASCENSION',
-      version: '0.7.0',
+      version: '0.8.0',
       exported_at: new Date().toISOString(),
       local_events: storedLogs,
       server_audit_events: serverAuditEvents,

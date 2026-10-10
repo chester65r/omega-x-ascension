@@ -221,3 +221,13 @@ def test_mobile_assistant_logs_and_about_controls_exist():
         "omega:native", "postMessage", "Clear local app logs",
     ):
         assert behavior in js or behavior in html
+
+
+
+def test_native_browser_does_not_expose_privileged_javascript_bridge():
+    browser = Path("../android/app/src/main/java/com/omega/ascension/BrowserActivity.java").read_text(encoding="utf-8")
+    assert "addJavascriptInterface" not in browser
+    assert "setAllowFileAccess(false)" in browser
+    assert "setAllowContentAccess(false)" in browser
+    assert "WebSettings.MIXED_CONTENT_NEVER_ALLOW" in browser
+    assert '("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))' in browser

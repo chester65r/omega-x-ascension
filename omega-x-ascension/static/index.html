@@ -20,7 +20,7 @@
           <h1>OMEGA<span>-X</span></h1>
           <p>ASCENSION CONTROL</p>
         </div>
-        <span class="version" id="app-version">v0.7.0</span>
+        <span class="version" id="app-version">v0.8.0</span>
       </div>
       <details class="connection-details" id="connection-details" open>
         <summary><span class="connection-title">BACKEND CONNECTION</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
@@ -165,12 +165,13 @@
       </section>
 
       <section id="browser" class="tab-content" aria-labelledby="browser-title">
-        <div class="page-heading"><div><p class="eyebrow">RESEARCH TOOL</p><h2 id="browser-title">Agent browser</h2><p class="page-subtitle">Browse through the configured, authenticated browser proxy.</p></div><span class="section-chip">PROXY SESSION</span></div>
+        <div class="page-heading"><div><p class="eyebrow">RESEARCH TOOL</p><h2 id="browser-title">Agent browser</h2><p class="page-subtitle">Use the secure OMEGA proxy when connected, or open the full internal Android browser without a cloud server.</p></div><span class="section-chip">PROXY SESSION</span></div>
         <div class="card browser-card">
           <div class="browser-toolbar">
             <button id="browser-back" class="icon-button" type="button" title="Back" aria-label="Back">←</button><button id="browser-forward" class="icon-button" type="button" title="Forward" aria-label="Forward">→</button><button id="browser-reload" class="icon-button" type="button" title="Reload" aria-label="Reload">↻</button>
             <label class="sr-only" for="browser-url">URL or search query</label><input type="text" id="browser-url" placeholder="Enter a URL or search the web..."><button id="browser-go" class="btn btn-primary" type="button">Go <span aria-hidden="true">↗</span></button>
           </div>
+          <div class="browser-native-action"><button id="browser-full-open" class="btn btn-quiet" type="button">Open full browser ↗</button><span>Standalone browsing works without the OMEGA server. Proxy research for agents needs the server.</span></div>
           <div class="browser-content"><iframe id="browser-frame" title="Browser page preview" sandbox="allow-scripts allow-forms"></iframe></div>
           <div id="browser-results" class="browser-results" hidden aria-live="polite"></div>
           <div class="browser-info"><span class="status-dot"></span><span id="browser-status">Ready — enter a URL above</span></div>
@@ -258,19 +259,19 @@
       </section>
 
       <section id="about" class="tab-content" aria-labelledby="about-title">
-        <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.7.0</span></div>
+        <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.8.0</span></div>
         <div class="about-hero card">
           <div class="about-mark" aria-hidden="true"><span></span><span></span><span></span></div>
           <div><p class="eyebrow">OMEGA-X ASCENSION</p><h3>Useful automation. Verifiable status.</h3><p>The app does not pretend that cloud tasks work without a backend and an available model provider. Local AI is a separate llama.cpp server running on this device.</p></div>
         </div>
         <div class="about-grid">
-          <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.7.0</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Requires backend URL, signed JWT, database, queue, and healthy model endpoint</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
+          <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.8.0</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Requires backend URL, signed JWT, database, queue, and healthy model endpoint</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
           <div class="card"><p class="eyebrow">PHONE FEATURES</p><h3>Device integrations</h3><ul class="about-feature-list"><li>Native Android share sheet</li><li>System speech dictation with permission prompt</li><li>Text-to-speech through Android TTS</li><li>Short haptic feedback for task completion</li><li>Exportable diagnostics and audit logs</li></ul><p id="device-info" class="form-hint">Device details are shown only when the secure Android WebView messaging feature is available.</p><button id="about-device-refresh" class="btn btn-quiet" type="button">Read device info</button></div>
         </div>
         <div class="card about-links"><p class="eyebrow">PROJECT</p><h3>Source and checks</h3><p>Review the source code, release workflow, and automated tests in the public repository.</p><p><a href="https://github.com/chester65r/omega-x-ascension" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a></p><p><a href="https://github.com/chester65r/omega-x-ascension/actions" target="_blank" rel="noopener noreferrer">Builds and automated tests ↗</a></p><p id="about-runtime-status" class="form-hint">Runtime status has not been verified on this device yet.</p></div>
       </section>
     </main>
-    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.7.0</span></footer>
+    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.8.0</span></footer>
   </div>
   <script src="/static/app.js"></script>
   <script>

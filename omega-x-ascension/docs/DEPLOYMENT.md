@@ -56,3 +56,6 @@ Run `python scripts/configure_provider.py` inside the backend project. It prompt
 ## Browser and workflow smoke tests
 
 Browser search and page preview require a connected backend with a signed JWT carrying `runs:read`. Each navigation is fetched through the browser proxy, which validates every redirect destination and bounds response size; click navigation in the page preview is sent back to the proxy rather than allowed to bypass its checks. The mobile Personal Assistant submits a real workflow and displays its persisted status/output. It deliberately shows a setup/error state when no model can serve the selected capability instead of returning placeholder text. The `GET /health/models` endpoint reports configured model health separately from database/queue readiness, without exposing provider URLs or API keys. `GET /v1/events` returns only audit records for the authenticated tenant and requires `runs:read`.
+
+
+The standalone native Android browser is for user-directed browsing only and does not expose the app's native message bridge to websites it visits. Agent research continues to use the authenticated server-side browser proxy and requires a running OMEGA API.

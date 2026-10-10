@@ -427,3 +427,13 @@ input, textarea, select { border-radius:4px; background:#080808; border-color:#3
   .assistant-controls { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
   .about-details { grid-template-columns:minmax(80px,.7fr) minmax(0,1.3fr); }
 }
+
+
+.browser-native-action { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 0 12px; }
+.browser-native-action > span { color:var(--muted); font-size:11px; line-height:1.45; }
+.browser-native-action .btn { flex:0 0 auto; }
+@media (max-width:720px) {
+  .browser-native-action { align-items:stretch; flex-direction:column; gap:6px; }
+  .browser-native-action .btn { width:100%; }
+  .browser-native-action > span { font-size:10px; }
+}

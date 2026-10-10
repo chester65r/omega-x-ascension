@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import android.content.Intent;
+import android.widget.EditText;
 import android.webkit.WebView;
 
 import androidx.test.core.app.ActivityScenario;
@@ -81,6 +83,30 @@ public class DashboardSmokeTest {
                     "document.getElementById('browser-results') !== null && " +
                     "document.getElementById('browser-frame') !== null");
             assertEquals("Browser tab and its results/preview containers must exist", "true", browserWorks);
+        }
+    }
+
+
+    @Test
+    public void nativeBrowserLaunchesWithAddressBarAndWebView() {
+        Intent intent = new Intent(
+                InstrumentationRegistry.getInstrumentation().getTargetContext(),
+                BrowserActivity.class);
+        intent.putExtra(BrowserActivity.EXTRA_URL, "https://example.com/");
+        try (ActivityScenario<BrowserActivity> scenario = ActivityScenario.launch(intent)) {
+            AtomicReference<WebView> browserRef = new AtomicReference<>();
+            AtomicReference<EditText> addressViewRef = new AtomicReference<>();
+            AtomicReference<String> addressTextRef = new AtomicReference<>();
+            scenario.onActivity(activity -> {
+                browserRef.set(activity.findViewById(R.id.native_browser_webview));
+                EditText address = activity.findViewById(R.id.native_browser_address);
+                addressViewRef.set(address);
+                addressTextRef.set(address == null ? "" : address.getText().toString());
+            });
+            assertNotNull("Native browser must contain a WebView", browserRef.get());
+            assertNotNull("Native browser must contain an address bar", addressViewRef.get());
+            assertTrue("Native browser must preserve a valid HTTPS address",
+                    addressTextRef.get() != null && addressTextRef.get().startsWith("https://example.com"));
         }
     }
 }

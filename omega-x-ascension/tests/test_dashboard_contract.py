@@ -102,3 +102,20 @@ def test_model_health_ui_uses_real_provider_status_endpoint():
     assert "apiFetch('/health/models')" in js
     assert '@app.get("/health/models")' in main
     assert "await gateway.healthy()" in router
+
+
+
+def test_native_browser_is_available_without_cloud_backend():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    main = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text(encoding="utf-8")
+    browser = Path("../android/app/src/main/java/com/omega/ascension/BrowserActivity.java").read_text(encoding="utf-8")
+    assert 'id="browser-full-open"' in html
+    assert "openNativeBrowser(cleanQuery)" in js
+    assert "nativeBrowserTarget" in js
+    assert 'case "openBrowser"' in main
+    assert "BrowserActivity.EXTRA_URL" in main
+    assert "setAllowFileAccess(false)" in browser
+    assert "setAllowContentAccess(false)" in browser
+    assert "WebSettings.MIXED_CONTENT_NEVER_ALLOW" in browser
+    assert "addJavascriptInterface" not in browser

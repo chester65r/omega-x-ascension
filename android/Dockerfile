@@ -25,4 +25,4 @@ RUN chmod +x ./android/build-apk.sh ./android/gradlew && ./android/build-apk.sh
 
 # Export with: docker build --target apk --output type=local,dest=dist -f android/Dockerfile .
 FROM scratch AS apk
-COPY --from=builder /repo/omega-x-ascension-0.7.0-debug.apk /
+COPY --from=builder /repo/omega-x-ascension-0.8.0-debug.apk /

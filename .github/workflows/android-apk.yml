@@ -105,12 +105,19 @@ jobs:
                            "isMainFrame", "sourceOrigin", "startVoiceInput", "shareText",
                            'setAllowFileAccess(false)', 'setAllowContentAccess(false)'):
               assert required in java, f"Android WebView security guard missing: {required}"
+          native_browser = (root / "android" / "app" / "src" / "main" / "java" /
+                            "com" / "omega" / "ascension" / "BrowserActivity.java").read_text(encoding="utf-8")
+          for required in ("setJavaScriptEnabled(true)", "setAllowFileAccess(false)",
+                           "setAllowContentAccess(false)", "WebSettings.MIXED_CONTENT_NEVER_ALLOW",
+                           "setSafeBrowsingEnabled(true)", "EXTRA_URL"):
+              assert required in native_browser, f"Native browser security guard missing: {required}"
+          assert "addJavascriptInterface" not in native_browser, "Standalone browser must not expose a JS bridge"
           print(f"Validated {len(parser.ids)} unique dashboard IDs and {6} bundled assets.")
           PY
 
       - name: Verify APK signature and package
         run: |
-          APK=omega-x-ascension-0.7.0-debug.apk
+          APK=omega-x-ascension-0.8.0-debug.apk
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
 
@@ -118,6 +125,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: omega-x-ascension-android-debug
-          path: omega-x-ascension-0.7.0-debug.apk
+          path: omega-x-ascension-0.8.0-debug.apk
           if-no-files-found: error
           retention-days: 14
