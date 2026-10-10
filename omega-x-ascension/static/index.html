@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0d1117">
-  <meta name="description" content="AI-powered automation platform for complex asynchronous tasks">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050607">
+  <meta name="description" content="OMEGA-X ASCENSION AI agent control center">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="/static/favicon.png">
@@ -12,137 +12,152 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header>
-    <div class="header-left">
-      <h1>⚡ OMEGA-X ASCENSION</h1>
-      <span class="version" id="app-version">v0.5.0</span>
-    </div>
-    <div class="header-right">
-      <label class="sr-only" for="api-base">API server URL</label>
-      <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url" />
-      <button id="save-server-btn" class="btn btn-small">Save server</button>
-      <input type="password" id="jwt-token" placeholder="Paste JWT token..." autocomplete="off" />
-      <button id="connect-btn" class="btn btn-primary">Connect</button>
-      <span id="conn-status" class="status-badge disconnected">Disconnected</span>
-    </div>
-  </header>
-
-  <nav class="tabs">
-    <button class="tab active" data-tab="overview">📊 Overview</button>
-    <button class="tab" data-tab="runs">🔄 Runs</button>
-    <button class="tab" data-tab="browser">🌐 Browser</button>
-    <button class="tab" data-tab="agents">🤖 Agents</button>
-  </nav>
-
-  <main>
-    <!-- Overview -->
-    <section id="overview" class="tab-content active">
-      <div class="cards">
-        <div class="card stat-card" id="card-live"><h3>Live</h3><div class="card-value" id="health-live">--</div></div>
-        <div class="card stat-card" id="card-ready"><h3>Ready</h3><div class="card-value" id="health-ready">--</div></div>
-        <div class="card stat-card"><h3>Models</h3><div class="card-value" id="model-count">--</div></div>
-        <div class="card stat-card"><h3>Uptime</h3><div class="card-value" id="uptime">--</div></div>
-      </div>
-      <div class="card"><h3>Configured Models</h3><div id="models-list" class="models-list">Loading...</div></div>
-      <div class="card"><h3>Metrics</h3><pre id="metrics" class="metrics-display">Loading...</pre></div>
-    </section>
-
-    <!-- Runs -->
-    <section id="runs" class="tab-content">
-      <div class="runs-layout">
-        <div class="card form-card">
-          <h3>Create Run</h3>
-          <form id="create-run-form">
-            <label>Goal</label>
-            <textarea id="run-goal" placeholder="Describe the workflow goal..." rows="3" required></textarea>
-            <label>Task Type</label>
-            <select id="run-task-type">
-              <option value="reasoning">Reasoning</option>
-              <option value="coding">Coding</option>
-              <option value="mathematics">Mathematics</option>
-              <option value="planning">Planning</option>
-              <option value="analysis">Analysis</option>
-              <option value="summarization">Summarization</option>
-              <option value="research">Research</option>
-            </select>
-            <label>Requested Actions (comma-separated)</label>
-            <input type="text" id="run-actions" placeholder="deploy, release, delete..." />
-            <button type="submit" class="btn btn-primary">Create Run</button>
-          </form>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-copy">
+          <h1>OMEGA<span>-X</span></h1>
+          <p>ASCENSION CONTROL</p>
         </div>
-        <div class="card list-card">
-          <h3>Runs <button id="refresh-runs" class="btn btn-small">↻</button></h3>
-          <div id="runs-list" class="runs-list">Connect to view runs</div>
-        </div>
-        <div class="card detail-card">
-          <h3>Run Details</h3>
-          <div id="run-detail" class="run-detail">Select a run to view details</div>
-        </div>
+        <span class="version" id="app-version">v0.5.0</span>
       </div>
-    </section>
+      <div class="connection-panel" aria-label="Server connection">
+        <label class="sr-only" for="api-base">API server URL</label>
+        <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url">
+        <button id="save-server-btn" class="btn btn-quiet">Save</button>
+        <label class="sr-only" for="jwt-token">JWT access token</label>
+        <input type="password" id="jwt-token" placeholder="JWT access token" autocomplete="off">
+        <button id="connect-btn" class="btn btn-primary">Connect</button>
+        <span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span>
+      </div>
+    </header>
 
-    <!-- Browser -->
-    <section id="browser" class="tab-content">
-      <div class="browser-toolbar">
-        <button id="browser-back" class="btn btn-small" title="Back">←</button>
-        <button id="browser-forward" class="btn btn-small" title="Forward">→</button>
-        <button id="browser-reload" class="btn btn-small" title="Reload">↻</button>
-        <input type="text" id="browser-url" placeholder="Enter URL or search query..." />
-        <button id="browser-go" class="btn btn-primary">Go</button>
-      </div>
-      <div class="browser-content">
-        <iframe id="browser-frame" sandbox="allow-scripts allow-forms allow-popups"></iframe>
-      </div>
-      <div class="browser-info"><span id="browser-status">Ready — enter a URL above</span></div>
-    </section>
+    <nav class="tabs" aria-label="Main navigation">
+      <button class="tab active" data-tab="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Overview</span></button>
+      <button class="tab" data-tab="runs"><span class="nav-icon" aria-hidden="true">↗</span><span>Runs</span></button>
+      <button class="tab" data-tab="browser"><span class="nav-icon" aria-hidden="true">◎</span><span>Browser</span></button>
+      <button class="tab" data-tab="agents"><span class="nav-icon" aria-hidden="true">⌘</span><span>Agents &amp; tools</span></button>
+    </nav>
 
-    <!-- Agents -->
-    <section id="agents" class="tab-content">
-      <div class="card">
-        <h3>Workflow Pipeline</h3>
-        <div class="workflow-graph">
-          <div class="wf-node" data-node="ceo">CEO</div><div class="wf-arrow">→</div>
-          <div class="wf-node" data-node="planner">Planner</div><div class="wf-arrow">→</div>
-          <div class="wf-node" data-node="researcher">Researcher</div><div class="wf-arrow">→</div>
-          <div class="wf-node" data-node="specialist">Specialist</div><div class="wf-arrow">→</div>
-          <div class="wf-node" data-node="executor">Executor</div><div class="wf-arrow">→</div>
-          <div class="wf-node" data-node="critic">Critic</div><div class="wf-arrow">→</div>
-          <div class="wf-node" data-node="judge">Judge</div>
-        </div>
-      </div>
-      <div class="card">
-        <h3>Available Tools</h3>
-        <div class="tools-grid">
-          <div class="tool-card">
-            <h4>🌐 Browser Tool</h4>
-            <p>Web browsing and search for agents</p>
-            <ul><li>Fetch web pages</li><li>Search the web</li><li>Extract content</li></ul>
+    <main>
+      <section id="overview" class="tab-content active" aria-labelledby="overview-title">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">SYSTEM OVERVIEW</p>
+            <h2 id="overview-title">Control center</h2>
+            <p class="page-subtitle">Your agent workspace, at a glance.</p>
           </div>
-          <div class="tool-card">
-            <h4>💻 Computer Tool</h4>
-            <p>Shell execution and file ops</p>
-            <ul><li>Execute commands</li><li>Read/write files</li><li>List directories</li></ul>
+          <div class="heading-meta"><span class="live-pulse"></span><span>Live system checks</span></div>
+        </div>
+
+        <section class="hero-panel" aria-label="Agent status">
+          <div class="hero-grid">
+            <div class="hero-copy">
+              <div class="hero-kicker"><span class="status-dot"></span> AUTONOMOUS WORKSPACE</div>
+              <h3>Intelligence in motion.</h3>
+              <p>Monitor your environment, launch workflows, and review agent activity from one place.</p>
+              <button class="btn btn-primary hero-action" data-go-tab="runs" type="button">Create a task <span aria-hidden="true">↗</span></button>
+            </div>
+            <div class="orbit-visual" aria-hidden="true">
+              <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+              <div class="orbit-core"><span></span></div>
+              <i class="orbit-point point-one"></i><i class="orbit-point point-two"></i><i class="orbit-point point-three"></i>
+            </div>
+          </div>
+          <div class="hero-footer"><span>OMEGA-X AGENT SYSTEM</span><span>STATUS MONITOR <b>●</b></span></div>
+        </section>
+
+        <div class="section-heading"><div><p class="eyebrow">AT A GLANCE</p><h3>System status</h3></div><span class="muted-label">Refreshed automatically</span></div>
+        <div class="cards">
+          <div class="card stat-card" id="card-live"><div class="stat-top"><span>API liveness</span><span class="stat-symbol">◌</span></div><div class="card-value" id="health-live">--</div><p class="stat-caption">Service process</p></div>
+          <div class="card stat-card" id="card-ready"><div class="stat-top"><span>System readiness</span><span class="stat-symbol">◇</span></div><div class="card-value" id="health-ready">--</div><p class="stat-caption">Database and queue</p></div>
+          <div class="card stat-card"><div class="stat-top"><span>Model providers</span><span class="stat-symbol">✳</span></div><div class="card-value" id="model-count">--</div><p class="stat-caption">Configured endpoints</p></div>
+          <div class="card stat-card"><div class="stat-top"><span>Session uptime</span><span class="stat-symbol">◷</span></div><div class="card-value" id="uptime">--</div><p class="stat-caption">Since dashboard opened</p></div>
+        </div>
+
+        <div class="overview-grid">
+          <div class="card">
+            <div class="card-heading"><div><p class="eyebrow">CONFIGURATION</p><h3>Model providers</h3></div><span class="heading-icon">✳</span></div>
+            <div id="models-list" class="models-list"><div class="empty-state">Connect to a server to inspect model status.</div></div>
+          </div>
+          <div class="card">
+            <div class="card-heading"><div><p class="eyebrow">TELEMETRY</p><h3>Live metrics</h3></div><span class="heading-icon">⌁</span></div>
+            <pre id="metrics" class="metrics-display">Waiting for server configuration.</pre>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <h3>Computer Terminal</h3>
-        <div class="terminal">
-          <div id="terminal-output" class="terminal-output">$ ready\n</div>
-          <div class="terminal-input-row">
-            <span class="terminal-prompt">$</span>
-            <input type="text" id="terminal-input" placeholder="Enter command..." />
-            <button id="terminal-run" class="btn btn-small btn-primary">Run</button>
+      </section>
+
+      <section id="runs" class="tab-content" aria-labelledby="runs-title">
+        <div class="page-heading">
+          <div><p class="eyebrow">WORKFLOW MANAGEMENT</p><h2 id="runs-title">Runs</h2><p class="page-subtitle">Create work, track execution, and inspect results.</p></div>
+          <span class="section-chip">TASK CONTROL</span>
+        </div>
+        <div class="runs-layout">
+          <div class="card form-card">
+            <div class="card-heading"><div><p class="eyebrow">NEW WORKFLOW</p><h3>Create a task</h3></div><span class="heading-icon">＋</span></div>
+            <form id="create-run-form">
+              <label for="run-goal">What should the agent do?</label>
+              <textarea id="run-goal" placeholder="Describe the outcome you want..." rows="4" required></textarea>
+              <label for="run-task-type">Task category</label>
+              <select id="run-task-type">
+                <option value="reasoning">Reasoning</option><option value="coding">Coding</option><option value="mathematics">Mathematics</option><option value="planning">Planning</option><option value="analysis">Analysis</option><option value="summarization">Summarization</option><option value="research">Research</option>
+              </select>
+              <label for="run-actions">Requested actions <span class="optional">(optional, comma-separated)</span></label>
+              <input type="text" id="run-actions" placeholder="e.g. research, summarize">
+              <p class="form-hint">Actions may require approval depending on policy.</p>
+              <button type="submit" class="btn btn-primary submit-btn">Launch workflow <span aria-hidden="true">↗</span></button>
+            </form>
+          </div>
+          <div class="card list-card">
+            <div class="card-heading"><div><p class="eyebrow">ACTIVITY</p><h3>Recent runs</h3></div><button id="refresh-runs" class="icon-button" type="button" aria-label="Refresh runs" title="Refresh runs">↻</button></div>
+            <div id="runs-list" class="runs-list"><div class="empty-state">Connect to view runs.</div></div>
+          </div>
+          <div class="card detail-card">
+            <div class="card-heading"><div><p class="eyebrow">INSPECTION</p><h3>Run details</h3></div><span class="heading-icon">⌕</span></div>
+            <div id="run-detail" class="run-detail"><div class="empty-state">Select a run to inspect its status and output.</div></div>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <h3>Agent Activity</h3>
-        <div id="agent-log" class="agent-log">No activity yet. Create a run to see agent activity.</div>
-      </div>
-    </section>
-  </main>
+      </section>
 
+      <section id="browser" class="tab-content" aria-labelledby="browser-title">
+        <div class="page-heading"><div><p class="eyebrow">RESEARCH TOOL</p><h2 id="browser-title">Agent browser</h2><p class="page-subtitle">Browse through the configured, authenticated browser proxy.</p></div><span class="section-chip">PROXY SESSION</span></div>
+        <div class="card browser-card">
+          <div class="browser-toolbar">
+            <button id="browser-back" class="icon-button" type="button" title="Back" aria-label="Back">←</button><button id="browser-forward" class="icon-button" type="button" title="Forward" aria-label="Forward">→</button><button id="browser-reload" class="icon-button" type="button" title="Reload" aria-label="Reload">↻</button>
+            <label class="sr-only" for="browser-url">URL or search query</label><input type="text" id="browser-url" placeholder="Enter a URL or search the web..."><button id="browser-go" class="btn btn-primary" type="button">Go <span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="browser-content"><iframe id="browser-frame" title="Browser page preview" sandbox="allow-scripts allow-forms allow-popups"></iframe></div>
+          <div class="browser-info"><span class="status-dot"></span><span id="browser-status">Ready — enter a URL above</span></div>
+        </div>
+      </section>
+
+      <section id="agents" class="tab-content" aria-labelledby="agents-title">
+        <div class="page-heading"><div><p class="eyebrow">ORCHESTRATION</p><h2 id="agents-title">Agents &amp; tools</h2><p class="page-subtitle">Understand the workflow pipeline and inspect available capabilities.</p></div><span class="section-chip">MULTI-AGENT</span></div>
+        <div class="card">
+          <div class="card-heading"><div><p class="eyebrow">WORKFLOW</p><h3>Execution pipeline</h3></div><span class="heading-icon">⌘</span></div>
+          <div class="workflow-graph"><div class="wf-node" data-node="ceo">CEO</div><div class="wf-arrow">→</div><div class="wf-node" data-node="planner">Planner</div><div class="wf-arrow">→</div><div class="wf-node" data-node="researcher">Researcher</div><div class="wf-arrow">→</div><div class="wf-node" data-node="specialist">Specialist</div><div class="wf-arrow">→</div><div class="wf-node" data-node="executor">Executor</div><div class="wf-arrow">→</div><div class="wf-node" data-node="critic">Critic</div><div class="wf-arrow">→</div><div class="wf-node" data-node="judge">Judge</div></div>
+          <p class="form-hint">The pipeline shows the configured workflow roles; active states depend on runtime events.</p>
+        </div>
+        <div class="card">
+          <div class="card-heading"><div><p class="eyebrow">CAPABILITIES</p><h3>Available tools</h3></div><span class="heading-icon">⊞</span></div>
+          <div class="tools-grid">
+            <div class="tool-card"><div class="tool-icon">◎</div><div><h4>Browser tool</h4><p>Web browsing and search for agents</p></div><ul><li>Fetch web pages</li><li>Search the web</li><li>Extract content</li></ul></div>
+            <div class="tool-card"><div class="tool-icon">⌘</div><div><h4>Computer tool</h4><p>Command execution and file operations, when enabled by server policy.</p></div><ul><li>Execute commands</li><li>Read and write files</li><li>List directories</li></ul></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-heading"><div><p class="eyebrow">AUTHORIZED EXECUTION</p><h3>Computer terminal</h3></div><span class="section-chip">POLICY CONTROLLED</span></div>
+          <div class="terminal"><div class="terminal-topline"><span></span><span></span><span></span><label>TERMINAL SESSION</label></div><div id="terminal-output" class="terminal-output">$ ready&#10;</div><div class="terminal-input-row"><span class="terminal-prompt">$</span><input type="text" id="terminal-input" placeholder="Enter command..." aria-label="Terminal command"><button id="terminal-run" class="btn btn-primary" type="button">Run</button></div></div>
+        </div>
+        <div class="card">
+          <div class="card-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>Agent activity</h3></div><span class="heading-icon">≋</span></div>
+          <div id="agent-log" class="agent-log"><div class="empty-state">No activity yet. Create a run to see agent activity.</div></div>
+        </div>
+      </section>
+    </main>
+    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.5.0</span></footer>
+  </div>
   <script src="/static/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

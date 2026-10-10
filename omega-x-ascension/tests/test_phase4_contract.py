@@ -22,3 +22,13 @@ def test_sensitive_actions_require_approval():
     api=Path('src/omega/api.py').read_text()
     assert 'execute_code' in domain
     assert 'run.approval_digest != run.digest()' in api
+
+def test_run_history_is_authenticated_tenant_scoped_and_bounded():
+    database = Path("src/omega/adapters/database.py").read_text()
+    api = Path("src/omega/api.py").read_text()
+    assert "async def list_runs(self, tenant_id: UUID, limit: int = 50)" in database
+    assert "RunRow.tenant_id == tenant_id" in database
+    assert '.order_by(RunRow.created_at.desc(), RunRow.id.desc())' in database
+    assert '@router.get("/runs", response_model=list[RunView])' in api
+    assert 'Query(default=50, ge=1, le=100)' in api
+    assert 'scopes=["runs:read"]' in api
