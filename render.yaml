@@ -39,6 +39,12 @@ services:
         fromDatabase:
           name: omega-x-ascension-db
           property: database
+      # Use a single secret-backed reference for admin migrations. This avoids
+      # dependence on separate owner username/password variables syncing correctly.
+      - key: OMEGA_DB_ADMIN_URL
+        fromDatabase:
+          name: omega-x-ascension-db
+          property: connectionString
       - key: OMEGA_DB_OWNER_USER
         fromDatabase:
           name: omega-x-ascension-db
