@@ -47,7 +47,7 @@
 - [x] Add capability-gated mobile account data sharing and password-confirmed account deletion; TypeScript passes, but Android device testing remains open.
 - [x] Add bilingual top-level navigation, working database-backed project/file editor and checkpoint diff views, usage/diagnostics sections, and honest unavailable states for agent/browser/terminal/general uploads; TypeScript and Android Metro export pass.
 - [x] Verify the current test APK contains only Internet access plus an internal not-exported receiver permission, disables backup, and embeds no key-shaped Google API value.
-- [ ] Deploy the updated backend contract to Preview; Vercel CLI is unavailable here, so project/response-style/privacy controls remain capability-gated against the older API.
+- [x] Deploy the updated backend contract to the existing personal Vercel test Preview for `feature/security-capability-completion`; verify READY, HTTP 200 health/readiness/OpenAPI, Neon connectivity, and project workspace routes. No `main`/Production deploy or new model inference request was made.
 
 ## Stage 9 — Production verification
 - [ ] Resolve the 15-high npm audit blocker without a forced major SDK downgrade. Both the configured and public npm registries still report affected latest `braces@3.0.3`/`node-forge@1.4.0`; no safe patched release was available in this check.
