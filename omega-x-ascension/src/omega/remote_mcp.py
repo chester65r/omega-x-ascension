@@ -25,7 +25,7 @@ _MUTATING_TOOL_TERMS = re.compile(
     r"\b(?:create|update|delete|remove|modify|write|edit|patch|post|put|upload|download|"
     r"deploy|execute|run|shell|command|send|email|message|notify|publish|purchase|pay|"
     r"transfer|grant|revoke|invite|approve|cancel|reset|restart|change|alter|destroy|"
-    r"erase|drop|insert|replace|configure|configuration|set)\\b",
+    r"erase|drop|insert|replace|configure|configuration|set)\b",
     re.IGNORECASE,
 )
 
