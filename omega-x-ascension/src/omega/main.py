@@ -20,6 +20,7 @@ from omega.adapters.database import SqlRunRepository, build_engine
 from omega.adapters.models import StaticRegistry, build_gateways
 from omega.api import router
 from omega.mcp import router as mcp_router
+from omega.remote_mcp import RemoteMCPClient, router as remote_mcp_router
 from omega.webhooks import router as webhooks_router
 from omega.config import get_settings
 from omega.model_router import ModelRouter
@@ -55,6 +56,12 @@ async def lifespan(app: FastAPI):
     )
     app.state.services = Services(
         SqlRunRepository(maker), model_router, redis, engine, http, browser, computer
+    )
+    app.state.remote_mcp = RemoteMCPClient(
+        url=cfg.remote_mcp_url,
+        token=cfg.remote_mcp_token.get_secret_value() if cfg.remote_mcp_token else None,
+        timeout_seconds=cfg.remote_mcp_timeout_seconds,
+        http=http,
     )
     worker_task = None
     if os.environ.get("OMEGA_EMBEDDED_WORKER", "").lower() == "true":
@@ -92,6 +99,7 @@ app.add_middleware(
 app.include_router(router, prefix="/v1")
 app.include_router(mcp_router, prefix="/mcp")
 app.include_router(mcp_router, prefix="/v1/mcp")
+app.include_router(remote_mcp_router, prefix="/v1/integrations/mcp")
 app.include_router(webhooks_router, prefix="/webhooks")
 app.include_router(webhooks_router, prefix="/v1/webhooks")
 
