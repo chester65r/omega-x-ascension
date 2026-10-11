@@ -67,6 +67,35 @@ def test_workspace_file_tools_can_be_disabled_independently():
     asyncio.run(check())
 
 
+def test_sandbox_health_checks_each_enabled_capability():
+    async def check():
+        async def handler(request):
+            assert request.url.path == "/health"
+            return httpx.Response(
+                200,
+                json={"status": "ok", "file_tools": True, "command_execution": False},
+                request=request,
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            command_tool = ComputerTool(
+                client=client,
+                token="s" * 32,
+                enabled=True,
+                files_enabled=True,
+            )
+            file_tool = ComputerTool(
+                client=client,
+                token="s" * 32,
+                enabled=False,
+                files_enabled=True,
+            )
+            assert await command_tool.health() is False
+            assert await file_tool.health() is True
+
+    asyncio.run(check())
+
+
 def test_file_routes_use_separate_policy_and_are_not_duplicated():
     api = Path("src/omega/api.py").read_text(encoding="utf-8")
     assert api.count('@router.get("/computer/files")') == 1
