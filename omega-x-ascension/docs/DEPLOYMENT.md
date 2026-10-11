@@ -27,7 +27,7 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 
 ## Production cautions
 
-- Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` on internet-facing or multi-tenant deployments. The built-in command tool is not a hardened per-job sandbox.
+- Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false`. The sandbox service currently rejects shell execution with HTTP 503 even if that flag is accidentally enabled. Do not remove this fail-closed guard until per-tenant OS isolation is implemented and adversarially tested.
 - `OMEGA_ENABLE_COMPUTER_FILES=true` enables the authenticated file editor independently; the terminal remains off unless explicitly enabled.
 - Do not expose PostgreSQL or Redis publicly.
 - Protect backups, provider keys, and the `.env` file. Never commit them.
@@ -39,9 +39,9 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 
 The API and worker do **not** execute shell commands in their own containers. The computer tool is routed to a separate sandbox service on a Docker internal network. The sandbox has a read-only image layer, bounded CPU/RAM/processes/output, no external network route, and a shared credential kept out of command environments.
 
-Set `OMEGA_ENABLE_COMPUTER_FILES=true` to enable file listing, reading and writing independently of command execution. File operations still require the corresponding tenant-bound JWT scopes. Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` unless commands are required for a trusted test environment. If enabled, issue a short-lived operator token that explicitly includes `computer:execute` and `runs:approve`; agent workflows cannot run computer commands unless the task requests `execute_code` and the run passes the existing human approval gate.
+Set `OMEGA_ENABLE_COMPUTER_FILES=true` to enable file listing, reading and writing independently of command execution. File operations still require the corresponding tenant-bound JWT scopes. Shell execution is currently fail-closed at the sandbox service and returns HTTP 503; JWT scopes and workflow approval do not override this service-level guard. Restoring execution requires a per-tenant OS isolation runtime plus adversarial cross-tenant tests.
 
-**Security boundary:** the sandbox is a separate resource-limited container on a private Docker network, but shell processes in it share the same OS identity. Therefore workspace file permissions do not fully isolate one tenant from another when arbitrary shell execution is on. It is suitable for local development and trusted single-operator testing, not untrusted multi-tenant public SaaS. A hardened per-job container/VM or equivalent runtime isolation is required before enabling arbitrary command execution for untrusted users. Workspace contents are ephemeral and clear when the sandbox container is recreated.
+**Security boundary:** the sandbox is a separate resource-limited container on a private Docker network, but tenant directories share one OS identity. Shell execution is therefore blocked by the service and returns HTTP 503. Do not add a flag-based bypass. Restoring command execution requires a hardened per-job container/VM or equivalent per-tenant OS isolation, validated with adversarial cross-tenant tests. Workspace contents are ephemeral and clear when the sandbox container is recreated.
 
 ## Hosted model with a free-credit allowance (optional)
 
