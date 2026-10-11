@@ -96,8 +96,9 @@ class CoreWorkflow:
             return {}
         if not self.remote_mcp or not self.remote_mcp.enabled:
             return {"remote_mcp_output": "Remote MCP is disabled or not configured."}
+        remote_client = self.remote_mcp.new_session()
         try:
-            tools = await self.remote_mcp.list_tools()
+            tools = await remote_client.list_tools()
             if not tools:
                 return {"remote_mcp_output": "The configured MCP server advertises no tools."}
             tool_catalog = [
@@ -134,7 +135,7 @@ class CoreWorkflow:
             risky_terms = ("delete", "write", "modify", "deploy", "execute", "send", "purchase", "transfer")
             if any(term in description or term in tool_name.lower() for term in risky_terms):
                 return {"remote_mcp_output": "Selected tool did not pass the read-only safety filter; no tool was called."}
-            result = await self.remote_mcp.call_tool(tool_name, arguments)
+            result = await remote_client.call_tool(tool_name, arguments)
             rendered = json.dumps(result, ensure_ascii=False)[:6000]
             return {"remote_mcp_output": f"Remote MCP tool: {tool_name}\\nUntrusted tool result: {rendered}"}
         except (RemoteMCPError, ValueError, TypeError) as exc:
