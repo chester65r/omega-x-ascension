@@ -56,6 +56,10 @@ class RemoteMCPClient:
     def enabled(self) -> bool:
         return bool(self.url)
 
+    def new_session(self) -> "RemoteMCPClient":
+        """Create an isolated MCP protocol session while reusing the HTTP pool."""
+        return RemoteMCPClient(self.url, self.token, self.timeout_seconds, self.http)
+
     def _headers(self) -> dict[str, str]:
         headers = {
             "Accept": "application/json, text/event-stream",
@@ -194,7 +198,7 @@ def _client(request: Request) -> RemoteMCPClient:
     client = getattr(request.app.state, "remote_mcp", None)
     if client is None:
         raise HTTPException(503, "Remote MCP integration is unavailable")
-    return client
+    return client.new_session()
 
 
 @router.get("/status")
