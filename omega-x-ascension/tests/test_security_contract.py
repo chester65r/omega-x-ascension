@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from omega.sandbox_service import SandboxRuntime
 from omega.tools.browser import BrowserTool
@@ -97,31 +98,31 @@ def test_sandbox_workspace_blocks_path_traversal(tmp_path):
     assert not (tmp_path / "escape.txt").exists()
 
 
-def test_sandbox_commands_do_not_inherit_service_secrets(tmp_path, monkeypatch):
+def test_sandbox_command_execution_fails_closed_without_tenant_os_isolation(tmp_path):
     runtime = SandboxRuntime(tmp_path / "workspace")
-    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "do-not-inherit-this")
-    result = asyncio.run(
-        runtime.execute(
-            "00000000-0000-0000-0000-000000000001",
-            "printf '%s' \"$OMEGA_SANDBOX_TOKEN\"",
-            timeout=3,
+    with pytest.raises(RuntimeError, match="per-tenant OS isolation is required"):
+        asyncio.run(
+            runtime.execute(
+                "00000000-0000-0000-0000-000000000001",
+                "printf 'should not run'",
+                timeout=3,
+            )
         )
-    )
-    assert result["stdout"] == ""
-    assert result["returncode"] == 0
 
 
-def test_sandbox_output_is_bounded(tmp_path):
-    runtime = SandboxRuntime(tmp_path / "workspace")
-    result = asyncio.run(
-        runtime.execute(
-            "00000000-0000-0000-0000-000000000001",
-            "python -c 'print(\"x\" * 200000)'",
-            timeout=5,
-        )
+def test_sandbox_execute_endpoint_returns_503_without_tenant_os_isolation(monkeypatch):
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 32)
+    response = TestClient(__import__("omega.sandbox_service", fromlist=["app"]).app).post(
+        "/execute",
+        headers={"X-OMEGA-SANDBOX-TOKEN": "s" * 32},
+        json={
+            "workspace_id": "00000000-0000-0000-0000-000000000001",
+            "command": "printf 'should not run'",
+            "timeout": 3,
+        },
     )
-    assert result["output_limited"] is True
-    assert len(result["stdout"]) <= 16_000
+    assert response.status_code == 503
+    assert "per-tenant OS isolation is required" in response.json()["detail"]
 
 
 def test_browser_blocks_private_literal_addresses():
