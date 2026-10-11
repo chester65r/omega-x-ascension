@@ -77,10 +77,8 @@ async def test_remote_mcp_initialize_list_and_call():
         ]
 
 
-def test_remote_mcp_rejects_non_https_url():
-    async def unused() -> None:
-        pass
-
-    with pytest.raises(ValueError, match="HTTPS"):
-        # The HTTP client is not used when construction rejects the URL.
-        RemoteMCPClient("http://example.test/mcp", None, 5, httpx.AsyncClient())
+@pytest.mark.asyncio
+async def test_remote_mcp_rejects_non_https_url():
+    async with httpx.AsyncClient() as http:
+        with pytest.raises(ValueError, match="HTTPS"):
+            RemoteMCPClient("http://example.test/mcp", None, 5, http)
