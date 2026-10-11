@@ -140,7 +140,7 @@ async def require_shared_token(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "file_tools": True, "command_execution": False}
 
 
 @app.post("/execute")
