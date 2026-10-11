@@ -6,7 +6,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from omega.sandbox_service import SandboxRuntime
+from omega.sandbox_service import SandboxRuntime, app as sandbox_app
 from omega.tools.browser import BrowserTool
 from omega.tools.computer import ComputerTool
 
@@ -112,7 +112,7 @@ def test_sandbox_command_execution_fails_closed_without_tenant_os_isolation(tmp_
 
 def test_sandbox_execute_endpoint_returns_503_without_tenant_os_isolation(monkeypatch):
     monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 32)
-    response = TestClient(__import__("omega.sandbox_service", fromlist=["app"]).app).post(
+    response = TestClient(sandbox_app).post(
         "/execute",
         headers={"X-OMEGA-SANDBOX-TOKEN": "s" * 32},
         json={
