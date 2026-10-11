@@ -1,4 +1,5 @@
 import asyncio
+import stat
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -128,6 +129,48 @@ def test_sandbox_workspace_file_crud_is_tenant_scoped(tmp_path):
     assert runtime.list_dir(tenant_b)["entries"] == []
     with pytest.raises(ValueError, match="regular file"):
         runtime.read_file(tenant_b, "src/main.py")
+
+
+
+def test_sandbox_workspace_and_files_have_restrictive_permissions(tmp_path):
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    tenant_id = "11111111-1111-1111-1111-111111111111"
+
+    runtime.write_file(tenant_id, "private/note.txt", "confidential")
+    home = runtime.workspace(tenant_id)
+    nested_dir = home / "private"
+    written_file = nested_dir / "note.txt"
+
+    assert stat.S_IMODE(runtime.root.stat().st_mode) == 0o700
+    assert stat.S_IMODE(home.stat().st_mode) == 0o700
+    assert stat.S_IMODE(nested_dir.stat().st_mode) == 0o700
+    assert stat.S_IMODE(written_file.stat().st_mode) == 0o600
+
+
+def test_sandbox_file_tools_reject_symlinks_escaping_workspace(tmp_path):
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    tenant_id = "11111111-1111-1111-1111-111111111111"
+    outside = tmp_path / "outside.txt"
+    outside.write_text("do not modify", encoding="utf-8")
+    link = runtime.workspace(tenant_id) / "outside-link.txt"
+    link.symlink_to(outside)
+
+    with pytest.raises(ValueError, match="escapes the workspace"):
+        runtime.read_file(tenant_id, "outside-link.txt")
+    with pytest.raises(ValueError, match="escapes the workspace"):
+        runtime.write_file(tenant_id, "outside-link.txt", "overwritten")
+    assert outside.read_text(encoding="utf-8") == "do not modify"
+
+
+def test_sandbox_file_routes_reject_missing_or_unconfigured_token(monkeypatch):
+    workspace_id = "11111111-1111-1111-1111-111111111111"
+    monkeypatch.delenv("OMEGA_SANDBOX_TOKEN", raising=False)
+    unavailable = TestClient(sandbox_app).get("/files", params={"workspace_id": workspace_id})
+    assert unavailable.status_code == 503
+
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 32)
+    unauthorized = TestClient(sandbox_app).get("/files", params={"workspace_id": workspace_id})
+    assert unauthorized.status_code == 401
 
 
 def test_sandbox_workspace_blocks_path_traversal(tmp_path):
