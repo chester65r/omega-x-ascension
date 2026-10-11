@@ -85,9 +85,22 @@ class ComputerTool:
             return False
         try:
             response = await self._client.get(self._base_url + "/health", timeout=3)
-            return response.is_success
-        except httpx.HTTPError:
+            if not response.is_success:
+                return False
+            payload = response.json()
+        except (httpx.HTTPError, ValueError):
             return False
+
+        if not isinstance(payload, dict):
+            return False
+        # Service health must confirm each requested capability. A reachable
+        # sandbox is not "ready" for commands when execution is intentionally
+        # disabled to protect tenant isolation.
+        if self.enabled and payload.get("command_execution") is not True:
+            return False
+        if self.files_enabled and payload.get("file_tools") is not True:
+            return False
+        return True
 
     async def execute(
         self, command: str, timeout: int = 30, workspace_id: str | UUID | None = None
