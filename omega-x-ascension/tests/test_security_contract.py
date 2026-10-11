@@ -134,7 +134,8 @@ def test_browser_blocks_private_literal_addresses():
 
 def test_dashboard_iframe_does_not_grant_same_origin():
     index = Path("static/index.html").read_text()
-    assert 'sandbox="allow-scripts allow-forms"' in index
+    assert 'sandbox="allow-scripts"' in index
+    assert "sandbox=\"allow-scripts allow-forms\"" not in index
     assert "allow-same-origin" not in index
     java = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text()
     assert "WebViewCompat.addWebMessageListener" in java
