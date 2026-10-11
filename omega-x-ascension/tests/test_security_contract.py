@@ -209,7 +209,7 @@ def test_android_backup_and_device_transfer_are_explicitly_disabled():
             for node in section.findall("exclude")
             if node.attrib.get("path") == "."
         }
-        assert expected_domains <= excluded
+        assert excluded == expected_domains
 
     legacy = ET.parse("../android/app/src/main/res/xml/backup_rules.xml").getroot()
     legacy_excluded = {
@@ -217,7 +217,7 @@ def test_android_backup_and_device_transfer_are_explicitly_disabled():
         for node in legacy.findall("exclude")
         if node.attrib.get("path") == "."
     }
-    assert expected_domains <= legacy_excluded
+    assert legacy_excluded == expected_domains
 
 
 def test_browser_rejects_host_if_any_dns_answer_is_non_public(monkeypatch):
