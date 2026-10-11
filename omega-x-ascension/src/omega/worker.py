@@ -15,6 +15,7 @@ from omega.adapters.models import StaticRegistry, build_gateways
 from omega.config import get_settings
 from omega.domain import RunStatus
 from omega.model_router import ModelRouter
+from omega.remote_mcp import RemoteMCPClient
 from omega.tools import BrowserTool, ComputerTool
 from omega.workflow import CoreWorkflow
 
@@ -70,6 +71,12 @@ async def main():
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
     try:
         browser = BrowserTool(http)
+        remote_mcp = RemoteMCPClient(
+            url=cfg.remote_mcp_url,
+            token=cfg.remote_mcp_token.get_secret_value() if cfg.remote_mcp_token else None,
+            timeout_seconds=cfg.remote_mcp_timeout_seconds,
+            http=http,
+        )
         computer = ComputerTool(
             client=http,
             base_url=cfg.sandbox_url,
@@ -78,7 +85,7 @@ async def main():
             files_enabled=cfg.enable_computer_files,
         )
         async with AsyncPostgresSaver.from_conn_string(cfg.checkpoint_database_url) as saver:
-            workflow = CoreWorkflow(router, saver, browser, computer)
+            workflow = CoreWorkflow(router, saver, browser, computer, remote_mcp)
             while True:
                 claimed = await repo.claim(worker_id)
                 if claimed is None:
