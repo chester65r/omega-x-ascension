@@ -1,10 +1,14 @@
 import asyncio
+import stat
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from omega.sandbox_service import SandboxRuntime
+from omega.sandbox_service import app as sandbox_app
 from omega.tools.browser import BrowserTool
 from omega.tools.computer import ComputerTool
 
@@ -64,6 +68,45 @@ def test_workspace_file_tools_can_be_disabled_independently():
     asyncio.run(check())
 
 
+def test_sandbox_health_advertises_only_supported_capabilities():
+    response = TestClient(sandbox_app).get("/health")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "file_tools": True,
+        "command_execution": False,
+    }
+
+
+def test_sandbox_health_checks_each_enabled_capability():
+    async def check():
+        async def handler(request):
+            assert request.url.path == "/health"
+            return httpx.Response(
+                200,
+                json={"status": "ok", "file_tools": True, "command_execution": False},
+                request=request,
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            command_tool = ComputerTool(
+                client=client,
+                token="s" * 32,
+                enabled=True,
+                files_enabled=True,
+            )
+            file_tool = ComputerTool(
+                client=client,
+                token="s" * 32,
+                enabled=False,
+                files_enabled=True,
+            )
+            assert await command_tool.health() is False
+            assert await file_tool.health() is True
+
+    asyncio.run(check())
+
+
 def test_file_routes_use_separate_policy_and_are_not_duplicated():
     api = Path("src/omega/api.py").read_text(encoding="utf-8")
     assert api.count('@router.get("/computer/files")') == 1
@@ -88,6 +131,48 @@ def test_sandbox_workspace_file_crud_is_tenant_scoped(tmp_path):
         runtime.read_file(tenant_b, "src/main.py")
 
 
+
+def test_sandbox_workspace_and_files_have_restrictive_permissions(tmp_path):
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    tenant_id = "11111111-1111-1111-1111-111111111111"
+
+    runtime.write_file(tenant_id, "private/note.txt", "confidential")
+    home = runtime.workspace(tenant_id)
+    nested_dir = home / "private"
+    written_file = nested_dir / "note.txt"
+
+    assert stat.S_IMODE(runtime.root.stat().st_mode) == 0o700
+    assert stat.S_IMODE(home.stat().st_mode) == 0o700
+    assert stat.S_IMODE(nested_dir.stat().st_mode) == 0o700
+    assert stat.S_IMODE(written_file.stat().st_mode) == 0o600
+
+
+def test_sandbox_file_tools_reject_symlinks_escaping_workspace(tmp_path):
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    tenant_id = "11111111-1111-1111-1111-111111111111"
+    outside = tmp_path / "outside.txt"
+    outside.write_text("do not modify", encoding="utf-8")
+    link = runtime.workspace(tenant_id) / "outside-link.txt"
+    link.symlink_to(outside)
+
+    with pytest.raises(ValueError, match="escapes the workspace"):
+        runtime.read_file(tenant_id, "outside-link.txt")
+    with pytest.raises(ValueError, match="escapes the workspace"):
+        runtime.write_file(tenant_id, "outside-link.txt", "overwritten")
+    assert outside.read_text(encoding="utf-8") == "do not modify"
+
+
+def test_sandbox_file_routes_reject_missing_or_unconfigured_token(monkeypatch):
+    workspace_id = "11111111-1111-1111-1111-111111111111"
+    monkeypatch.delenv("OMEGA_SANDBOX_TOKEN", raising=False)
+    unavailable = TestClient(sandbox_app).get("/files", params={"workspace_id": workspace_id})
+    assert unavailable.status_code == 503
+
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 32)
+    unauthorized = TestClient(sandbox_app).get("/files", params={"workspace_id": workspace_id})
+    assert unauthorized.status_code == 401
+
+
 def test_sandbox_workspace_blocks_path_traversal(tmp_path):
     runtime = SandboxRuntime(tmp_path / "workspace")
     tenant_id = "00000000-0000-0000-0000-000000000001"
@@ -96,31 +181,37 @@ def test_sandbox_workspace_blocks_path_traversal(tmp_path):
     assert not (tmp_path / "escape.txt").exists()
 
 
-def test_sandbox_commands_do_not_inherit_service_secrets(tmp_path, monkeypatch):
+def test_sandbox_command_execution_fails_closed_without_tenant_os_isolation(tmp_path):
     runtime = SandboxRuntime(tmp_path / "workspace")
-    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "do-not-inherit-this")
-    result = asyncio.run(
-        runtime.execute(
-            "00000000-0000-0000-0000-000000000001",
-            "printf '%s' \"$OMEGA_SANDBOX_TOKEN\"",
-            timeout=3,
+    with pytest.raises(RuntimeError, match="per-tenant OS isolation is required"):
+        asyncio.run(
+            runtime.execute(
+                "00000000-0000-0000-0000-000000000001",
+                "printf 'should not run'",
+                timeout=3,
+            )
         )
-    )
-    assert result["stdout"] == ""
-    assert result["returncode"] == 0
 
 
-def test_sandbox_output_is_bounded(tmp_path):
-    runtime = SandboxRuntime(tmp_path / "workspace")
-    result = asyncio.run(
-        runtime.execute(
-            "00000000-0000-0000-0000-000000000001",
-            "python -c 'print(\"x\" * 200000)'",
-            timeout=5,
-        )
+def test_sandbox_execute_endpoint_returns_503_without_tenant_os_isolation(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 32)
+    monkeypatch.setattr(
+        "omega.sandbox_service.runtime",
+        SandboxRuntime(tmp_path / "endpoint-workspace"),
     )
-    assert result["output_limited"] is True
-    assert len(result["stdout"]) <= 16_000
+    response = TestClient(sandbox_app).post(
+        "/execute",
+        headers={"X-OMEGA-SANDBOX-TOKEN": "s" * 32},
+        json={
+            "workspace_id": "00000000-0000-0000-0000-000000000001",
+            "command": "printf 'should not run'",
+            "timeout": 3,
+        },
+    )
+    assert response.status_code == 503
+    assert "per-tenant OS isolation is required" in response.json()["detail"]
 
 
 def test_browser_blocks_private_literal_addresses():
@@ -132,9 +223,81 @@ def test_browser_blocks_private_literal_addresses():
     asyncio.run(check())
 
 
+
+def test_android_backup_and_device_transfer_are_explicitly_disabled():
+    manifest = ET.parse("../android/app/src/main/AndroidManifest.xml").getroot()
+    application = manifest.find("application")
+    assert application is not None
+    assert application.attrib["{http://schemas.android.com/apk/res/android}allowBackup"] == "false"
+    assert (
+        application.attrib["{http://schemas.android.com/apk/res/android}dataExtractionRules"]
+        == "@xml/data_extraction_rules"
+    )
+    assert (
+        application.attrib["{http://schemas.android.com/apk/res/android}fullBackupContent"]
+        == "@xml/backup_rules"
+    )
+
+    expected_domains = {
+        "root", "file", "database", "sharedpref", "external",
+        "device_root", "device_file", "device_database",
+        "device_sharedpref",
+    }
+    modern = ET.parse("../android/app/src/main/res/xml/data_extraction_rules.xml").getroot()
+    for section_name in ("cloud-backup", "device-transfer"):
+        section = modern.find(section_name)
+        assert section is not None
+        excluded = {
+            node.attrib.get("domain")
+            for node in section.findall("exclude")
+            if node.attrib.get("path") == "."
+        }
+        assert excluded == expected_domains
+
+    modern_api36 = ET.parse(
+        "../android/app/src/main/res/xml-v36/data_extraction_rules.xml"
+    ).getroot()
+    cross_platform = modern_api36.find("cross-platform-transfer")
+    assert cross_platform is not None
+    assert cross_platform.attrib.get("platform") == "ios"
+    cross_platform_excluded = {
+        node.attrib.get("domain")
+        for node in cross_platform.findall("exclude")
+        if node.attrib.get("path") == "."
+    }
+    assert cross_platform_excluded == expected_domains
+
+    legacy = ET.parse("../android/app/src/main/res/xml/backup_rules.xml").getroot()
+    legacy_excluded = {
+        node.attrib.get("domain")
+        for node in legacy.findall("exclude")
+        if node.attrib.get("path") == "."
+    }
+    assert legacy_excluded == expected_domains
+
+
+def test_browser_rejects_host_if_any_dns_answer_is_non_public(monkeypatch):
+    import socket
+
+    async def check():
+        def fake_getaddrinfo(host, port, type):
+            return [
+                (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", port)),
+                (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("127.0.0.1", port)),
+            ]
+
+        monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+        async with httpx.AsyncClient() as client:
+            with pytest.raises(ValueError, match="private, local, or non-public"):
+                await BrowserTool(client)._validate_url("https://public.example")
+
+    asyncio.run(check())
+
+
 def test_dashboard_iframe_does_not_grant_same_origin():
     index = Path("static/index.html").read_text()
-    assert 'sandbox="allow-scripts allow-forms"' in index
+    assert 'sandbox="allow-scripts"' in index
+    assert "sandbox=\"allow-scripts allow-forms\"" not in index
     assert "allow-same-origin" not in index
     java = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text()
     assert "WebViewCompat.addWebMessageListener" in java
@@ -182,7 +345,7 @@ def test_browser_response_size_is_bounded_without_external_network(tmp_path):
             tool = BrowserTool(client)
 
             async def allow_test_host(_url):
-                return None
+                return "93.184.216.34"
 
             tool._validate_url = allow_test_host
             with pytest.raises(ValueError, match="2 MB limit"):

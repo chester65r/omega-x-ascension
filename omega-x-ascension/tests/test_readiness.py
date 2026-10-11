@@ -26,8 +26,13 @@ class DummyRedis:
 
 
 class DummyComputer:
-    enabled = False
-    files_enabled = False
+    def __init__(self, enabled=False, files_enabled=False, healthy=True):
+        self.enabled = enabled
+        self.files_enabled = files_enabled
+        self._healthy = healthy
+
+    async def health(self):
+        return self._healthy
 
 
 class DummyRouter:
@@ -38,13 +43,13 @@ class DummyRouter:
         return self.providers
 
 
-def call_ready_with_providers(providers):
+def call_ready_with_providers(providers, computer=None):
     had_services = hasattr(app.state, "services")
     previous = getattr(app.state, "services", None)
     app.state.services = SimpleNamespace(
         engine=DummyEngine(),
         redis=DummyRedis(),
-        computer=DummyComputer(),
+        computer=computer or DummyComputer(),
         router=DummyRouter(providers),
     )
 
@@ -71,3 +76,12 @@ def test_readiness_requires_and_reports_a_healthy_model():
     assert response["status"] == "ready"
     assert response["configured_models"] == 1
     assert response["healthy_models"] == 1
+
+
+def test_readiness_is_503_when_enabled_sandbox_capability_is_unavailable():
+    response = call_ready_with_providers(
+        [{"name": "fixture", "healthy": True}],
+        computer=DummyComputer(enabled=True, files_enabled=True, healthy=False),
+    )
+    assert response.status_code == 503
+    assert b'"reason":"RuntimeError"' in response.body

@@ -19,7 +19,8 @@ class BrowserTool:
         self._client = client
         self._headers = {"User-Agent": "OMEGA-X-Browser/1.0 (+https://omega-x.local)"}
 
-    async def _validate_url(self, url: str) -> None:
+    async def _validate_url(self, url: str) -> str:
+        """Resolve once, reject non-public answers, and return an IP to pin the request to."""
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"}:
             raise ValueError("only http and https URLs are allowed")
@@ -45,25 +46,59 @@ class BrowserTool:
         except socket.gaierror as exc:
             raise ValueError("URL host could not be resolved") from exc
 
-        addresses = {info[4][0] for info in infos}
+        addresses = {info[4][0].split("%", 1)[0] for info in infos}
         if not addresses:
             raise ValueError("URL host could not be resolved")
 
         for address in addresses:
-            if not ipaddress.ip_address(address).is_global:
+            try:
+                is_public = ipaddress.ip_address(address).is_global
+            except ValueError as exc:
+                raise ValueError("URL host resolved to an invalid IP address") from exc
+            if not is_public:
                 raise ValueError("private, local, or non-public network targets are blocked")
+
+        # The actual HTTP connection uses this literal IP, so a second DNS lookup
+        # cannot rebind the hostname to a private or local address.
+        return sorted(addresses)[0]
 
     async def _get_public(self, url: str, **kwargs) -> tuple[httpx.Response, str]:
         """Fetch public content with redirect revalidation and a hard decompressed-size ceiling."""
         current = url
         for _ in range(self._MAX_REDIRECTS + 1):
-            await self._validate_url(current)
-            async with self._client.stream(
+            pinned_ip = await self._validate_url(current)
+            original_url = httpx.URL(current)
+            pinned_url = original_url.copy_with(host=pinned_ip)
+            request_headers = dict(kwargs.get("headers") or {})
+            # Preserve the original virtual host while connecting to the validated IP.
+            request_headers["Host"] = original_url.netloc.decode("ascii")
+            # Do not pool pinned-IP connections across different original hostnames:
+            # the pool's origin key is the IP, while TLS identity is the original host.
+            # Closing each response prevents a later host from reusing a connection
+            # whose certificate was verified against a different SNI name.
+            request_headers["Connection"] = "close"
+            extensions = {}
+            if original_url.scheme == "https":
+                try:
+                    ipaddress.ip_address(original_url.host)
+                    original_host_is_ip = True
+                except ValueError:
+                    original_host_is_ip = False
+                if not original_host_is_ip:
+                    # Keep TLS SNI and certificate hostname verification bound to
+                    # the original hostname rather than the pinned connection IP.
+                    extensions["sni_hostname"] = original_url.raw_host
+
+            request_kwargs = {key: value for key, value in kwargs.items() if key != "headers"}
+            request = self._client.build_request(
                 "GET",
-                current,
-                follow_redirects=False,
-                **kwargs,
-            ) as streamed:
+                pinned_url,
+                headers=request_headers,
+                extensions=extensions,
+                **request_kwargs,
+            )
+            streamed = await self._client.send(request, stream=True, follow_redirects=False)
+            try:
                 if streamed.is_redirect:
                     location = streamed.headers.get("location")
                     if not location:
@@ -100,6 +135,8 @@ class BrowserTool:
                     extensions=dict(streamed.extensions),
                 )
                 return response, current
+            finally:
+                await streamed.aclose()
 
         raise ValueError("too many redirects")
 
@@ -159,10 +196,11 @@ class BrowserTool:
             return {"query": query[:300], "results": [], "error": "query must be 1–300 characters"}
 
         try:
-            response = await self._client.get(
-                "https://html.duckduckgo.com/html/",
-                params={"q": query},
-                follow_redirects=True,
+            search_url = httpx.URL("https://html.duckduckgo.com/html/").copy_merge_params(
+                {"q": query}
+            )
+            response, _ = await self._get_public(
+                str(search_url),
                 timeout=20,
                 headers=self._headers,
             )

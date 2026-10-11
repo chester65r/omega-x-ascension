@@ -2,7 +2,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     env_file:
-      - ./.env.base44-defaults
+      - path: ./.env
+        required: false
       - /run/base44/app.env
     environment:
       POSTGRES_USER: omega
@@ -20,7 +21,8 @@ services:
   redis:
     image: redis:7-alpine
     env_file:
-      - ./.env.base44-defaults
+      - path: ./.env
+        required: false
       - /run/base44/app.env
     command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
     volumes: ["redis_data:/data"]
@@ -57,7 +59,8 @@ services:
     volumes:
       - ./omega-x-ascension:/app
     env_file:
-      - ./.env.base44-defaults
+      - path: ./.env
+        required: false
       - /run/base44/app.env
     command: ["sh", "-ec", "pip install --no-cache-dir -e . && python scripts/migrate.py"]
     depends_on:
@@ -70,7 +73,8 @@ services:
     volumes:
       - ./omega-x-ascension:/app
     env_file:
-      - ./.env.base44-defaults
+      - path: ./.env
+        required: false
       - /run/base44/app.env
     command: ["sh", "-ec", "pip install --no-cache-dir -e . && exec uvicorn omega.main:app --host 0.0.0.0 --port 8000 --reload --app-dir src --proxy-headers"]
     ports: ["3000:8000"]
@@ -92,7 +96,8 @@ services:
     volumes:
       - ./omega-x-ascension:/app
     env_file:
-      - ./.env.base44-defaults
+      - path: ./.env
+        required: false
       - /run/base44/app.env
     command: ["sh", "-ec", "pip install --no-cache-dir -e . && exec python -m omega.worker"]
     depends_on:

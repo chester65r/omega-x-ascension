@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from omega import __version__
-from omega.config import Capability
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
 
 router = APIRouter(tags=["mcp"])

@@ -19,11 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from omega.adapters.database import SqlRunRepository, build_engine
 from omega.adapters.models import StaticRegistry, build_gateways
 from omega.api import router
-from omega.mcp import router as mcp_router
-from omega.webhooks import router as webhooks_router
 from omega.config import get_settings
+from omega.mcp import router as mcp_router
 from omega.model_router import ModelRouter
 from omega.tools import BrowserTool, ComputerTool
+from omega.webhooks import router as webhooks_router
 
 
 @dataclass

@@ -3,10 +3,8 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
-from typing import Any
-from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, Security, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Security, status
 from pydantic import BaseModel, Field, SecretStr
 
 from omega.auth import Principal, current_principal

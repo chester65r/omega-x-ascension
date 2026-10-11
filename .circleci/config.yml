@@ -1,0 +1,29 @@
+version: 2.1
+
+jobs:
+  backend-checks:
+    docker:
+      - image: cimg/python:3.12
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install package and development tools
+          command: |
+            cd omega-x-ascension
+            python -m pip install --upgrade pip
+            python -m pip install -e ".[dev]"
+      - run:
+          name: Lint Python sources
+          command: cd omega-x-ascension && ruff check src scripts tests
+      - run:
+          name: Compile Python sources
+          command: cd omega-x-ascension && python -m compileall -q src scripts tests
+      - run:
+          name: Run Python tests
+          command: cd omega-x-ascension && pytest -q
+
+workflows:
+  backend:
+    jobs:
+      - backend-checks

@@ -30,7 +30,7 @@ class FakeGateway:
         if "assigned specialist" in system:
             return "A concrete candidate solution"
         if "Critic" in system:
-            return "No blocking defects in the test candidate"
+            return "No blocking defects in the test candidate. [STATUS: APPROVED]"
         if "Judge" in system:
             return "Final verified test result"
         return "Unexpected role"
@@ -173,3 +173,33 @@ def test_agent_workflow_self_correcting_feedback_loop():
         assert result["final"] == "Final verified test result after revision"
 
     asyncio.run(check())
+
+
+def test_critic_does_not_treat_ambiguous_response_as_approval():
+    async def check():
+        class AmbiguousCriticGateway(FakeGateway):
+            async def complete(self, *, system, prompt):
+                if "Critic" in system:
+                    self.calls.append(system)
+                    return "The candidate appears acceptable."
+                return await super().complete(system=system, prompt=prompt)
+
+        gateway = AmbiguousCriticGateway()
+        workflow = CoreWorkflow(
+            router=FakeRouter(gateway),
+            checkpointer=InMemorySaver(),
+        )
+        result = await workflow.critic({"solution": "Candidate without explicit approval"})
+        assert result["critique_approved"] is False
+
+    asyncio.run(check())
+
+
+def test_workflow_routes_missing_critic_approval_to_revision():
+    gateway = FakeGateway()
+    workflow = CoreWorkflow(
+        router=FakeRouter(gateway),
+        checkpointer=InMemorySaver(),
+    )
+    assert workflow._route_after_critic({"revision_count": 0, "max_revisions": 2}) == "specialist"
+    assert workflow._route_after_critic({"revision_count": 2, "max_revisions": 2}) == "judge"

@@ -15,6 +15,7 @@ def make_tool(handler):
         parsed = urlparse(url)
         if parsed.hostname not in {"public.example", "duckduckgo.com", "html.duckduckgo.com"}:
             raise ValueError("private, local, or non-public network targets are blocked")
+        return "93.184.216.34"
 
     tool._validate_url = allow_fixture_urls
     return tool, client
@@ -61,9 +62,61 @@ def test_browser_revalidates_each_redirect_target():
         try:
             with pytest.raises(ValueError, match="private, local"):
                 await tool._get_public("https://public.example/redirect")
-            assert seen == ["https://public.example/redirect"]
+            assert seen == ["https://93.184.216.34/redirect"]
         finally:
             await client.aclose()
+
+    asyncio.run(check())
+
+
+
+def test_browser_pins_socket_target_and_preserves_host_and_tls_name():
+    async def check():
+        async def handler(request):
+            assert request.url.host == "93.184.216.34"
+            assert request.headers["host"] == "public.example"
+            assert request.headers["connection"] == "close"
+            assert request.extensions["sni_hostname"] == b"public.example"
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/plain"},
+                text="pinned",
+                request=request,
+            )
+
+        tool, client = make_tool(handler)
+        try:
+            response, final_url = await tool._get_public(
+                "https://public.example/resource",
+                timeout=5,
+                headers={"User-Agent": "test"},
+            )
+            assert response.text == "pinned"
+            assert final_url == "https://public.example/resource"
+        finally:
+            await client.aclose()
+
+    asyncio.run(check())
+
+
+def test_browser_does_not_set_tls_sni_for_literal_ip_targets():
+    async def check():
+        async def handler(request):
+            assert request.url.host == "93.184.216.34"
+            assert request.headers["host"] == "93.184.216.34"
+            assert request.extensions.get("sni_hostname") is None
+            return httpx.Response(200, text="public IP", request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            tool = BrowserTool(client)
+
+            async def resolve_test_host(_url):
+                return "93.184.216.34"
+
+            tool._validate_url = resolve_test_host
+            response, final_url = await tool._get_public("https://93.184.216.34/resource")
+            assert response.text == "public IP"
+            assert final_url == "https://93.184.216.34/resource"
 
     asyncio.run(check())
 

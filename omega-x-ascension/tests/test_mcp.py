@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+
 from omega import __version__
 from omega.main import app
 

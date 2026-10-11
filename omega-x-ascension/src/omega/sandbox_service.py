@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import asyncio
 import ctypes
 import os
 import secrets
-import signal
 from pathlib import Path
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-MAX_OUTPUT_BYTES = 16_000
 MAX_FILE_BYTES = 100_000
 MAX_DIRECTORY_ENTRIES = 200
 WORKSPACE_ROOT = Path(os.environ.get("OMEGA_SANDBOX_WORKSPACE", "/workspace")).resolve()
@@ -39,7 +36,8 @@ class SandboxRuntime:
 
     def __init__(self, root: Path | str = WORKSPACE_ROOT):
         self.root = Path(root).resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.root.chmod(0o700)
 
     def workspace(self, workspace_id: UUID | str) -> Path:
         canonical = str(UUID(str(workspace_id)))
@@ -49,6 +47,7 @@ class SandboxRuntime:
         except ValueError as exc:
             raise ValueError("invalid workspace id") from exc
         target.mkdir(parents=True, exist_ok=True, mode=0o700)
+        target.chmod(0o700)
         return target
 
     def resolve_path(self, workspace_id: UUID | str, relative: str) -> Path:
@@ -66,92 +65,17 @@ class SandboxRuntime:
         return candidate
 
     async def execute(self, workspace_id: UUID | str, command: str, timeout: int = 30) -> dict:
-        if not command.strip():
-            raise ValueError("command must not be empty")
-        if len(command) > 1000:
-            raise ValueError("command must be 1000 characters or fewer")
-        timeout = min(max(int(timeout), 1), 120)
-        home = self.workspace(workspace_id)
-        env = {
-            "PATH": "/usr/local/bin:/usr/bin:/bin",
-            "HOME": str(home),
-            "TMPDIR": "/tmp",
-            "LANG": "C.UTF-8",
-            "LC_ALL": "C.UTF-8",
-        }
-        proc = await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(home),
-            env=env,
-            start_new_session=True,
+        """Fail closed until commands run behind a per-tenant OS isolation boundary.
+
+        Workspaces are separated by directory, but this service currently executes
+        under one Unix identity. Commands running as that identity could read or
+        modify sibling tenants' workspace files, so the shared-identity executor
+        must not be exposed to API callers.
+        """
+        raise RuntimeError(
+            "command execution is disabled: tenant workspaces share one OS identity; "
+            "per-tenant OS isolation is required"
         )
-        overflow = asyncio.Event()
-
-        async def collect(stream):
-            parts = []
-            total = 0
-            while True:
-                chunk = await stream.read(4096)
-                if not chunk:
-                    break
-                remaining = MAX_OUTPUT_BYTES - total
-                if remaining > 0:
-                    parts.append(chunk[:remaining])
-                    total += min(len(chunk), remaining)
-                if len(chunk) > remaining:
-                    overflow.set()
-            return b"".join(parts).decode("utf-8", errors="replace")
-
-        stdout_task = asyncio.create_task(collect(proc.stdout))
-        stderr_task = asyncio.create_task(collect(proc.stderr))
-        wait_task = asyncio.create_task(proc.wait())
-        overflow_task = asyncio.create_task(overflow.wait())
-        timed_out = False
-        try:
-            done, _ = await asyncio.wait(
-                {wait_task, overflow_task},
-                timeout=timeout,
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            if wait_task not in done:
-                timed_out = overflow_task not in done
-                try:
-                    os.killpg(proc.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                await wait_task
-            stdout, stderr = await asyncio.gather(stdout_task, stderr_task)
-            if timed_out:
-                stderr = (stderr + "\nCommand timed out; process group terminated").strip()
-            elif overflow.is_set():
-                stderr = (stderr + "\nOutput truncated at 16 KB; process group terminated").strip()
-            return {
-                "command": command,
-                "returncode": proc.returncode if not (timed_out or overflow.is_set()) else -1,
-                "stdout": stdout,
-                "stderr": stderr,
-                "timed_out": timed_out,
-                "output_limited": overflow.is_set(),
-            }
-        finally:
-            # Do not leave an untrusted process group running if the API request is cancelled.
-            if proc.returncode is None:
-                try:
-                    os.killpg(proc.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=2)
-                except (TimeoutError, ProcessLookupError):
-                    proc.kill()
-            for task in (overflow_task, wait_task, stdout_task, stderr_task):
-                if not task.done():
-                    task.cancel()
-            await asyncio.gather(
-                overflow_task, wait_task, stdout_task, stderr_task, return_exceptions=True
-            )
 
     def list_dir(self, workspace_id: UUID | str, path: str = ".") -> dict:
         target = self.resolve_path(workspace_id, path)
@@ -190,8 +114,16 @@ class SandboxRuntime:
             raise ValueError("file content exceeds the 100 KB write limit")
         target = self.resolve_path(workspace_id, path)
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        home = self.workspace(workspace_id)
+        parent = target.parent
+        while parent == home or home in parent.parents:
+            parent.chmod(0o700)
+            if parent == home:
+                break
+            parent = parent.parent
         target = self.resolve_path(workspace_id, path)
         target.write_text(content, encoding="utf-8")
+        target.chmod(0o600)
         return {"path": path, "written": True, "bytes": len(content.encode("utf-8"))}
 
 
@@ -218,7 +150,7 @@ async def require_shared_token(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "file_tools": True, "command_execution": False}
 
 
 @app.post("/execute")
@@ -227,6 +159,8 @@ async def execute(body: ExecuteInput, _: None = Depends(require_shared_token)):
         return await get_runtime().execute(body.workspace_id, body.command, body.timeout)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/files")

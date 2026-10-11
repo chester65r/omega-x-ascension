@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import pytest
 from pydantic import SecretStr
 
-from omega.config import Settings
-from omega.domain import RunStatus, WorkflowRun
+from omega.domain import WorkflowRun
 from omega.notifications import (
     notify_approval_requested,
     send_slack_notification,
