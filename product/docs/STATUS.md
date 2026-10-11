@@ -4,7 +4,7 @@ This is a tested foundation, **not a complete deployed platform**. Status catego
 
 ## Verified working
 
-- Commit `748a1f9` is pushed to the selected repository on `feature/greenfield-product-foundation`; its remote head matched local verification. The branch is not merged or deployed, and pre-existing repository files and Render configuration were not used or changed.
+- `feature/greenfield-product-foundation` is pushed to the selected repository, and the final remote head was verified to match the local revision. The branch is not merged or deployed; pre-existing repository files and Render configuration were not used or changed.
 - `pytest -q`: **14 passed**, with one upstream Starlette/httpx deprecation warning. Coverage includes auth/session revocation, per-user isolation, history across a fresh API app instance, provider failure behavior, deletion cascades, and provider adapter request/usage/error handling via HTTPX `MockTransport`.
 - The initial Alembic revision upgrades a fresh SQLite database, `alembic check` reports no schema drift, and `alembic current` reports `06bf1418b5cb`.
 - Expo SDK dependency check, TypeScript check, public config resolution (`com.omegaxascension.app`), and Android Metro export passed. A 1.5 MB Hermes Android JS bundle was generated; it is not an APK.
