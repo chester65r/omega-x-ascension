@@ -67,6 +67,16 @@ def test_workspace_file_tools_can_be_disabled_independently():
     asyncio.run(check())
 
 
+def test_sandbox_health_advertises_only_supported_capabilities():
+    response = TestClient(sandbox_app).get("/health")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "file_tools": True,
+        "command_execution": False,
+    }
+
+
 def test_sandbox_health_checks_each_enabled_capability():
     async def check():
         async def handler(request):
