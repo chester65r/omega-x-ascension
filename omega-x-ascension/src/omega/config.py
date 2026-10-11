@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     sandbox_url: str = "http://sandbox:8090"
     sandbox_token: SecretStr | None = None
 
+    # Outbound MCP server connection (Streamable HTTP).
+    remote_mcp_url: str | None = "https://wild-cloud-3h9z2.run.mcp-use.com/mcp"
+    remote_mcp_token: SecretStr | None = None
+    remote_mcp_timeout_seconds: float = Field(default=20, gt=0, le=120)
+
     # Webhooks & External Notifications
     github_webhook_secret: SecretStr | None = None
     webhook_tenant_id: UUID = Field(
