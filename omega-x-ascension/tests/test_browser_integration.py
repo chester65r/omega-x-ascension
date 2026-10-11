@@ -75,6 +75,7 @@ def test_browser_pins_socket_target_and_preserves_host_and_tls_name():
         async def handler(request):
             assert request.url.host == "93.184.216.34"
             assert request.headers["host"] == "public.example"
+            assert request.headers["connection"] == "close"
             assert request.extensions["sni_hostname"] == b"public.example"
             return httpx.Response(
                 200,
