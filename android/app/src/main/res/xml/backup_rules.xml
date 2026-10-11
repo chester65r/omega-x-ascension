@@ -9,5 +9,4 @@
     <exclude domain="device_file" path="." />
     <exclude domain="device_database" path="." />
     <exclude domain="device_sharedpref" path="." />
-    <exclude domain="device_external" path="." />
 </full-backup-content>
