@@ -77,6 +77,7 @@ def test_readiness_requires_and_reports_a_healthy_model():
     assert response["configured_models"] == 1
     assert response["healthy_models"] == 1
 
+
 def test_readiness_is_503_when_enabled_sandbox_capability_is_unavailable():
     response = call_ready_with_providers(
         [{"name": "fixture", "healthy": True}],
