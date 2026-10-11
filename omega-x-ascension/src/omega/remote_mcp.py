@@ -64,6 +64,7 @@ class RemoteMCPClient:
         headers = {
             "Accept": "application/json, text/event-stream",
             "Content-Type": "application/json",
+            "MCP-Protocol-Version": "2024-11-05",
         }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
