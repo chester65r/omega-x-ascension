@@ -41,3 +41,6 @@ select = ["E", "F", "I", "B", "UP"]
 # function signatures; startup scripts import after path setup; migration SQL
 # and model prompts are kept readable as long strings.
 ignore = ["B008", "E402", "E501", "UP042"]
+
+[tool.vercel]
+entrypoint = "omega.main:app"
