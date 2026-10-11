@@ -36,7 +36,8 @@ class SandboxRuntime:
 
     def __init__(self, root: Path | str = WORKSPACE_ROOT):
         self.root = Path(root).resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.root.chmod(0o700)
 
     def workspace(self, workspace_id: UUID | str) -> Path:
         canonical = str(UUID(str(workspace_id)))
@@ -46,6 +47,7 @@ class SandboxRuntime:
         except ValueError as exc:
             raise ValueError("invalid workspace id") from exc
         target.mkdir(parents=True, exist_ok=True, mode=0o700)
+        target.chmod(0o700)
         return target
 
     def resolve_path(self, workspace_id: UUID | str, relative: str) -> Path:
@@ -114,6 +116,7 @@ class SandboxRuntime:
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         target = self.resolve_path(workspace_id, path)
         target.write_text(content, encoding="utf-8")
+        target.chmod(0o600)
         return {"path": path, "written": True, "bytes": len(content.encode("utf-8"))}
 
 
