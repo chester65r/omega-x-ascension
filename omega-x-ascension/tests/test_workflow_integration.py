@@ -195,3 +195,11 @@ def test_critic_does_not_treat_ambiguous_response_as_approval():
     asyncio.run(check())
 
 
+def test_workflow_routes_missing_critic_approval_to_revision():
+    gateway = FakeGateway()
+    workflow = CoreWorkflow(
+        router=FakeRouter(gateway),
+        checkpointer=InMemorySaver(),
+    )
+    assert workflow._route_after_critic({"revision_count": 0, "max_revisions": 2}) == "specialist"
+    assert workflow._route_after_critic({"revision_count": 2, "max_revisions": 2}) == "judge"
