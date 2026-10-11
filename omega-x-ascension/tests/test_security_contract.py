@@ -6,7 +6,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from omega.sandbox_service import SandboxRuntime, app as sandbox_app
+from omega.sandbox_service import SandboxRuntime
+from omega.sandbox_service import app as sandbox_app
 from omega.tools.browser import BrowserTool
 from omega.tools.computer import ComputerTool
 
