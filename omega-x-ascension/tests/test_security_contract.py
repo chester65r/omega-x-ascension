@@ -211,6 +211,19 @@ def test_android_backup_and_device_transfer_are_explicitly_disabled():
         }
         assert excluded == expected_domains
 
+    modern_api36 = ET.parse(
+        "../android/app/src/main/res/xml-v36/data_extraction_rules.xml"
+    ).getroot()
+    cross_platform = modern_api36.find("cross-platform-transfer")
+    assert cross_platform is not None
+    assert cross_platform.attrib.get("platform") == "ios"
+    cross_platform_excluded = {
+        node.attrib.get("domain")
+        for node in cross_platform.findall("exclude")
+        if node.attrib.get("path") == "."
+    }
+    assert cross_platform_excluded == expected_domains
+
     legacy = ET.parse("../android/app/src/main/res/xml/backup_rules.xml").getroot()
     legacy_excluded = {
         node.attrib.get("domain")
