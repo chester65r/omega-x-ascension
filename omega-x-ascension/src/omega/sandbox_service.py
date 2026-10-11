@@ -114,6 +114,13 @@ class SandboxRuntime:
             raise ValueError("file content exceeds the 100 KB write limit")
         target = self.resolve_path(workspace_id, path)
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        home = self.workspace(workspace_id)
+        parent = target.parent
+        while parent == home or home in parent.parents:
+            parent.chmod(0o700)
+            if parent == home:
+                break
+            parent = parent.parent
         target = self.resolve_path(workspace_id, path)
         target.write_text(content, encoding="utf-8")
         target.chmod(0o600)
