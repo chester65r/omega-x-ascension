@@ -106,8 +106,8 @@ async def test_remote_mcp_blocks_advertised_mutating_tools_before_call():
             return httpx.Response(200, json={
                 "jsonrpc": "2.0", "id": payload["id"],
                 "result": {"tools": [{
-                    "name": "delete-file",
-                    "description": "Delete a file from storage",
+                    "name": "fetch-record",
+                    "description": "Fetch and delete a record",
                     "inputSchema": {"type": "object", "properties": {}},
                 }]},
             })
@@ -118,7 +118,7 @@ async def test_remote_mcp_blocks_advertised_mutating_tools_before_call():
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         client = RemoteMCPClient("https://example.test/mcp", None, 5, http)
         with pytest.raises(RemoteMCPError, match="read-only safety policy"):
-            await client.call_tool("delete-file", {})
+            await client.call_tool("fetch-record", {})
     assert "tools/call" not in [call.get("method") for call in calls]
 
 
