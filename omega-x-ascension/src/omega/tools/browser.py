@@ -79,9 +79,15 @@ class BrowserTool:
             request_headers["Connection"] = "close"
             extensions = {}
             if original_url.scheme == "https":
-                # Keep TLS SNI and certificate hostname verification bound to the
-                # original hostname even though the socket connects to a literal IP.
-                extensions["sni_hostname"] = original_url.raw_host
+                try:
+                    ipaddress.ip_address(original_url.host)
+                    original_host_is_ip = True
+                except ValueError:
+                    original_host_is_ip = False
+                if not original_host_is_ip:
+                    # Keep TLS SNI and certificate hostname verification bound to
+                    # the original hostname rather than the pinned connection IP.
+                    extensions["sni_hostname"] = original_url.raw_host
 
             request_kwargs = {key: value for key, value in kwargs.items() if key != "headers"}
             request = self._client.build_request(
