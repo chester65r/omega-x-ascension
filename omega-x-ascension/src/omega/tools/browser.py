@@ -72,6 +72,11 @@ class BrowserTool:
             request_headers = dict(kwargs.get("headers") or {})
             # Preserve the original virtual host while connecting to the validated IP.
             request_headers["Host"] = original_url.netloc.decode("ascii")
+            # Do not pool pinned-IP connections across different original hostnames:
+            # the pool's origin key is the IP, while TLS identity is the original host.
+            # Closing each response prevents a later host from reusing a connection
+            # whose certificate was verified against a different SNI name.
+            request_headers["Connection"] = "close"
             extensions = {}
             if original_url.scheme == "https":
                 # Keep TLS SNI and certificate hostname verification bound to the
