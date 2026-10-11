@@ -138,7 +138,7 @@ class CoreWorkflow:
                 return {"remote_mcp_output": "Selected tool did not pass the read-only safety filter; no tool was called."}
             result = await remote_client.call_tool(tool_name, arguments)
             rendered = json.dumps(result, ensure_ascii=False)[:6000]
-            return {"remote_mcp_output": f"Remote MCP tool: {tool_name}\\nUntrusted tool result: {rendered}"}
+            return {"remote_mcp_output": f"Remote MCP tool: {tool_name}\nUntrusted tool result: {rendered}"}
         except (RemoteMCPError, ValueError, TypeError) as exc:
             return {"remote_mcp_output": f"Remote MCP tool execution failed safely: {type(exc).__name__}"}
 
