@@ -1,0 +1,26 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/python:3.12
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install application and test dependencies
+          command: |
+            cd omega-x-ascension
+            python -m pip install --upgrade pip
+            python -m pip install -e ".[dev]"
+      - run:
+          name: Compile Python sources
+          command: cd omega-x-ascension && python -m compileall -q src scripts tests
+      - run:
+          name: Run automated tests
+          command: cd omega-x-ascension && pytest -q
+
+workflows:
+  ci:
+    jobs:
+      - test
