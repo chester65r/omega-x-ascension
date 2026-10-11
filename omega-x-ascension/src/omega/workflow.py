@@ -154,7 +154,7 @@ class CoreWorkflow:
         }
 
     def _route_after_critic(self, state: State) -> str:
-        approved = state.get("critique_approved", True)
+        approved = state.get("critique_approved", False)
         revisions = state.get("revision_count", 0)
         max_rev = state.get("max_revisions", 2)
         if not approved and revisions < max_rev:
