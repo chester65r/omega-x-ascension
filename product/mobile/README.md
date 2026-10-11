@@ -1,6 +1,16 @@
 # Android app
 
-This is an Expo SDK 57 / React Native / TypeScript Android client. `EXPO_PUBLIC_API_BASE_URL` sets the backend URL; provider credentials never enter the mobile bundle. Android package ID: `com.omegaxascension.app`.
+This is an Expo SDK 57 / React Native / TypeScript Android client. `EXPO_PUBLIC_API_BASE_URL` selects the backend; provider, database, and JWT credentials must remain server-side. Android package ID: `com.omegaxascension.app`.
+
+## Personal test backend
+
+The test API is available at:
+
+`https://omega-x-ascension-test-api-git-feature-greenfie-141922-chester4.vercel.app`
+
+Verified over HTTPS on 2026-10-11: `/health/live` returned 200; `/health/ready` returned 200 with the database connected; `/openapi.json` returned 200; and `GET /api/v1/conversations` returned 401 without authentication. The readiness payload is degraded because no AI provider/model is configured; AI features are intentionally unavailable and no provider usage is incurred.
+
+This is a personal, non-commercial test deployment on Vercel Hobby + Neon Free. Do not use it for sensitive data or as a production service. The backend source currently has 15 high-severity dependency advisories and lacks rate limiting; resolve those and complete a security review before any production use.
 
 ## Local development and checks
 
@@ -8,17 +18,23 @@ This is an Expo SDK 57 / React Native / TypeScript Android client. `EXPO_PUBLIC_
 npm ci
 npx expo install --check
 npm run typecheck
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000 npx expo start
+EXPO_PUBLIC_API_BASE_URL=https://omega-x-ascension-test-api-git-feature-greenfie-141922-chester4.vercel.app npx expo start
 ```
 
-`10.0.2.2` is Android Emulator host-loopback. On a physical device, use a backend reachable over the LAN or HTTPS. Without a configured API URL, the app displays a configuration error instead of pretending a backend is connected.
+For a local backend on the Android Emulator, use `http://10.0.2.2:8000`. On a physical device, use a reachable HTTPS or LAN URL. Without a configured API URL, the app displays a configuration error rather than pretending it is connected.
 
-## APK profile
+## Build an installable test APK locally
 
-The `preview` and `production-apk` EAS profiles set `android.buildType` to `apk`, following [Expo's APK guide](https://docs.expo.dev/build-reference/apk/). Expo EAS CLI reported `Not logged in`; no Android SDK/ADB is installed here. Therefore no EAS build was submitted and there is no APK artifact. Once the account, build credentials/quota, a verified HTTPS backend URL, and security-review blocker are addressed, run:
+With Node.js, JDK 21, and an Android SDK installed, run from this directory:
 
 ```sh
-npx eas-cli build --platform android --profile preview
+export EXPO_PUBLIC_API_BASE_URL=https://omega-x-ascension-test-api-git-feature-greenfie-141922-chester4.vercel.app
+export NODE_ENV=production
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+npx expo prebuild --platform android --no-install
+cd android
+./gradlew assembleRelease
 ```
 
-The verified Android JavaScript bundle is **not** an installable APK. Do not distribute it as one.
+The self-contained test APK is written to `android/app/build/outputs/apk/release/app-release.apk`. The generated project signs this release variant with the debug key for testing; it is not a Play Store release. The Expo EAS `preview` and `production-apk` profiles also use `android.buildType: "apk"`, but require an EAS login and configured signing credentials.
