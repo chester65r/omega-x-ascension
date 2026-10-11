@@ -22,8 +22,8 @@ from omega.api import router
 from omega.config import get_settings
 from omega.mcp import router as mcp_router
 from omega.model_router import ModelRouter
-from omega.webhooks import router as webhooks_router
 from omega.tools import BrowserTool, ComputerTool
+from omega.webhooks import router as webhooks_router
 
 
 @dataclass
