@@ -1,4 +1,5 @@
 import asyncio
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import httpx
@@ -128,6 +129,64 @@ def test_browser_blocks_private_literal_addresses():
         async with httpx.AsyncClient() as client:
             with pytest.raises(ValueError):
                 await BrowserTool(client)._validate_url("http://127.0.0.1:8000")
+
+    asyncio.run(check())
+
+
+
+def test_android_backup_and_device_transfer_are_explicitly_disabled():
+    manifest = ET.parse("../android/app/src/main/AndroidManifest.xml").getroot()
+    application = manifest.find("application")
+    assert application is not None
+    assert application.attrib["{http://schemas.android.com/apk/res/android}allowBackup"] == "false"
+    assert (
+        application.attrib["{http://schemas.android.com/apk/res/android}dataExtractionRules"]
+        == "@xml/data_extraction_rules"
+    )
+    assert (
+        application.attrib["{http://schemas.android.com/apk/res/android}fullBackupContent"]
+        == "@xml/backup_rules"
+    )
+
+    expected_domains = {
+        "root", "file", "database", "sharedpref", "external",
+        "device_root", "device_file", "device_database",
+        "device_sharedpref", "device_external",
+    }
+    modern = ET.parse("../android/app/src/main/res/xml/data_extraction_rules.xml").getroot()
+    for section_name in ("cloud-backup", "device-transfer"):
+        section = modern.find(section_name)
+        assert section is not None
+        excluded = {
+            node.attrib.get("domain")
+            for node in section.findall("exclude")
+            if node.attrib.get("path") == "."
+        }
+        assert expected_domains <= excluded
+
+    legacy = ET.parse("../android/app/src/main/res/xml/backup_rules.xml").getroot()
+    legacy_excluded = {
+        node.attrib.get("domain")
+        for node in legacy.findall("exclude")
+        if node.attrib.get("path") == "."
+    }
+    assert expected_domains <= legacy_excluded
+
+
+def test_browser_rejects_host_if_any_dns_answer_is_non_public(monkeypatch):
+    import socket
+
+    async def check():
+        def fake_getaddrinfo(host, port, type):
+            return [
+                (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", port)),
+                (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("127.0.0.1", port)),
+            ]
+
+        monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+        async with httpx.AsyncClient() as client:
+            with pytest.raises(ValueError, match="private, local, or non-public"):
+                await BrowserTool(client)._validate_url("https://public.example")
 
     asyncio.run(check())
 
