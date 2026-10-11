@@ -10,7 +10,7 @@ Production-oriented autonomous AI platform with a modular monolith architecture.
 - Human-approval policy and API primitive for future deployment-class actions
 - 16 role definitions without 16 separately deployed services
 - PostgreSQL/pgvector and Redis connectivity
-- Separate, network-isolated computer sandbox with bounded resources (disabled by default)
+- Tenant-scoped sandbox workspace files; shell execution is fail-closed until per-tenant OS isolation exists
 - Android Local AI chat, browser page preview, and sandbox workspace file editor
 
 ## Start
@@ -76,7 +76,7 @@ docker compose up --build
 
 Never use the example secrets outside local development.
 
-The sandbox workspace file API can be enabled separately from shell execution. OMEGA_ENABLE_COMPUTER_FILES=true enables authenticated, tenant-scoped file listing/read/write without permitting shell commands. OMEGA_ENABLE_COMPUTER_EXECUTION=false is the default and should stay false for internet-facing or multi-tenant deployments; the current shell container is resource-limited but is not a hardened per-job isolation boundary.
+The sandbox workspace file API can be enabled separately from shell execution. OMEGA_ENABLE_COMPUTER_FILES=true enables authenticated, tenant-scoped file listing/read/write. Shell execution is currently blocked by the sandbox service with HTTP 503 even if OMEGA_ENABLE_COMPUTER_EXECUTION is set to true, because all tenant workspaces share one Unix identity. Keep the execution flag false; do not remove the service-level guard before per-tenant OS isolation and adversarial tests are in place.
 
 ## Deployment and first-run verification
 
@@ -93,7 +93,7 @@ Generate protected local secrets rather than copying placeholder secrets:
 
 The API provider setup helper hides the key while typing and writes it only to the local .env file (mode 0600). It cannot create keys for third-party accounts. A local model avoids a paid-provider API key; see docs/DEPLOYMENT.md.
 
-The workspace editor uses a separate Docker sandbox service, with access controlled by authenticated tenant identity and file scopes. Its default setting is OMEGA_ENABLE_COMPUTER_FILES=true. The terminal uses the independent OMEGA_ENABLE_COMPUTER_EXECUTION flag and remains disabled by default. Do not turn on shell execution in public or multi-tenant deployments: commands share one OS identity inside the sandbox container, so resource limits and a private Docker network are not the same as per-job filesystem isolation. Use a hardened per-job container/VM boundary before trusting untrusted commands.
+The workspace editor uses a separate Docker sandbox service, with access controlled by authenticated tenant identity and file scopes. OMEGA_ENABLE_COMPUTER_FILES controls file listing/read/write. Shell execution is blocked at the sandbox runtime and returns HTTP 503 regardless of the API feature flag. Tenant workspaces share one OS identity; use a hardened per-job container/VM boundary and adversarial cross-tenant tests before restoring any command-execution capability.
 
 
 ## Computer sandbox and API setup
@@ -102,7 +102,7 @@ Use `scripts/generate_env.py` for unique owner, application, worker, JWT, Redis,
 
 For local inference on the Docker host without a paid model API, follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and use the optional Ollama profile. For a third-party model, create the key from that provider's official account dashboard and enter it with `python scripts/configure_provider.py`. The helper does not mint third-party API keys and never echoes the key.
 
-To enable file browsing/editor without shell commands, keep `OMEGA_ENABLE_COMPUTER_FILES=true` and issue a short-lived JWT with `computer:read` and/or `computer:write` (plus the existing required scopes for writes). Leave `OMEGA_ENABLE_COMPUTER_EXECUTION=false` until the deployment has a hardened per-job runtime. A trusted single-operator test deployment can explicitly enable commands after reviewing this risk; never treat that setting as public multi-tenant isolation.
+To enable file browsing/editor without shell commands, set `OMEGA_ENABLE_COMPUTER_FILES=true` and issue a short-lived JWT with `computer:read` and/or `computer:write` (plus the existing required scopes for writes). Leave `OMEGA_ENABLE_COMPUTER_EXECUTION=false`. Shell commands remain blocked until the sandbox is redesigned around a hardened per-tenant runtime; do not rely on a single-operator exception or feature flag to bypass the service-level guard.
 
 
 ## Mobile control surface and truthful diagnostics
