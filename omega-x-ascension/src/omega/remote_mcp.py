@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import secrets
+import re
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -183,8 +183,14 @@ class RemoteMCPClient:
         return safe_tools
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        if not secrets.compare_digest(name, name.strip()) or not name:
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", name):
             raise RemoteMCPError("Invalid tool name")
+        try:
+            encoded_arguments = json.dumps(arguments, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            raise RemoteMCPError("Tool arguments must be JSON-serializable") from exc
+        if len(encoded_arguments) > 65_536:
+            raise RemoteMCPError("Tool arguments exceeded the 64 KB safety limit")
         tools = await self.list_tools()
         allowed_names = {tool["name"] for tool in tools}
         if name not in allowed_names:
