@@ -188,7 +188,7 @@ def test_android_backup_and_device_transfer_are_explicitly_disabled():
     expected_domains = {
         "root", "file", "database", "sharedpref", "external",
         "device_root", "device_file", "device_database",
-        "device_sharedpref", "device_external",
+        "device_sharedpref",
     }
     modern = ET.parse("../android/app/src/main/res/xml/data_extraction_rules.xml").getroot()
     for section_name in ("cloud-backup", "device-transfer"):
