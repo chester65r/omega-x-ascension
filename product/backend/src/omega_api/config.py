@@ -1,5 +1,6 @@
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -47,11 +48,18 @@ class Settings(BaseSettings):
 
 
 def normalize_database_url(url: str) -> str:
-    """Translate common Railway PostgreSQL URLs into SQLAlchemy async-driver URLs."""
+    """Normalize PostgreSQL URLs for SQLAlchemy's asyncpg dialect."""
     if url.startswith('postgres://'):
-        return 'postgresql+asyncpg://' + url.removeprefix('postgres://')
-    if url.startswith('postgresql://'):
-        return 'postgresql+asyncpg://' + url.removeprefix('postgresql://')
-    if url.startswith('sqlite:///') and not url.startswith('sqlite+aiosqlite:///'):
+        url = 'postgresql+asyncpg://' + url.removeprefix('postgres://')
+    elif url.startswith('postgresql://'):
+        url = 'postgresql+asyncpg://' + url.removeprefix('postgresql://')
+    elif url.startswith('sqlite:///') and not url.startswith('sqlite+aiosqlite:///'):
         return 'sqlite+aiosqlite:///' + url.removeprefix('sqlite:///')
+
+    if url.startswith('postgresql+asyncpg://'):
+        parsed = make_url(url)
+        query = dict(parsed.query)
+        # asyncpg does not accept libpq's channel_binding option as a connect kwarg.
+        query.pop('channel_binding', None)
+        return parsed.set(query=query).render_as_string(hide_password=False)
     return url
