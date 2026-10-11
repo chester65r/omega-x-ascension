@@ -1220,4 +1220,40 @@
   $('#about-runtime-status').textContent = 'Runtime connectivity has not yet been verified.';
   startPolling();
   loadRuns();
+
+  // Initialize Vercel Speed Insights
+  (function initSpeedInsights() {
+    if (typeof window === 'undefined') return;
+    
+    // Initialize the queue
+    if (!window.si) {
+      window.si = function(...params) {
+        (window.siq = window.siq || []).push(params);
+      };
+    }
+
+    // Determine script source based on environment
+    const isDev = false; // Set to true for debug mode
+    const scriptSrc = isDev
+      ? 'https://va.vercel-scripts.com/v1/speed-insights/script.debug.js'
+      : '/_vercel/speed-insights/script.js';
+
+    // Check if script already loaded
+    if (document.head.querySelector(`script[src*="${scriptSrc}"]`)) return;
+
+    // Create and inject the script
+    const script = document.createElement('script');
+    script.src = scriptSrc;
+    script.defer = true;
+    script.dataset.sdkn = '@vercel/speed-insights';
+    script.dataset.sdkv = '1.3.1';
+
+    script.onerror = () => {
+      console.log(
+        `[Vercel Speed Insights] Failed to load script from ${scriptSrc}. Please check if any content blockers are enabled and try again.`
+      );
+    };
+
+    document.head.appendChild(script);
+  })();
 })();

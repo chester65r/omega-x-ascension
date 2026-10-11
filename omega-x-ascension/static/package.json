@@ -1,0 +1,12 @@
+{
+  "name": "omega-x-ascension-static",
+  "version": "0.8.0",
+  "description": "Static assets for OMEGA-X ASCENSION dashboard",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'No build step required for static assets'"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.0"
+  }
+}
