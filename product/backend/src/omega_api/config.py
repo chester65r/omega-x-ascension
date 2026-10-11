@@ -59,7 +59,10 @@ def normalize_database_url(url: str) -> str:
     if url.startswith('postgresql+asyncpg://'):
         parsed = make_url(url)
         query = dict(parsed.query)
-        # asyncpg does not accept libpq's channel_binding option as a connect kwarg.
+        # asyncpg does not accept libpq's channel_binding or sslmode as connect kwargs.
         query.pop('channel_binding', None)
+        sslmode = query.pop('sslmode', None)
+        if sslmode is not None:
+            query['ssl'] = sslmode
         return parsed.set(query=query).render_as_string(hide_password=False)
     return url
