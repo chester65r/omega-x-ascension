@@ -111,8 +111,14 @@ def test_sandbox_command_execution_fails_closed_without_tenant_os_isolation(tmp_
         )
 
 
-def test_sandbox_execute_endpoint_returns_503_without_tenant_os_isolation(monkeypatch):
+def test_sandbox_execute_endpoint_returns_503_without_tenant_os_isolation(
+    tmp_path, monkeypatch
+):
     monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 32)
+    monkeypatch.setattr(
+        "omega.sandbox_service.runtime",
+        SandboxRuntime(tmp_path / "endpoint-workspace"),
+    )
     response = TestClient(sandbox_app).post(
         "/execute",
         headers={"X-OMEGA-SANDBOX-TOKEN": "s" * 32},
