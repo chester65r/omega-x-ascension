@@ -99,6 +99,28 @@ def test_browser_pins_socket_target_and_preserves_host_and_tls_name():
     asyncio.run(check())
 
 
+def test_browser_does_not_set_tls_sni_for_literal_ip_targets():
+    async def check():
+        async def handler(request):
+            assert request.url.host == "93.184.216.34"
+            assert request.headers["host"] == "93.184.216.34"
+            assert request.extensions.get("sni_hostname") is None
+            return httpx.Response(200, text="public IP", request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            tool = BrowserTool(client)
+
+            async def resolve_test_host(_url):
+                return "93.184.216.34"
+
+            tool._validate_url = resolve_test_host
+            response, final_url = await tool._get_public("https://93.184.216.34/resource")
+            assert response.text == "public IP"
+            assert final_url == "https://93.184.216.34/resource"
+
+    asyncio.run(check())
+
+
 def test_browser_search_normalizes_duckduckgo_redirect_links():
     async def check():
         async def handler(request):
