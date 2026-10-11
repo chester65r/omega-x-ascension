@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     provider_api_key: SecretStr = Field(default=SecretStr(''), validation_alias='OPENAI_COMPATIBLE_API_KEY')
     model: str = Field(default='', validation_alias='AI_MODEL')
     provider_timeout_seconds: float = Field(default=45.0, ge=1, le=120, validation_alias='PROVIDER_TIMEOUT_SECONDS')
+    auth_rate_window_seconds: int = Field(default=900, ge=60, le=86400, validation_alias='AUTH_RATE_WINDOW_SECONDS')
+    auth_rate_email_limit: int = Field(default=8, ge=1, le=100, validation_alias='AUTH_RATE_EMAIL_LIMIT')
+    auth_rate_ip_limit: int = Field(default=30, ge=1, le=1000, validation_alias='AUTH_RATE_IP_LIMIT')
 
     @model_validator(mode='after')
     def validate_production_secrets(self) -> 'Settings':

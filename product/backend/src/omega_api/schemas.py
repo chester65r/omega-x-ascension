@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -30,6 +31,10 @@ class TokenResponse(BaseModel):
     expires_in: int
 
 
+class AccountDeleteRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
 class ConversationCreate(BaseModel):
     title: str = Field(default='New conversation', min_length=1, max_length=120)
 
@@ -57,6 +62,7 @@ class ConversationPatch(BaseModel):
 class MessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
     request_id: UUID = Field(default_factory=uuid4)
+    response_mode: Literal['balanced', 'explain', 'concise', 'writing', 'coding'] = 'balanced'
 
     @field_validator('content')
     @classmethod
@@ -102,3 +108,69 @@ class UsageSummary(BaseModel):
     completion_tokens: int
     estimated_cost_usd: float | None = None
     note: str = 'Cost is not estimated because provider price metadata is not configured.'
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default='', max_length=500)
+
+    @field_validator('name')
+    @classmethod
+    def trim_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError('Project name cannot be blank')
+        return value
+
+
+class ProjectRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    description: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProjectFileWrite(BaseModel):
+    content: str = Field(max_length=524288)
+    expected_revision: int | None = Field(default=None, ge=1)
+
+
+class ProjectFileRead(BaseModel):
+    path: str
+    content: str
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProjectFileSummary(BaseModel):
+    path: str
+    size_bytes: int
+    revision: int
+    updated_at: datetime
+
+
+class ProjectCheckpointCreate(BaseModel):
+    label: str = Field(default='Checkpoint', min_length=1, max_length=80)
+
+    @field_validator('label')
+    @classmethod
+    def trim_label(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError('Checkpoint label cannot be blank')
+        return value
+
+
+class ProjectCheckpointRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    label: str
+    created_at: datetime
+
+
+class ProjectDiffResponse(BaseModel):
+    checkpoint_id: str
+    changes: list[dict[str, str]]

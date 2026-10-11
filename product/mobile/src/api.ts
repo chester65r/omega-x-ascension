@@ -28,6 +28,30 @@ export type Usage = {
   estimated_cost_usd: number | null;
   note: string;
 };
+export type Project = { id: string; name: string; description: string; created_at: string; updated_at: string };
+export type ProjectFile = { path: string; content: string; revision: number; created_at: string; updated_at: string };
+export type ProjectFileSummary = { path: string; size_bytes: number; revision: number; updated_at: string };
+export type ProjectCheckpoint = { id: string; label: string; created_at: string };
+export type ProjectDiff = { checkpoint_id: string; changes: { path: string; change: 'added' | 'modified' | 'deleted'; diff: string }[] };
+export type ResponseMode = 'balanced' | 'explain' | 'concise' | 'writing' | 'coding';
+export type ApiReadiness = {
+  status: string;
+  database: string;
+  model_provider_configured: boolean;
+  model: string | null;
+  capabilities?: {
+    response_modes?: boolean;
+    message_content_search?: boolean;
+    auth_rate_limiting?: boolean;
+    account_export?: boolean;
+    account_deletion?: boolean;
+    project_workspace?: boolean;
+    project_checkpoint_diff?: boolean;
+    agent_tasks?: boolean;
+    browser_automation?: boolean;
+    isolated_execution?: boolean;
+  };
+};
 
 export async function api<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   if (!API_BASE_URL) {

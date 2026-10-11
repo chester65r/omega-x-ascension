@@ -19,10 +19,10 @@ Collected during implementation on 2026-10-11. These are documentation/tool-quer
 
 ## JavaScript dependency advisories
 
-- [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm): braces stack-exhaustion denial of service; local npm audit flags `braces <=3.0.3`. Registry latest observed: `3.0.3`, still flagged.
-- [GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv): node-forge signature-verification parsing issue; local audit flags `node-forge <=1.4.0`. Registry latest observed: `1.4.0`, still flagged.
+- [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) / [official advisory API](https://api.github.com/advisories/GHSA-vfj7-8cjw-p6xm): braces stack-exhaustion denial of service; all versions `<=3.0.3` are affected and GitHub reports `first_patched_version: null`. Both the configured registry and public npm registry currently report latest `3.0.3`; `braces@3.0.4` returns 404. No safe package override is available yet.
+- [GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv) / [official advisory API](https://api.github.com/advisories/GHSA-86w9-cpqp-85rv): node-forge signature-verification parsing issue; all versions `<=1.4.0` are affected and GitHub reports `first_patched_version: null`. npm latest is `1.4.0`; `1.4.1` and `1.4.2` return 404. The upstream changelog contains code-level fixes, but no released package was verified, so an untagged Git override was not used.
 - [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq): UUID v3/v5/v6 output-buffer bounds issue; npm audit flags versions `<11.1.1`. The Xcode dependency expected `^7.0.3`; a narrow Xcode-only override to `11.1.1` removed the moderate UUID advisory and passed `require('xcode')`, TypeScript, and Android bundle checks.
-- After that override, `npm audit` reported **15 high, 0 moderate**. The suggested `npm audit fix --force` path would downgrade Expo to 44.0.6; that incompatible major downgrade was deliberately not applied. The remaining findings are a security/release blocker pending patched upstream packages and re-audit.
+- After that override, `npm audit` reports **15 high, 0 moderate**. The suggested `npm audit fix --force` path would downgrade Expo to 44.0.6; that incompatible major downgrade was deliberately not applied. The remaining findings are a security/release blocker pending patched upstream packages and re-audit. This task did not change Android dependencies, trigger a provider request, or deploy the local branch.
 
 ## No-cost backend hosting: Vercel + Neon (checked 2026-10-11)
 
