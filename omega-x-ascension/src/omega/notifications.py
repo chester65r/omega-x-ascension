@@ -12,13 +12,17 @@ logger = logging.getLogger("omega.notifications")
 
 
 def _escape_slack(value: Any) -> Any:
-    """Escape Slack control syntax in untrusted text without changing block structure."""
+    """Escape Slack markup in text fields while preserving URLs and block structure."""
     if isinstance(value, str):
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     if isinstance(value, list):
         return [_escape_slack(item) for item in value]
     if isinstance(value, dict):
-        return {key: _escape_slack(item) for key, item in value.items()}
+        return {
+            key: item if key in {"url", "image_url"} and isinstance(item, str)
+            else _escape_slack(item)
+            for key, item in value.items()
+        }
     return value
 
 
@@ -123,11 +127,11 @@ async def notify_approval_requested(
         },
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*Goal:*\n{run.goal[:300]}"},
+            "text": {"type": "plain_text", "text": f"Goal:\n{run.goal[:300]}", "emoji": True},
         },
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*Gated Actions Requiring Approval:*\n`{actions_str}`"},
+            "text": {"type": "plain_text", "text": f"Gated Actions Requiring Approval:\n{actions_str}", "emoji": True},
         },
         {
             "type": "actions",
