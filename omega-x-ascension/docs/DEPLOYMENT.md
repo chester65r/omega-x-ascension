@@ -1,5 +1,13 @@
 # Deployment readiness
 
+## Production hosting and verification
+
+The live dashboard and API are served together by the existing Railway service at `https://omega-api-production-e4ed.up.railway.app`. Do not create a second deployment of this FastAPI application on Vercel: it duplicates the current runtime and has been producing failed deployment checks.
+
+The repository uses GitHub Actions for source validation and a separate `.github/workflows/production-smoke.yml` to check the live dashboard, static assets, API liveness/readiness, configured and healthy model-provider counts, version endpoint, and the Android authenticated-file-write CORS preflight. Railway continues to deploy the connected `main` branch. The live site is already available at the Railway URL above; the GitHub Actions workflow replaces Vercel's health-check role, not the API runtime.
+
+GitHub Actions usage for this public repository does not require a separate hosting subscription. This does **not** guarantee that Railway runtime resources or hosted model inference are unlimited or cost-free; check the current account usage and provider allowance. This configuration adds no new runtime service, database, or paid integration.
+
 This repository can be built, but live AI inference requires an actual provider endpoint and credentials. Do not commit secrets or paste them into chat.
 
 ## Hosted Hugging Face model on Railway
