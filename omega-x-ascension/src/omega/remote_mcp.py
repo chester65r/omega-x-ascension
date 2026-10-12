@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from omega.auth import Principal, current_principal
 from omega.config import get_settings
+from omega.rate_limit import enforce_rate_limit
 
 router = APIRouter(tags=["external-mcp"])
 MAX_RESPONSE_BYTES = 2_000_000
@@ -276,10 +277,14 @@ async def remote_mcp_tools(
 
 @router.post("/tools/call")
 async def remote_mcp_call(
+    request: Request,
     body: RemoteToolCall,
     principal: Principal = Security(current_principal, scopes=["runs:write", "runs:approve"]),
     client: RemoteMCPClient = Depends(_client),
 ):
+    svc = getattr(request.app.state, "services", None)
+    if svc is not None and getattr(svc, "redis", None) is not None:
+        await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action="remote:mcp", limit=20)
     try:
         return await client.call_tool(body.name, body.arguments)
     except RemoteMCPError as exc:
