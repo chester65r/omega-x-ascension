@@ -183,7 +183,7 @@ def test_browser_response_size_is_bounded_without_external_network(tmp_path):
             tool = BrowserTool(client)
 
             async def allow_test_host(_url):
-                return None
+                return "93.184.216.34"
 
             tool._validate_url = allow_test_host
             with pytest.raises(ValueError, match="2 MB limit"):
