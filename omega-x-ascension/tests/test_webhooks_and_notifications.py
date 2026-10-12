@@ -43,9 +43,9 @@ def test_verify_github_signature_fails_closed_by_default():
     assert verify_github_signature(payload, "sha256=anything", None) is False
 
 
-def test_verify_github_signature_only_allows_missing_secret_when_explicitly_development():
+def test_verify_github_signature_never_allows_missing_secret():
     payload = b'{"action":"opened"}'
-    assert verify_github_signature(payload, None, None, allow_unconfigured=True) is True
+    assert verify_github_signature(payload, None, None) is False
 
 
 @pytest.mark.asyncio
