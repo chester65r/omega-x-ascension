@@ -32,6 +32,8 @@ jobs:
 
       - name: Compile Python sources
         run: python -m compileall -q src scripts tests
+      - name: Lint Python sources
+        run: ruff check src scripts tests
       - name: Validate dashboard JavaScript syntax
         run: node --check static/app.js
       - name: Validate Docker Compose topology
