@@ -27,15 +27,8 @@ def verify_github_signature(
     payload: bytes,
     signature_header: str | None,
     secret: SecretStr | str | None,
-    *,
-    allow_unconfigured: bool = False,
-) -> bool:
+ ) -> bool:
     if secret is None:
-        if allow_unconfigured:
-            logger.warning(
-                "OMEGA_GITHUB_WEBHOOK_SECRET is not configured; accepting only in explicit non-production mode."
-            )
-            return True
         logger.error("OMEGA_GITHUB_WEBHOOK_SECRET is not configured; rejecting webhook.")
         return False
     if not signature_header or not signature_header.startswith("sha256="):
@@ -72,12 +65,7 @@ async def github_webhook(
     body_bytes = await request.body()
     cfg = get_settings()
 
-    if not verify_github_signature(
-        body_bytes,
-        x_hub_signature_256,
-        cfg.github_webhook_secret,
-        allow_unconfigured=cfg.env != "production",
-    ):
+    if not verify_github_signature(body_bytes, x_hub_signature_256, cfg.github_webhook_secret):
         logger.warning("Invalid GitHub webhook signature received")
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
