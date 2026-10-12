@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import logging
 from html import escape
 from typing import Any
@@ -22,6 +23,7 @@ from omega.notifications import (
 
 logger = logging.getLogger("omega.webhooks")
 router = APIRouter()
+MAX_GITHUB_WEBHOOK_BYTES = 1_000_000
 
 
 def verify_github_signature(
@@ -63,7 +65,20 @@ async def github_webhook(
     x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
     svc=Depends(services),
 ):
-    body_bytes = await request.body()
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_GITHUB_WEBHOOK_BYTES:
+                raise HTTPException(status_code=413, detail="Webhook payload too large")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header") from exc
+
+    payload_buffer = bytearray()
+    async for chunk in request.stream():
+        payload_buffer.extend(chunk)
+        if len(payload_buffer) > MAX_GITHUB_WEBHOOK_BYTES:
+            raise HTTPException(status_code=413, detail="Webhook payload too large")
+    body_bytes = bytes(payload_buffer)
     cfg = get_settings()
 
     if not verify_github_signature(body_bytes, x_hub_signature_256, cfg.github_webhook_secret):
@@ -77,8 +92,10 @@ async def github_webhook(
         return {"status": "pong", "message": "OMEGA-X Ascension GitHub webhook endpoint ready"}
 
     try:
-        payload = await request.json()
-    except Exception as exc:
+        payload = json.loads(body_bytes)
+        if not isinstance(payload, dict):
+            raise ValueError("JSON payload must be an object")
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
 
     action = payload.get("action", "")
