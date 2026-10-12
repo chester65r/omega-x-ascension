@@ -3,6 +3,7 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
   let token = sessionStorage.getItem('omega-jwt') || '';
+  let tokenExpiryTimer = null;
   let apiBase = localStorage.getItem('omega-api-base') || '';
   let pollTimer = null;
   let runPollTimer = null;
@@ -25,6 +26,51 @@
     const badge = $('#conn-status');
     badge.innerHTML = '<span class="status-dot"></span> ' + (connected ? 'Connected' : 'Disconnected');
     badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
+  }
+
+  // This client-side expiry check is only a UX aid; the API remains the authority for JWT validity.
+  function readTokenExpiry(value) {
+    try {
+      const parts = value.split('.');
+      if (parts.length !== 3) return null;
+      const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const claims = JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '=')));
+      return Number.isFinite(claims.exp) ? claims.exp * 1000 : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function clearSession(reason = '') {
+    token = '';
+    sessionStorage.removeItem('omega-jwt');
+    sessionStorage.removeItem('omega-runs');
+    if (tokenExpiryTimer) clearTimeout(tokenExpiryTimer);
+    tokenExpiryTimer = null;
+    if (runPollTimer) clearInterval(runPollTimer);
+    runPollTimer = null;
+    const tokenField = $('#jwt-token');
+    if (tokenField) tokenField.value = '';
+    setConnected(false);
+    if (reason) addAgentLog('info', reason);
+    if (apiBase) startPolling();
+  }
+
+  function scheduleTokenExpiry(expiry) {
+    if (tokenExpiryTimer) clearTimeout(tokenExpiryTimer);
+    if (!expiry) return;
+    const remaining = expiry - Date.now();
+    if (remaining <= 0) {
+      clearSession('Access token expired. Connect again with a fresh token.');
+      return;
+    }
+    tokenExpiryTimer = setTimeout(() => {
+      if (Date.now() >= expiry) {
+        clearSession('Access token expired. Connect again with a fresh token.');
+      } else {
+        scheduleTokenExpiry(expiry);
+      }
+    }, Math.min(remaining, 2147483000));
   }
 
   function normalizeApiBase(value) {
@@ -197,13 +243,20 @@
 
   $('#jwt-token').value = token;
   setConnected(false);
+  $('#disconnect-btn').addEventListener('click', () => {
+    clearSession('Disconnected. The access token was removed from this browser session.');
+  });
   $('#connect-btn').addEventListener('click', async () => {
     const candidate = $('#jwt-token').value.trim();
     if (!candidate) {
-      token = '';
-      sessionStorage.removeItem('omega-jwt');
-      setConnected(false);
+      clearSession('No access token supplied.');
       alert('Paste a signed JWT token first.');
+      return;
+    }
+    const candidateExpiry = readTokenExpiry(candidate);
+    if (candidateExpiry && candidateExpiry <= Date.now()) {
+      clearSession('The pasted access token has expired.');
+      alert('This access token has expired. Generate a new token and try again.');
       return;
     }
     if (!apiBase) {
@@ -218,13 +271,12 @@
     try {
       await api('/v1/runs?limit=1');
       setConnected(true);
+      scheduleTokenExpiry(candidateExpiry);
       startPolling();
       await loadRuns();
       addAgentLog('success', 'API token verified successfully.');
     } catch (error) {
-      token = '';
-      sessionStorage.removeItem('omega-jwt');
-      setConnected(false);
+      clearSession();
       alert('Connection failed. Verify the API URL, token validity, and runs:read scope. ' + (error.message || ''));
     } finally {
       button.disabled = false;
@@ -238,6 +290,9 @@
 
   async function api(path, opts = {}) {
     const res = await apiFetch(path, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
+    if (res.status === 401 && token) {
+      clearSession('The API rejected this access token. Reconnect with a valid token.');
+    }
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`${res.status}: ${body}`);
