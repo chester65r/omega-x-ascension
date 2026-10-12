@@ -12,12 +12,14 @@ logger = logging.getLogger("omega.notifications")
 
 
 def _escape_slack(value: Any) -> Any:
-    """Escape Slack markup in text fields while preserving URLs and block structure."""
+    """Escape Slack mrkdwn text while preserving plain-text blocks and destinations."""
     if isinstance(value, str):
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     if isinstance(value, list):
         return [_escape_slack(item) for item in value]
     if isinstance(value, dict):
+        if value.get("type") == "plain_text":
+            return value
         return {
             key: item if key in {"url", "image_url"} and isinstance(item, str)
             else _escape_slack(item)
