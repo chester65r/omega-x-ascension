@@ -1,0 +1,88 @@
+name: Production smoke check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "omega-x-ascension/src/omega/**"
+      - "omega-x-ascension/static/**"
+      - "omega-x-ascension/pyproject.toml"
+      - ".github/workflows/production-smoke.yml"
+  pull_request:
+    paths:
+      - "omega-x-ascension/src/omega/**"
+      - "omega-x-ascension/static/**"
+      - "omega-x-ascension/pyproject.toml"
+      - ".github/workflows/production-smoke.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    name: Verify live Railway dashboard and API
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OMEGA_BASE_URL: https://omega-api-production-e4ed.up.railway.app
+    steps:
+      - name: Check live page and static assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/" -o "$RUNNER_TEMP/home.html"
+          grep -qi '<title>OMEGA-X ASCENSION</title>' "$RUNNER_TEMP/home.html"
+          grep -q 'BACKEND CONNECTION' "$RUNNER_TEMP/home.html"
+          for asset in /static/app.js /static/style.css /static/manifest.json /static/favicon.png; do
+            curl --fail --silent --show-error --retry 2 "$OMEGA_BASE_URL$asset" -o /dev/null
+          done
+          echo "Dashboard HTML and all required static assets responded successfully."
+
+      - name: Check liveness, readiness, model provider and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/live" -o "$RUNNER_TEMP/live.json"
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/ready" -o "$RUNNER_TEMP/ready.json"
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/models" -o "$RUNNER_TEMP/models.json"
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/version" -o "$RUNNER_TEMP/version.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          live = json.loads((root / "live.json").read_text())
+          ready = json.loads((root / "ready.json").read_text())
+          models = json.loads((root / "models.json").read_text())
+          version = json.loads((root / "version.json").read_text())
+
+          assert live.get("status") == "ok", f"liveness failed: {live}"
+          assert ready.get("status") == "ready", f"readiness failed: {ready}"
+          assert models.get("configured_models", 0) > 0, f"no configured models: {models}"
+          assert models.get("healthy_models", 0) > 0, f"no healthy model providers: {models}"
+          assert version.get("name") == "OMEGA-X ASCENSION", f"unexpected API identity: {version}"
+          print(
+              f"API healthy: version={version.get('version')}; "
+              f"healthy models={models['healthy_models']}/{models['configured_models']}."
+          )
+          PY
+
+      - name: Check Android file-save CORS preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error -o "$RUNNER_TEMP/preflight.txt" -D "$RUNNER_TEMP/preflight.headers" -w '%{http_code}' \
+            -X OPTIONS "$OMEGA_BASE_URL/v1/computer/files" \
+            -H 'Origin: https://appassets.androidplatform.net' \
+            -H 'Access-Control-Request-Method: PUT' \
+            -H 'Access-Control-Request-Headers: authorization,content-type')"
+          test "$status" = "200"
+          grep -iq '^access-control-allow-origin: https://appassets.androidplatform.net' "$RUNNER_TEMP/preflight.headers"
+          grep -i '^access-control-allow-methods:' "$RUNNER_TEMP/preflight.headers" | grep -iq 'PUT'
+          grep -i '^access-control-allow-headers:' "$RUNNER_TEMP/preflight.headers" | grep -iq 'authorization'
+          grep -i '^access-control-allow-headers:' "$RUNNER_TEMP/preflight.headers" | grep -iq 'content-type'
+          echo "CORS permits the Android app to preflight authenticated PUT file writes."
