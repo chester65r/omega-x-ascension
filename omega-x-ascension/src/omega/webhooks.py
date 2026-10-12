@@ -27,7 +27,7 @@ def verify_github_signature(
     payload: bytes,
     signature_header: str | None,
     secret: SecretStr | str | None,
- ) -> bool:
+) -> bool:
     if secret is None:
         logger.error("OMEGA_GITHUB_WEBHOOK_SECRET is not configured; rejecting webhook.")
         return False
