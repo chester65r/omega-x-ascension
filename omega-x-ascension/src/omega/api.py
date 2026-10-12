@@ -12,6 +12,7 @@ from omega.config import Capability, get_settings
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
 from omega.model_router import NoEligibleModel
 from omega.notifications import notify_approval_requested
+from omega.rate_limit import enforce_rate_limit
 
 router = APIRouter()
 
@@ -52,6 +53,8 @@ async def create_run(
     principal: Principal = Security(current_principal, scopes=["runs:write"]),
     svc=Depends(services),
 ):
+    if getattr(svc, "redis", None) is not None:
+        await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action="runs:create", limit=10)
     try:
         await svc.router.select(body.task_type)
     except NoEligibleModel as exc:
@@ -173,6 +176,8 @@ async def browser_search(
     principal: Principal = Security(current_principal, scopes=["runs:read"]),
     svc=Depends(services),
 ):
+    if getattr(svc, "redis", None) is not None:
+        await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action="browser:search", limit=30)
     return await svc.browser.search(q)
 
 
@@ -190,6 +195,8 @@ async def browser_proxy(
     principal: Principal = Security(current_principal, scopes=["runs:read"]),
     svc=Depends(services),
 ):
+    if getattr(svc, "redis", None) is not None:
+        await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action="browser:proxy", limit=20)
     try:
         html, content_type = await svc.browser.proxy(url)
         return HTMLResponse(
