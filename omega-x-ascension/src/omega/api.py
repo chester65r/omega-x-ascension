@@ -176,6 +176,14 @@ async def browser_search(
     return await svc.browser.search(q)
 
 
+BROWSER_PROXY_HEADERS = {
+    "Content-Security-Policy": "sandbox allow-scripts allow-forms",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
+}
+
+
 @router.get("/browser/proxy", response_class=HTMLResponse)
 async def browser_proxy(
     url: str,
@@ -187,6 +195,7 @@ async def browser_proxy(
         return HTMLResponse(
             content=html,
             media_type=content_type.split(";")[0],
+            headers=BROWSER_PROXY_HEADERS,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc

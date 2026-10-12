@@ -218,15 +218,17 @@ async def require_shared_token(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "file_tools": True, "command_execution": False}
 
 
 @app.post("/execute")
 async def execute(body: ExecuteInput, _: None = Depends(require_shared_token)):
-    try:
-        return await get_runtime().execute(body.workspace_id, body.command, body.timeout)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # Keep the internal endpoint fail-closed until per-tenant OS isolation is implemented
+    # and adversarially tested. File tools remain separately available under scoped paths.
+    raise HTTPException(
+        status_code=503,
+        detail="command execution is disabled until per-tenant isolation is implemented and tested",
+    )
 
 
 @app.get("/files")
