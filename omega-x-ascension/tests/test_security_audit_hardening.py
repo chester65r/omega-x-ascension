@@ -1,0 +1,46 @@
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from omega import sandbox_service
+
+
+def test_sandbox_health_reports_command_execution_disabled():
+    with TestClient(sandbox_service.app) as client:
+        response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["command_execution"] is False
+    assert response.json()["file_tools"] is True
+
+
+def test_sandbox_execute_fails_closed_even_with_valid_internal_token(monkeypatch):
+    token = "s" * 40
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", token)
+    with TestClient(sandbox_service.app) as client:
+        response = client.post(
+            "/execute",
+            headers={"X-OMEGA-SANDBOX-TOKEN": token},
+            json={
+                "workspace_id": "11111111-1111-1111-1111-111111111111",
+                "command": "echo should-not-run",
+                "timeout": 2,
+            },
+        )
+    assert response.status_code == 503
+    assert "disabled" in response.json()["detail"]
+
+
+def test_android_backup_is_disabled_and_rules_exclude_private_app_data():
+    root = Path("../android/app/src/main")
+    manifest = (root / "AndroidManifest.xml").read_text(encoding="utf-8")
+    backup = (root / "res/xml/backup_rules.xml").read_text(encoding="utf-8")
+    extraction = (root / "res/xml/data_extraction_rules.xml").read_text(encoding="utf-8")
+    extraction_v36 = (root / "res/xml-v36/data_extraction_rules.xml").read_text(encoding="utf-8")
+
+    assert 'android:allowBackup="false"' in manifest
+    assert 'android:dataExtractionRules="@xml/data_extraction_rules"' in manifest
+    assert 'android:fullBackupContent="@xml/backup_rules"' in manifest
+    for domain in ("root", "file", "database", "sharedpref", "external"):
+        assert f'domain="{domain}"' in backup
+        assert f'domain="{domain}"' in extraction
+        assert f'domain="{domain}"' in extraction_v36
