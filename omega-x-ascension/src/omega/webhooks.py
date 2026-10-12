@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+from html import escape
 from typing import Any
 from uuid import UUID
 
@@ -228,7 +229,7 @@ async def test_notification(
             success = await send_telegram_notification(
                 cfg.telegram_bot_token,
                 cfg.telegram_chat_id,
-                f"🔔 <b>OMEGA-X Test:</b> {body.message}",
+                f"🔔 <b>OMEGA-X Test:</b> {escape(body.message)}",
                 client=svc.http,
             )
             results["telegram"] = {"configured": True, "delivered": success}
