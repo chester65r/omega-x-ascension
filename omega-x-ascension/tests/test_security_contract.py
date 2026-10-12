@@ -4,6 +4,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from omega.main import app
 from omega.sandbox_service import SandboxRuntime
 from omega.tools.browser import BrowserTool
 from omega.tools.computer import ComputerTool
@@ -259,3 +260,32 @@ def test_native_browser_does_not_expose_privileged_javascript_bridge():
     assert "String scheme = uri.getScheme()" in browser
     assert '"https".equalsIgnoreCase(scheme)' in browser
     assert '"http".equalsIgnoreCase(scheme)' in browser
+
+
+
+def test_android_file_save_preflight_allows_put_and_required_headers():
+    origin = "https://appassets.androidplatform.net"
+
+    async def check():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://omega.test",
+        ) as client:
+            response = await client.options(
+                "/v1/computer/files",
+                headers={
+                    "Origin": origin,
+                    "Access-Control-Request-Method": "PUT",
+                    "Access-Control-Request-Headers": "authorization,content-type",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == origin
+        methods = response.headers.get("access-control-allow-methods", "").upper()
+        assert "PUT" in {method.strip() for method in methods.split(",")}
+        allowed_headers = response.headers.get("access-control-allow-headers", "").lower()
+        assert "authorization" in allowed_headers
+        assert "content-type" in allowed_headers
+
+    asyncio.run(check())
