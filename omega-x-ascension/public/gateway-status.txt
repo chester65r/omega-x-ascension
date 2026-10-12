@@ -1,0 +1,1 @@
+OMEGA-X ASCENSION static gateway. Application routes are rewritten to the Railway production API.
