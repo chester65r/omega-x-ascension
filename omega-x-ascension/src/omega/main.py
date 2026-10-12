@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import os
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -181,5 +182,14 @@ async def version_info():
 
 
 @app.get("/metrics")
-async def metrics():
+async def metrics(request: Request):
+    cfg = get_settings()
+    configured_token = cfg.metrics_token.get_secret_value() if cfg.metrics_token else None
+    if cfg.env == "production" and not configured_token:
+        raise HTTPException(status_code=404, detail="not found")
+    if configured_token:
+        authorization = request.headers.get("authorization", "")
+        scheme, separator, supplied = authorization.partition(" ")
+        if not separator or scheme.casefold() != "bearer" or not supplied or not hmac.compare_digest(supplied, configured_token):
+            raise HTTPException(status_code=401, detail="metrics bearer token required", headers={"WWW-Authenticate": "Bearer"})
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
