@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
@@ -84,6 +87,51 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="OMEGA-X ASCENSION", version=__import__("omega").__version__, lifespan=lifespan)
+logger = logging.getLogger("omega.http")
+HTTP_REQUESTS = Counter("omega_http_requests_total", "HTTP requests served by OMEGA-X", ("method", "route", "status"))
+HTTP_REQUEST_DURATION = Histogram(
+    "omega_http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ("method", "route"),
+    buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
+)
+
+
+@app.middleware("http")
+async def observability_and_security_headers(request: Request, call_next):
+    request_id = uuid4().hex
+    started = time.perf_counter()
+    status_code = 500
+    response = None
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        elapsed = time.perf_counter() - started
+        route = request.scope.get("route")
+        route_name = getattr(route, "path", request.url.path)
+        HTTP_REQUESTS.labels(request.method, route_name, str(status_code)).inc()
+        HTTP_REQUEST_DURATION.labels(request.method, route_name).observe(elapsed)
+        logger.info(
+            "http_request",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "route": route_name,
+                "status_code": status_code,
+                "duration_ms": round(elapsed * 1000, 2),
+            },
+        )
+        if response is not None:
+            response.headers["X-Request-ID"] = request_id
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["Permissions-Policy"] = "camera=(), geolocation=()"
+            forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+            if request.url.scheme == "https" or forwarded_proto == "https":
+                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 allowed_origins = ["https://appassets.androidplatform.net"]
 allowed_origins.extend(
     origin.strip()
