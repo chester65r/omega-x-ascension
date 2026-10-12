@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from omega import __version__
-from omega.auth import Principal
 from omega.config import get_settings
 from omega.domain import RunStatus, WorkflowRun
 from omega.main import app
