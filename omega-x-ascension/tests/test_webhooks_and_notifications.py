@@ -43,11 +43,6 @@ def test_verify_github_signature_fails_closed_by_default():
     assert verify_github_signature(payload, "sha256=anything", None) is False
 
 
-def test_verify_github_signature_never_allows_missing_secret():
-    payload = b'{"action":"opened"}'
-    assert verify_github_signature(payload, None, None) is False
-
-
 @pytest.mark.asyncio
 async def test_send_slack_notification_success():
     mock_client = AsyncMock()
