@@ -15,6 +15,38 @@ from omega.config import get_settings
 router = APIRouter(tags=["external-mcp"])
 MAX_RESPONSE_BYTES = 2_000_000
 
+# MCP annotations and names are untrusted hints. Require a read-style tool name,
+# and reject explicit or described side effects before any remote call.
+_READ_ONLY_TOOL_PREFIXES = (
+    "get", "read", "list", "fetch", "search", "find", "lookup", "query",
+    "inspect", "view", "check", "status", "describe", "review", "analyze", "summarize",
+)
+_MUTATING_TOOL_TERMS = re.compile(
+    r"\b(?:create|update|delete|remove|modify|write|edit|patch|post|put|upload|download|"
+    r"deploy|execute|run|shell|command|send|email|message|notify|publish|purchase|pay|"
+    r"transfer|grant|revoke|invite|approve|cancel|reset|restart|change|alter|destroy|"
+    r"erase|drop|insert|replace|configure|configuration|set)\b",
+    re.IGNORECASE,
+)
+
+
+def is_read_only_tool(tool: dict[str, Any]) -> bool:
+    """Fail-closed, metadata-based guard; this is not a substitute for server trust."""
+    name = tool.get("name")
+    if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", name):
+        return False
+    annotations = tool.get("annotations")
+    if isinstance(annotations, dict):
+        if annotations.get("readOnlyHint") is False or annotations.get("destructiveHint") is True:
+            return False
+    normalized_name = re.sub(r"[^a-z0-9]", "", name.lower())
+    if not any(normalized_name.startswith(prefix) for prefix in _READ_ONLY_TOOL_PREFIXES):
+        return False
+    description = tool.get("description", "")
+    if not isinstance(description, str):
+        description = str(description)
+    return _MUTATING_TOOL_TERMS.search(f"{name} {description}") is None
+
 
 class RemoteMCPError(RuntimeError):
     """Raised when the configured remote MCP endpoint cannot be used safely."""
@@ -175,10 +207,17 @@ class RemoteMCPClient:
         for tool in tools:
             if not isinstance(tool, dict) or not isinstance(tool.get("name"), str):
                 continue
+            annotations = tool.get("annotations")
+            safe_annotations = {}
+            if isinstance(annotations, dict):
+                for key in ("readOnlyHint", "destructiveHint"):
+                    if isinstance(annotations.get(key), bool):
+                        safe_annotations[key] = annotations[key]
             safe_tools.append({
                 "name": tool["name"][:128],
                 "description": str(tool.get("description", ""))[:2000],
                 "inputSchema": tool.get("inputSchema", {"type": "object", "properties": {}}),
+                "annotations": safe_annotations,
             })
         return safe_tools
 
@@ -192,9 +231,11 @@ class RemoteMCPClient:
         if len(encoded_arguments) > 65_536:
             raise RemoteMCPError("Tool arguments exceeded the 64 KB safety limit")
         tools = await self.list_tools()
-        allowed_names = {tool["name"] for tool in tools}
-        if name not in allowed_names:
+        selected_tool = next((tool for tool in tools if tool["name"] == name), None)
+        if selected_tool is None:
             raise RemoteMCPError("Requested tool is not advertised by the configured MCP server")
+        if not is_read_only_tool(selected_tool):
+            raise RemoteMCPError("Remote MCP call blocked: tool does not pass the read-only safety policy")
         result = await self._rpc("tools/call", {"name": name, "arguments": arguments})
         if not isinstance(result.get("content", []), list):
             raise RemoteMCPError("Remote MCP tool result is malformed")

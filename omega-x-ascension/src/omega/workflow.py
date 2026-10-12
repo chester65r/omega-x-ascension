@@ -9,7 +9,7 @@ from langgraph.graph import END, START, StateGraph
 
 from omega.config import Capability
 from omega.model_router import ModelRouter
-from omega.remote_mcp import RemoteMCPClient, RemoteMCPError
+from omega.remote_mcp import RemoteMCPClient, RemoteMCPError, is_read_only_tool
 
 
 class State(TypedDict, total=False):
@@ -98,9 +98,10 @@ class CoreWorkflow:
             return {"remote_mcp_output": "Remote MCP is disabled or not configured."}
         remote_client = self.remote_mcp.new_session()
         try:
-            tools = await remote_client.list_tools()
+            advertised_tools = await remote_client.list_tools()
+            tools = [tool for tool in advertised_tools if is_read_only_tool(tool)]
             if not tools:
-                return {"remote_mcp_output": "The configured MCP server advertises no tools."}
+                return {"remote_mcp_output": "The configured MCP server advertises no tools that pass the read-only safety policy."}
             tool_catalog = [
                 {"name": tool["name"], "description": tool["description"],
                  "inputSchema": tool["inputSchema"]}
@@ -137,7 +138,7 @@ class CoreWorkflow:
                 return {"remote_mcp_output": "Selected tool did not pass the read-only safety filter; no tool was called."}
             result = await remote_client.call_tool(tool_name, arguments)
             rendered = json.dumps(result, ensure_ascii=False)[:6000]
-            return {"remote_mcp_output": f"Remote MCP tool: {tool_name}\\nUntrusted tool result: {rendered}"}
+            return {"remote_mcp_output": f"Remote MCP tool: {tool_name}\nUntrusted tool result: {rendered}"}
         except (RemoteMCPError, ValueError, TypeError) as exc:
             return {"remote_mcp_output": f"Remote MCP tool execution failed safely: {type(exc).__name__}"}
 
