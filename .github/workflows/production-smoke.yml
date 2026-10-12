@@ -71,6 +71,37 @@ jobs:
           )
           PY
 
+      - name: Verify deployed security headers, authentication and metrics privacy
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error -D "$RUNNER_TEMP/version.headers" -o "$RUNNER_TEMP/version.body" -w '%{http_code}' "$OMEGA_BASE_URL/version")"
+          test "$status" = "200"
+          grep -iq '^x-request-id: ' "$RUNNER_TEMP/version.headers"
+          grep -iq '^x-content-type-options: nosniff' "$RUNNER_TEMP/version.headers"
+          grep -iq '^x-frame-options: DENY' "$RUNNER_TEMP/version.headers"
+          grep -iq '^referrer-policy: no-referrer' "$RUNNER_TEMP/version.headers"
+
+          status="$(curl --silent --show-error -o "$RUNNER_TEMP/auth.body" -w '%{http_code}' "$OMEGA_BASE_URL/v1/runs")"
+          test "$status" = "401"
+
+          status="$(curl --silent --show-error -o "$RUNNER_TEMP/metrics.body" -w '%{http_code}' "$OMEGA_BASE_URL/metrics")"
+          if [[ "$status" != "404" && "$status" != "401" ]]; then
+            echo "Metrics endpoint must be hidden or require a bearer token; got HTTP $status." >&2
+            exit 1
+          fi
+
+          elapsed="$(curl --silent --show-error -o /dev/null -w '%{time_total}' "$OMEGA_BASE_URL/health/live")"
+          python3 - "$elapsed" <<'PY'
+          import sys
+          elapsed = float(sys.argv[1])
+          if elapsed > 5:
+              raise SystemExit(f"health endpoint too slow: {elapsed:.3f}s")
+          print(f"Health endpoint latency: {elapsed:.3f}s")
+          PY
+          echo "Request IDs, security headers, auth gate, metrics privacy and basic latency passed."
+
       - name: Check Android file-save CORS preflight
         shell: bash
         run: |
