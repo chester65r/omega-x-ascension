@@ -107,8 +107,18 @@ jobs:
 
       - name: Collect full-stack logs on failure
         if: failure()
-        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml logs --no-color --tail=150 api worker migrate postgres redis sandbox mock-model
+        run: |
+          if [[ -f .env ]]; then
+            docker compose -f docker-compose.yml -f docker-compose.integration.yml logs --no-color --tail=150 api worker migrate postgres redis sandbox mock-model
+          else
+            echo "Integration environment was not created; there are no Docker logs to collect."
+          fi
 
       - name: Tear down full-stack integration
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml down --volumes --remove-orphans
+        run: |
+          if [[ -f .env ]]; then
+            docker compose -f docker-compose.yml -f docker-compose.integration.yml down --volumes --remove-orphans
+          else
+            echo "Integration environment was not created; no Docker cleanup is required."
+          fi
