@@ -2,11 +2,13 @@
 
 This repository can be built, but live AI inference requires an actual provider endpoint and credentials. Do not commit secrets or paste them into chat.
 
-## OpenAI flagship model
+## Hosted Hugging Face model on Railway
 
-The backend supports the OpenAI API as a first-class provider. The Render blueprint declares `OMEGA_OPENAI_API_KEY` as a secret-only variable and defaults `OMEGA_OPENAI_MODEL` to `gpt-6-astra`, the flagship model for demanding reasoning and coding tasks. Create a key in the OpenAI Platform account and enter it only in the deployment secret field; never commit it to GitHub or paste it into chat.
+The current cloud API is deployed on Railway. Configure the API service with `OMEGA_HF_INFERENCE_BASE_URL`, `OMEGA_HF_INFERENCE_MODEL`, `OMEGA_HF_INFERENCE_PRIORITY`, and the secret `OMEGA_HF_INFERENCE_TOKEN`. The current project configuration uses `https://router.huggingface.co/v1` and `Qwen/Qwen3-4B:featherless-ai`. Store the token only in Railway Variables, give it only the inference permission it needs, and never commit or paste it into chat.
 
-To reduce cost, set `OMEGA_OPENAI_MODEL=gpt-6.1-sol` in the Render service environment. API usage is billed separately from a ChatGPT subscription. After deployment, run `python scripts/verify_model_provider.py` to prove a real non-empty completion; `/health/models` alone only checks provider access.
+**A healthy provider check is not proof of successful text generation.** `GET /health/models` checks provider/model-list access; `GET /health/ready` reports whether the app considers itself ready. For a real verification, run `python scripts/verify_model_provider.py` in a trusted environment configured with the same provider settings, then submit a low-risk `POST /v1/runs` task using a valid short-lived JWT and verify a `succeeded` run with non-empty output. CI uses a fixture model, so passing CI does not prove the production account can complete inference.
+
+Hugging Face hosted inference is not unlimited free hosting. Free allowance and provider availability can change, and model calls may fail when the allowance is exhausted. Do not add a payment method or purchase credits when a zero-cost setup is required. Keep provider secrets server-side; never expose them in the Android app or browser dashboard.
 
 ## Local backend
 
@@ -42,14 +44,6 @@ The API and worker do **not** execute shell commands in their own containers. Th
 Set `OMEGA_ENABLE_COMPUTER_FILES=true` to enable file listing, reading and writing independently of command execution. File operations still require the corresponding tenant-bound JWT scopes. Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` unless commands are required for a trusted test environment. If enabled, issue a short-lived operator token that explicitly includes `computer:execute` and `runs:approve`; agent workflows cannot run computer commands unless the task requests `execute_code` and the run passes the existing human approval gate.
 
 **Security boundary:** the sandbox is a separate resource-limited container on a private Docker network, but shell processes in it share the same OS identity. Therefore workspace file permissions do not fully isolate one tenant from another when arbitrary shell execution is on. It is suitable for local development and trusted single-operator testing, not untrusted multi-tenant public SaaS. A hardened per-job container/VM or equivalent runtime isolation is required before enabling arbitrary command execution for untrusted users. Workspace contents are ephemeral and clear when the sandbox container is recreated.
-
-## Hosted model with a free-credit allowance (optional)
-
-The Render blueprint now supports Hugging Face Inference Providers through the OpenAI-compatible router. The default model ID is `Qwen/Qwen3-4B:featherless-ai`, which pins routing to Featherless rather than depending on automatic provider selection. A narrowly scoped Hugging Face access token must be stored as the Render secret `OMEGA_HF_INFERENCE_TOKEN`; it is never committed to GitHub or printed by the application. Only enable the "Inference Providers" permission for that token, not repository write or account-management permissions.
-
-**This is not unlimited free hosting.** Hugging Face currently documents a small monthly free allowance for free accounts (listed as $0.10 and subject to change). If that allowance runs out, live inference may stop until the allowance refreshes or additional credits are added. Do not add a payment method or purchase credits when you require a zero-cost setup. The API reports provider health separately; it never substitutes fake model output for a failed provider.
-
-After storing the token in Render, deploy the service and check `/health/models` for at least one healthy model and `/health/ready` for a 200 response. If no model is healthy, readiness returns 503 and workflow creation rejects the task rather than pretending it ran.
 
 ## Local model without a paid API
 
