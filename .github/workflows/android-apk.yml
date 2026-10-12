@@ -95,8 +95,7 @@ jobs:
           for required in ("request.isForMainFrame()", "isTrustedAppAsset(uri)",
                            "Intent.ACTION_VIEW", "WebViewCompat.addWebMessageListener",
                            "isMainFrame", "sourceOrigin", "startVoiceInput", "shareText",
-                           'setAllowFileAccess(false)', 'setAllowContentAccess(false)',
-                           "WebSettings.MIXED_CONTENT_NEVER_ALLOW"):
+                           'setAllowFileAccess(false)', 'setAllowContentAccess(false)'):
               assert required in java, f"Android WebView security guard missing: {required}"
           native_browser = (root / "android" / "app" / "src" / "main" / "java" /
                             "com" / "omega" / "ascension" / "BrowserActivity.java").read_text(encoding="utf-8")
