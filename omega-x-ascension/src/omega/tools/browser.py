@@ -175,6 +175,8 @@ class BrowserTool:
                     continue
 
                 raw_url = title_elem.get("href", "")
+                if not isinstance(raw_url, str):
+                    continue
                 candidate = urljoin("https://duckduckgo.com/", raw_url)
                 parsed = urlparse(candidate)
                 if parsed.hostname and parsed.hostname.lower().endswith("duckduckgo.com") and parsed.path.startswith("/l/"):

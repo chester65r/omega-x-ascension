@@ -163,6 +163,16 @@ async def browser_search(
     return await svc.browser.search(q)
 
 
+# Defence in depth for third-party pages served through the proxy: even if a response is ever
+# opened outside the dashboard's sandboxed iframe, the browser treats it as an opaque origin.
+BROWSER_PROXY_HEADERS = {
+    "Content-Security-Policy": "sandbox allow-scripts allow-forms",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
+}
+
+
 @router.get("/browser/proxy", response_class=HTMLResponse)
 async def browser_proxy(
     url: str,
@@ -174,6 +184,7 @@ async def browser_proxy(
         return HTMLResponse(
             content=html,
             media_type=content_type.split(";")[0],
+            headers=BROWSER_PROXY_HEADERS,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
