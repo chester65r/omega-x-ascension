@@ -49,6 +49,23 @@ def verify_github_signature(
     return hmac.compare_digest(expected_sig, signature_header)
 
 
+async def read_bounded_body(request: Request, max_bytes: int = MAX_GITHUB_WEBHOOK_BYTES) -> bytes:
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > max_bytes:
+                raise HTTPException(status_code=413, detail="Webhook payload too large")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header") from exc
+
+    payload_buffer = bytearray()
+    async for chunk in request.stream():
+        payload_buffer.extend(chunk)
+        if len(payload_buffer) > max_bytes:
+            raise HTTPException(status_code=413, detail="Webhook payload too large")
+    return bytes(payload_buffer)
+
+
 def services(request: Request):
     return request.app.state.services
 
@@ -65,20 +82,6 @@ async def github_webhook(
     x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
     svc=Depends(services),
 ):
-    content_length = request.headers.get("content-length")
-    if content_length:
-        try:
-            if int(content_length) > MAX_GITHUB_WEBHOOK_BYTES:
-                raise HTTPException(status_code=413, detail="Webhook payload too large")
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail="Invalid Content-Length header") from exc
-
-    payload_buffer = bytearray()
-    async for chunk in request.stream():
-        payload_buffer.extend(chunk)
-        if len(payload_buffer) > MAX_GITHUB_WEBHOOK_BYTES:
-            raise HTTPException(status_code=413, detail="Webhook payload too large")
-    body_bytes = bytes(payload_buffer)
     cfg = get_settings()
 
     if not verify_github_signature(body_bytes, x_hub_signature_256, cfg.github_webhook_secret):
