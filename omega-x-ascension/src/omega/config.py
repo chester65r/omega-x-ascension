@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     hf_inference_base_url: str = "https://router.huggingface.co/v1"
     hf_inference_priority: int = Field(default=80, ge=0, le=100)
     log_level: str = "INFO"
+    # Optional bearer token protecting Prometheus metrics in production.
+    metrics_token: SecretStr | None = None
     enable_computer_execution: bool = False
     enable_computer_files: bool = True
     sandbox_url: str = "http://sandbox:8090"
