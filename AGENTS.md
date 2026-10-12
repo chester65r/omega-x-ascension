@@ -1,56 +1,57 @@
-# OMEGA-X ASCENSION — Base44 Dev Environment
-
-## Project overview
-Python/FastAPI modular monolith with a lightweight static dashboard. PostgreSQL/pgvector for state, Redis for coordination, LangGraph for workflows, OpenAI-compatible model endpoints for LLM inference. API serves on port 8000 (mapped to host 3000 in Base44 compose).
+# OMEGA-X ASCENSION — Project Operations Guide
 
 ## Architecture
-- **api** — uvicorn dev server with `--reload`, serves FastAPI app at `omega.main:app`
-- **worker** — `python -m omega.worker`, leases durable jobs and runs LangGraph workflows
-- **migrate** — one-shot: creates DB roles (omega_app, omega_worker, omega_checkpoint), runs Alembic migrations, sets up LangGraph checkpoint tables
-- **postgres** — pgvector/pgvector:pg16 with pgcrypto + vector extensions (init.sql)
-- **redis** — redis:7-alpine with append-only persistence
+- Source backend: `omega-x-ascension/` — FastAPI API, PostgreSQL/pgvector persistence, Redis-backed durable workflow queue, LangGraph worker, static dashboard assets, and separate sandbox client.
+- Android wrapper: `android/` — WebView-based dashboard, standalone browser activity, local-model mode, and APK build/signing workflows.
+- Production API and worker run on Railway. Vercel is a static gateway that forwards the dashboard, API, and asset paths to the Railway service; it is not a second backend runtime.
+- The API and worker use separate database roles and tenant-scoped PostgreSQL row-level security. Workflow jobs use an atomic lease/claim function to support recovery after worker restarts.
 
-## Setup
-- Source lives in `omega-x-ascension/` subdirectory (not repo root)
-- Local infra credentials (DB passwords, Redis password, JWT signing key) are generated in `.env.base44-defaults` at repo root — committed on purpose (local-only dev values) so a fresh clone boots; never put real external credentials there
-- Built APKs and `*.tar.gz` archives are gitignored — build them, don't commit them
-- `docker-compose.base44.yml` at repo root bind-mounts `./omega-x-ascension` to `/app` and installs deps via `pip install -e .` on each service startup
-- All services use `python:3.12-slim` base image (never a prebuilt app image)
+## Secrets and environment configuration
+- `omega-x-ascension/.env.example` is a template, not a production configuration. Generate a private local `.env` and do not commit it.
+- Never store passwords, JWT signing keys, provider tokens, webhook secrets, or signing keystores in source control, APK assets, dashboard JavaScript, or chat.
+- Historical commits may contain legacy local-development configuration files. Removing them from the current tree does not remove Git history. Do not reuse their values; rotate any value that was reused for a live service.
+- Production secrets belong in Railway Variables or GitHub Actions secrets, scoped to the service/workflow that requires them. Do not copy production credentials between providers merely to duplicate the backend.
+- Model configuration is server-side. A healthy provider health check does not prove successful inference; verify a real, low-risk generation before reporting live AI as validated.
 
-## Boot order
-postgres (healthy) → migrate (completed) → api + worker (parallel)
+## Health and verification
+- `GET /health/live` — process liveness.
+- `GET /health/ready` — database/queue connectivity and whether at least one configured model provider is considered healthy.
+- `GET /health/models` — provider health and capability information; not a generation test.
+- `GET /version` — service and API version.
+- `GET /metrics` — Prometheus metrics.
+- CI runs Python tests, JavaScript syntax and dashboard checks, Docker image import, and an isolated API-to-worker integration stack with a fixture model.
+- Production smoke tests check dashboard/assets, health/readiness, model-provider status, version, and Android CORS preflight.
+- Use the test result for the exact commit under review. An older green run does not validate a newer commit.
 
-## Health endpoints
-- `GET /health/live` — liveness (always ok)
-- `GET /health/ready` — readiness (checks DB + Redis connectivity)
-- `GET /metrics` — Prometheus metrics
+## Authentication and tenant isolation
+- REST workflow endpoints require a signed Bearer JWT with `sub`, `tenant_id`, `scope`, `iss`, `aud`, `iat`, and `exp` claims.
+- Grant only required scopes: `runs:read`, `runs:write`, `runs:approve`, and additional `computer:read`, `computer:write`, or `computer:execute` scopes where explicitly justified.
+- Use `scripts/issue_token.py` only in a trusted environment to issue short-lived operator tokens. Do not put a signing key or operator token in the Android app.
+- MCP JSON-RPC calls require a verified Bearer JWT and scopes; the token, not user-supplied tool arguments, provides the tenant and actor.
+- Approvals must be checked against the saved request digest and queued through the repository's atomic approval method.
+- GitHub webhooks require `OMEGA_GITHUB_WEBHOOK_SECRET` to match the configured repository webhook secret. Missing or invalid signatures must be rejected.
+- User-controlled content sent to Slack/Telegram must be escaped or represented as plain text.
 
-## API (requires signed JWT Bearer token)
-- `POST /v1/runs` — create workflow run (scope: `runs:write`)
-- `GET /v1/runs/{run_id}` — get run status (scope: `runs:read`)
-- `POST /v1/runs/{run_id}/approve` — approve gated run (scope: `runs:approve`)
-- JWT must have `sub`, `tenant_id`, `scope`, `iss`, `aud`, `iat`, `exp` claims
+## Browser and computer safety
+- The server-side browser blocks non-public IP targets, pins validated connections, revalidates redirects, and limits response size. Preserve these guarantees in browser changes.
+- The standalone Android browser disables file/content access, disallows mixed content, and does not expose a JavaScript bridge.
+- The dashboard WebView contains a constrained local-app bridge and must preserve trusted-origin/main-frame checks. Its loopback local-AI mode uses localhost; do not tighten mixed-content/network policy without retesting this flow.
+- Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` on internet-facing or multi-tenant deployments. The shell/command route is intentionally disabled until proper per-job OS isolation and its tests are complete.
+- Tenant workspace file operations are separately gated by server policy and token scopes. Preserve tenant-bound workspace IDs and path-traversal protections.
 
-## LLM provider
-- A local **Ollama** service (`ollama/ollama:latest`) runs in the compose stack with `qwen2.5:0.5b` model (CPU inference, no external credentials needed)
-- `OMEGA_MODEL_PROVIDERS` in `.env.base44-defaults` points at Ollama's OpenAI-compatible endpoint (`http://ollama:11434/v1`, dummy api_key); the health check returns `configured_models:1`
-- To use another provider (OpenAI, Together AI, etc.), set `OMEGA_MODEL_PROVIDERS` as a JSON array of provider configs via the Base44 secrets dashboard — it overrides the defaults file
-- The `ollama-pull` one-shot service pulls the model on startup; api/worker wait for it to complete
+## Android release
+- `./android/build-apk.sh` builds the debug APK and packages the current dashboard assets.
+- Debug APKs are for testing. The signed release workflow requires a privately held keystore and GitHub Actions secrets; it deliberately does not fall back to the debug key.
+- Emulator tests do not replace installation and sign-in testing on a physical device.
+- Keep `android:allowBackup="false"` and the explicit backup exclusions.
 
-## Security defaults
-- Computer/shell execution is disabled by default.
-- Browser fetching blocks private/local IP destinations and validates redirects.
-- API/worker database roles use PostgreSQL RLS for tenant isolation.
-
-## Verification
+## Local development and tests
+From `omega-x-ascension/`:
 ```bash
-docker compose -f docker-compose.base44.yml up -d --build
-# Wait for migrate to complete, then:
-curl http://localhost:3000/health/ready
-# Should return {"status":"ready","configured_models":1}
+python3 scripts/generate_env.py
+# Configure the private .env with local database/Redis URLs and an actual model provider if testing inference.
+python -m pip install -e ".[dev]"
+python -m compileall -q src scripts tests
+pytest -q
 ```
-
-## Tests
-```bash
-cd omega-x-ascension && pip install -e '.[dev]' && pytest -q
-```
+For the container stack, use the current `docker-compose.yml` and documented integration overlay; inspect `docs/DEPLOYMENT.md` for setup and live-validation steps. Do not assume legacy Base44/Render/Ollama defaults represent current production configuration.

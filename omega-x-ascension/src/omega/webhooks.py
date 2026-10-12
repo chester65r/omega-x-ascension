@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+from html import escape
 from typing import Any
 from uuid import UUID
 
@@ -29,11 +30,9 @@ def verify_github_signature(
     secret: SecretStr | str | None,
 ) -> bool:
     if secret is None:
-        logger.warning(
-            "OMEGA_GITHUB_WEBHOOK_SECRET is not configured; allowing unverified webhook in development mode."
-        )
-        return True
-    if not signature_header:
+        logger.error("OMEGA_GITHUB_WEBHOOK_SECRET is not configured; rejecting webhook.")
+        return False
+    if not signature_header or not signature_header.startswith("sha256="):
         return False
 
     secret_bytes = (
@@ -42,9 +41,6 @@ def verify_github_signature(
         else str(secret).encode()
     )
     if not secret_bytes:
-        return True
-
-    if not signature_header.startswith("sha256="):
         return False
 
     expected_sig = "sha256=" + hmac.new(secret_bytes, payload, hashlib.sha256).hexdigest()
@@ -233,7 +229,7 @@ async def test_notification(
             success = await send_telegram_notification(
                 cfg.telegram_bot_token,
                 cfg.telegram_chat_id,
-                f"🔔 <b>OMEGA-X Test:</b> {body.message}",
+                f"🔔 <b>OMEGA-X Test:</b> {escape(body.message)}",
                 client=svc.http,
             )
             results["telegram"] = {"configured": True, "delivered": success}

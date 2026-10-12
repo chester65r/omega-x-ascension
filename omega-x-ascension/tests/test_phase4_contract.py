@@ -28,6 +28,15 @@ def test_sensitive_actions_require_approval():
     assert "run.approval_digest != run.digest()" in api
 
 
+def test_sensitive_action_matching_is_case_and_whitespace_insensitive():
+    from omega.domain import ApprovalPolicy
+
+    policy = ApprovalPolicy()
+    assert policy.requires_approval({"EXECUTE_CODE"})
+    assert policy.requires_approval({" use_remote_mcp "})
+    assert not policy.requires_approval({"research"})
+
+
 def test_run_history_is_authenticated_tenant_scoped_and_bounded():
     database = Path("src/omega/adapters/database.py").read_text()
     api = Path("src/omega/api.py").read_text()

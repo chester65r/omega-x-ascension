@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from html import escape
 from typing import Any
 import httpx
 from pydantic import SecretStr
@@ -8,6 +9,23 @@ from pydantic import SecretStr
 from omega.domain import RunStatus, WorkflowRun
 
 logger = logging.getLogger("omega.notifications")
+
+
+def _escape_slack(value: Any) -> Any:
+    """Escape Slack mrkdwn text while preserving plain-text blocks and destinations."""
+    if isinstance(value, str):
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    if isinstance(value, list):
+        return [_escape_slack(item) for item in value]
+    if isinstance(value, dict):
+        if value.get("type") == "plain_text":
+            return value
+        return {
+            key: item if key in {"url", "image_url"} and isinstance(item, str)
+            else _escape_slack(item)
+            for key, item in value.items()
+        }
+    return value
 
 
 def _secret_value(val: SecretStr | str | None) -> str | None:
@@ -28,9 +46,9 @@ async def send_slack_notification(
     if not url:
         return False
 
-    payload: dict[str, Any] = {"text": text}
+    payload: dict[str, Any] = {"text": _escape_slack(text)}
     if blocks:
-        payload["blocks"] = blocks
+        payload["blocks"] = _escape_slack(blocks)
 
     owns_client = client is None
     http = client or httpx.AsyncClient(timeout=10.0)
@@ -111,11 +129,11 @@ async def notify_approval_requested(
         },
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*Goal:*\n{run.goal[:300]}"},
+            "text": {"type": "plain_text", "text": f"Goal:\n{run.goal[:300]}", "emoji": True},
         },
         {
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"*Gated Actions Requiring Approval:*\n`{actions_str}`"},
+            "text": {"type": "plain_text", "text": f"Gated Actions Requiring Approval:\n{actions_str}", "emoji": True},
         },
         {
             "type": "actions",
@@ -130,14 +148,17 @@ async def notify_approval_requested(
         },
     ]
 
-    # Telegram message
+    # Telegram message: escape all user-controlled values for Telegram HTML.
+    safe_actions_html = escape(actions_str)
+    safe_goal_html = escape(run.goal[:300])
+    safe_dashboard_url = escape(f"{dashboard_base_url}/#run-{run.id}", quote=True)
     tg_text = (
         f"🚨 <b>OMEGA-X Approval Required</b>\n\n"
         f"<b>Run ID:</b> <code>{run.id}</code>\n"
         f"<b>Task Type:</b> <code>{run.task_type}</code>\n"
-        f"<b>Actions:</b> <code>{actions_str}</code>\n\n"
-        f"<b>Goal:</b>\n{run.goal[:300]}\n\n"
-        f"<a href=\"{dashboard_base_url}/#run-{run.id}\">Review in Mission Control</a>"
+        f"<b>Actions:</b> <code>{safe_actions_html}</code>\n\n"
+        f"<b>Goal:</b>\n{safe_goal_html}\n\n"
+        f"<a href=\"{safe_dashboard_url}\">Review in Mission Control</a>"
     )
 
     if slack_webhook_url:
@@ -176,10 +197,10 @@ async def notify_run_status_change(
     tg_text = (
         f"{emoji} <b>OMEGA-X Run {status.value.upper()}</b>\n\n"
         f"<b>ID:</b> <code>{run.id}</code>\n"
-        f"<b>Goal:</b> {run.goal[:150]}\n"
+        f"<b>Goal:</b> {escape(run.goal[:150])}\n"
     )
     if run.error:
-        tg_text += f"<b>Error:</b> <code>{run.error[:200]}</code>\n"
+        tg_text += f"<b>Error:</b> <code>{escape(run.error[:200])}</code>\n"
 
     if slack_webhook_url:
         results["slack"] = await send_slack_notification(slack_webhook_url, text, client=client)
