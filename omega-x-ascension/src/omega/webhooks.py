@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, SecretStr
 from omega.auth import Principal, current_principal
 from omega.config import Capability, get_settings
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
+from omega.rate_limit import enforce_rate_limit
 from omega.notifications import (
     notify_approval_requested,
     notify_run_status_change,
@@ -80,6 +81,7 @@ async def github_webhook(
     request: Request,
     x_github_event: str | None = Header(None, alias="X-GitHub-Event"),
     x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
+    x_github_delivery: str | None = Header(None, alias="X-GitHub-Delivery"),
     svc=Depends(services),
 ):
     cfg = get_settings()
@@ -90,6 +92,20 @@ async def github_webhook(
 
     if not x_github_event:
         raise HTTPException(status_code=400, detail="Missing X-GitHub-Event header")
+
+    # GitHub retries carry the same delivery ID; make those deliveries idempotent.
+    if x_github_delivery:
+        if len(x_github_delivery) > 100:
+            raise HTTPException(status_code=400, detail="Invalid X-GitHub-Delivery header")
+        if getattr(svc, "redis", None) is not None:
+            try:
+                first_delivery = await svc.redis.set(
+                    f"omega:webhook:github:{x_github_delivery}", "1", ex=86400, nx=True
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail="Webhook replay protection unavailable") from exc
+            if not first_delivery:
+                return {"status": "duplicate", "delivery_id": x_github_delivery}
 
     if x_github_event == "ping":
         return {"status": "pong", "message": "OMEGA-X Ascension GitHub webhook endpoint ready"}
@@ -227,6 +243,8 @@ async def test_notification(
     principal: Principal = Security(current_principal, scopes=["runs:write"]),
     svc=Depends(services),
 ):
+    if getattr(svc, "redis", None) is not None:
+        await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action="notifications:test", limit=3)
     cfg = get_settings()
     results = {}
 
