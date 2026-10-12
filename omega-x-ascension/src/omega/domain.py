@@ -71,4 +71,5 @@ class ApprovalPolicy:
     )
 
     def requires_approval(self, actions: set[str]) -> bool:
-        return bool(self._gated.intersection(actions))
+        normalized = {action.strip().casefold() for action in actions}
+        return bool(self._gated.intersection(normalized))
