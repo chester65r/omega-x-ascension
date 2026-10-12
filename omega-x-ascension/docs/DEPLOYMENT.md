@@ -35,6 +35,12 @@ The dashboard requires a reachable API base URL and a valid signed JWT. Use the 
 
 Use a private LAN address only on a trusted network, or a properly configured HTTPS domain for remote access. The Compose API port is bound to loopback by default. Do not expose the API directly to the public internet; put it behind a TLS reverse proxy and firewall.
 
+## Webhook and token security
+
+- Configure `OMEGA_GITHUB_WEBHOOK_SECRET` in Railway and the matching secret in GitHub's webhook settings before enabling issue or pull-request automation. The endpoint rejects missing or invalid signatures in every environment; it does not run webhook actions without a verified HMAC signature.
+- MCP JSON-RPC calls to `POST /mcp` and `POST /v1/mcp` require a signed Bearer JWT. Grant only the needed scopes: `runs:read`, `runs:write`, and `runs:approve`. Use short-lived operator tokens and never place them in the Android APK, client-side JavaScript, or source control.
+- Rotate any old credential that may have appeared in historical committed environment files. Removing an environment file from the latest tree does not erase its older Git history.
+
 ## Production cautions
 
 - Keep `OMEGA_ENABLE_COMPUTER_EXECUTION=false` on internet-facing or multi-tenant deployments. The built-in command tool is not a hardened per-job sandbox.
