@@ -212,7 +212,11 @@ def test_mcp_scope_is_enforced(monkeypatch):
     app.dependency_overrides[get_settings] = lambda: TestSettings()
     client = TestClient(app)
     try:
-        response = rpc(client, token, "tools/list")
-        assert response["error"]["code"] == 403
+        response = client.post(
+            "/mcp",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+        )
+        assert response.status_code == 403
     finally:
         app.dependency_overrides.clear()
