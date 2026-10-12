@@ -34,6 +34,9 @@ No fake LLM fallback is provided. If no qualified provider is configured, workfl
 - `POST /v1/runs/{run_id}/approve` for approval-gated actions
 - `GET /metrics`
 
+### MCP authentication and scopes
+Both `POST /mcp` and `POST /v1/mcp` require a signed Bearer JWT; public `GET /mcp` exposes protocol metadata only. The verified token supplies the tenant and actor identity. MCP tools require `runs:read` for discovery, lookup, listing and web search, `runs:write` to create a workflow, and `runs:approve` to approve a tenant-scoped workflow awaiting approval. Approval is checked against the saved request digest before the queued job is released. Issue short-lived tokens using `scripts/issue_token.py`; do not embed an operator token in the Android APK or publish it in client-side code.
+
 ## Development
 ```bash
 python -m venv .venv && . .venv/bin/activate
