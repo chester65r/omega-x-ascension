@@ -84,7 +84,7 @@ async def test_notify_approval_requested():
     mock_client.post.return_value = mock_resp
 
     run = WorkflowRun(
-        goal="Deploy new staging cluster",
+        goal='Launch <a href="https://evil.example">click</a> & review',
         task_type="planning",
         tenant_id=UUID("00000000-0000-0000-0000-000000000001"),
         created_by="tester",
@@ -100,3 +100,20 @@ async def test_notify_approval_requested():
     )
     assert results["slack"] is True
     assert results["telegram"] is True
+
+    slack_call = next(
+        call for call in mock_client.post.call_args_list
+        if call.args[0] == "https://hooks.slack.com/services/T00/B00/X00"
+    )
+    slack_payload = slack_call.kwargs["json"]
+    assert "&lt;a href=" in slack_payload["text"]
+    assert "<a href=" not in slack_payload["text"]
+    assert "&lt;a href=" in str(slack_payload["blocks"])
+
+    telegram_call = next(
+        call for call in mock_client.post.call_args_list
+        if "api.telegram.org" in call.args[0]
+    )
+    telegram_text = telegram_call.kwargs["json"]["text"]
+    assert "&lt;a href=" in telegram_text
+    assert "<a href=" not in telegram_text
