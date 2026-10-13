@@ -245,8 +245,13 @@ async def test_notification(
     principal: Principal = Security(current_principal, scopes=["runs:write"]),
     svc=Depends(services),
 ):
-    if getattr(svc, "redis", None) is not None:
-        await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action="notifications:test", limit=3)
+    await enforce_rate_limit(
+        getattr(svc, "redis", None),
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        action="notifications:test",
+        limit=3,
+    )
     cfg = get_settings()
     results = {}
 
