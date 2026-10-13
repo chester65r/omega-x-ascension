@@ -20,17 +20,30 @@ class RouteDecision:
 
 
 class ModelExecutionFailed(RuntimeError):
-    """Raised when every healthy provider fails to complete a request."""
+    """Raised when bounded provider attempts fail to complete a request."""
 
 
 class ModelRouter:
+    _MAX_PROVIDER_ATTEMPTS = 2
+
     def __init__(self, registry: ModelRegistry):
         self._registry = registry
 
     async def _eligible(self, capability: Capability) -> list[RouteDecision]:
         candidates = []
         for gateway in self._registry.all():
-            if capability in gateway.capabilities and await gateway.healthy():
+            if capability not in gateway.capabilities:
+                continue
+            try:
+                healthy = await gateway.healthy()
+            except Exception as exc:
+                logger.warning(
+                    "model provider health check failed; provider=%s error_type=%s",
+                    gateway.name,
+                    type(exc).__name__,
+                )
+                healthy = False
+            if healthy:
                 candidates.append(RouteDecision(gateway, float(gateway.priority)))
         return sorted(candidates, key=lambda item: item.score, reverse=True)
 
@@ -46,8 +59,9 @@ class ModelRouter:
         if not candidates:
             raise NoEligibleModel(f"no healthy model configured for capability={capability}")
 
+        attempted = candidates[: self._MAX_PROVIDER_ATTEMPTS]
         failures: list[Exception] = []
-        for candidate in candidates:
+        for candidate in attempted:
             try:
                 output = await candidate.gateway.complete(system=system, prompt=prompt)
                 if not isinstance(output, str) or not output.strip():
@@ -62,7 +76,7 @@ class ModelRouter:
                 )
 
         raise ModelExecutionFailed(
-            f"all {len(candidates)} eligible model providers failed to complete the request"
+            f"all {len(attempted)} attempted model providers failed to complete the request"
         ) from failures[-1]
 
     async def status(self) -> list[dict[str, object]]:
