@@ -97,15 +97,17 @@ async def github_webhook(
     if x_github_delivery:
         if len(x_github_delivery) > 100:
             raise HTTPException(status_code=400, detail="Invalid X-GitHub-Delivery header")
-        if getattr(svc, "redis", None) is not None:
-            try:
-                first_delivery = await svc.redis.set(
-                    f"omega:webhook:github:{x_github_delivery}", "1", ex=86400, nx=True
-                )
-            except Exception as exc:
-                raise HTTPException(status_code=503, detail="Webhook replay protection unavailable") from exc
-            if not first_delivery:
-                return {"status": "duplicate", "delivery_id": x_github_delivery}
+        redis = getattr(svc, "redis", None)
+        if redis is None:
+            raise HTTPException(status_code=503, detail="Webhook replay protection unavailable")
+        try:
+            first_delivery = await redis.set(
+                f"omega:webhook:github:{x_github_delivery}", "1", ex=86400, nx=True
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Webhook replay protection unavailable") from exc
+        if not first_delivery:
+            return {"status": "duplicate", "delivery_id": x_github_delivery}
 
     if x_github_event == "ping":
         return {"status": "pong", "message": "OMEGA-X Ascension GitHub webhook endpoint ready"}
