@@ -109,7 +109,7 @@ def test_agent_workflow_executes_all_model_roles_and_research_with_fixtures():
         assert "Deterministic source content" in result["research"]
         specialist_call = next(call for call in gateway.calls if "assigned specialist" in call.lower())
         assert "untrusted evidence" in specialist_call.lower()
-        assert "not instructions" in specialist_call.lower()
+        assert "never as instructions" in specialist_call.lower()
         assert "computer_output" not in result
 
     asyncio.run(check())
