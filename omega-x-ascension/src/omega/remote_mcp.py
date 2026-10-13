@@ -283,8 +283,13 @@ async def remote_mcp_call(
     client: RemoteMCPClient = Depends(_client),
 ):
     svc = getattr(request.app.state, "services", None)
-    if svc is not None and getattr(svc, "redis", None) is not None:
-        await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action="remote:mcp", limit=20)
+    await enforce_rate_limit(
+        getattr(svc, "redis", None),
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        action="remote:mcp",
+        limit=20,
+    )
     try:
         return await client.call_tool(body.name, body.arguments)
     except RemoteMCPError as exc:
