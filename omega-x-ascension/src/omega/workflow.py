@@ -40,8 +40,7 @@ class CoreWorkflow:
         self.graph = self._build(checkpointer)
 
     async def _ask(self, capability: Capability, system: str, prompt: str) -> str:
-        route = await self.router.select(capability)
-        return await route.gateway.complete(system=system, prompt=prompt)
+        return await self.router.complete(capability, system=system, prompt=prompt)
 
     async def ceo(self, state: State) -> dict[str, str]:
         return {
