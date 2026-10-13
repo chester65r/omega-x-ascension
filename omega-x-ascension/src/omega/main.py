@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import os
+from datetime import UTC, datetime, timedelta
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Response
+import jwt
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -83,6 +86,50 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="OMEGA-X ASCENSION", version=__import__("omega").__version__, lifespan=lifespan)
+
+# Temporary, environment-gated operator token issuance. Disabled when the bootstrap
+# secret is absent; never expose the signing secret or embed the issued JWT in the APK.
+@app.post("/_ops/issue-operator-token", include_in_schema=False)
+async def issue_operator_token(request: Request):
+    bootstrap_secret = os.environ.get("OMEGA_TOKEN_BOOTSTRAP_SECRET", "")
+    supplied_secret = request.headers.get("X-Omega-Bootstrap", "")
+    if not bootstrap_secret or not hmac.compare_digest(supplied_secret, bootstrap_secret):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Consume the bootstrap secret in this worker before minting exactly one token.
+    os.environ.pop("OMEGA_TOKEN_BOOTSTRAP_SECRET", None)
+    cfg = get_settings()
+    now = datetime.now(UTC)
+    scopes = {
+        "runs:read",
+        "runs:write",
+        "runs:approve",
+        "computer:read",
+        "computer:write",
+    }
+    tenant_id = str(cfg.webhook_tenant_id)
+    claims = {
+        "sub": "android-owner",
+        "tenant_id": tenant_id,
+        "scope": " ".join(sorted(scopes)),
+        "iss": cfg.jwt_issuer,
+        "aud": cfg.jwt_audience,
+        "iat": now,
+        "exp": now + timedelta(minutes=60),
+    }
+    token = jwt.encode(
+        claims,
+        cfg.jwt_secret.get_secret_value(),
+        algorithm=cfg.jwt_algorithm,
+    )
+    return {
+        "access_token": token,
+        "token_type": "Bearer",
+        "expires_in": 3600,
+        "scopes": sorted(scopes),
+        "tenant_id": tenant_id,
+    }
+
 allowed_origins = ["https://appassets.androidplatform.net"]
 allowed_origins.extend(
     origin.strip()
