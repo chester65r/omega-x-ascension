@@ -76,3 +76,18 @@ def test_rate_limiter_fails_closed_when_redis_is_unavailable():
         assert exc.value.status_code == 503
 
     asyncio.run(check())
+
+def test_rate_limiter_fails_closed_when_redis_is_missing():
+    async def check():
+        with pytest.raises(HTTPException) as exc:
+            await enforce_rate_limit(
+                None,
+                tenant_id="tenant-a",
+                user_id="user-a",
+                action="runs:create",
+                limit=2,
+            )
+        assert exc.value.status_code == 503
+        assert exc.value.headers["Retry-After"] == "5"
+
+    asyncio.run(check())
