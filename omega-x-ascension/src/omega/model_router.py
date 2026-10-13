@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 
 from omega.config import Capability
 from omega.ports import ModelGateway, ModelRegistry
+
+logger = logging.getLogger("omega.model_router")
 
 
 class NoEligibleModel(RuntimeError):
