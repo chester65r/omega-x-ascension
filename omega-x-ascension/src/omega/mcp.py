@@ -183,16 +183,21 @@ async def handle_mcp(
     if method != "tools/call":
         return _jsonrpc_error(req_id, -32601, "Unknown method")
 
-    if svc is not None and getattr(svc, "redis", None) is not None:
-        action = "runs:create" if tool_name == "omega_create_run" else "browser:search" if tool_name == "omega_search_web" else "mcp:tools"
-        limit = 10 if action == "runs:create" else 30 if action == "browser:search" else 60
-        try:
-            await enforce_rate_limit(svc.redis, tenant_id=principal.tenant_id, user_id=principal.user_id, action=action, limit=limit)
-        except Exception as exc:
-            from fastapi import HTTPException
-            if isinstance(exc, HTTPException):
-                return _jsonrpc_error(req_id, -32029 if exc.status_code == 429 else -32000, exc.detail)
-            raise
+    action = "runs:create" if tool_name == "omega_create_run" else "browser:search" if tool_name == "omega_search_web" else "mcp:tools"
+    limit = 10 if action == "runs:create" else 30 if action == "browser:search" else 60
+    try:
+        await enforce_rate_limit(
+            getattr(svc, "redis", None),
+            tenant_id=principal.tenant_id,
+            user_id=principal.user_id,
+            action=action,
+            limit=limit,
+        )
+    except Exception as exc:
+        from fastapi import HTTPException
+        if isinstance(exc, HTTPException):
+            return _jsonrpc_error(req_id, -32029 if exc.status_code == 429 else -32000, exc.detail)
+        raise
 
     arguments = params.get("arguments", {})
     if not isinstance(arguments, dict):
