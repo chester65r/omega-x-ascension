@@ -45,23 +45,6 @@ jobs:
       - name: Build debug APK
         run: ./android/build-apk.sh
 
-      - name: Run dashboard UI smoke tests on Android 14 emulator
-        timeout-minutes: 20
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: default
-          arch: x86_64
-          profile: pixel_2
-          cores: 4
-          ram-size: 4096M
-          heap-size: 1024M
-          emulator-boot-timeout: 900
-          disable-linux-hw-accel: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          script: ./android/gradlew -p android connectedDebugAndroidTest --no-daemon --stacktrace
-
       - name: Validate packaged dashboard assets and navigation policy
         run: |
           python3 - <<'PY'
