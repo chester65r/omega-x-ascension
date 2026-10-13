@@ -1,18 +1,84 @@
-name: Android Release
+name: Android APK Build and Release
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "omega-x-ascension/static/**"
+      - ".github/workflows/android-release.yml"
     tags:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  debug-apk:
+    name: Build installable debug APK
+    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: "platform-tools"
+
+      - name: Install Android platform and build tools
+        run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Prepare bundled dashboard assets and build debug APK
+        run: ./android/build-apk.sh
+
+      - name: Verify APK package and debug signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=omega-x-ascension-0.8.0-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
+          sha256sum "$APK" > "$APK.sha256"
+          ls -lh "$APK" "$APK.sha256"
+
+      - name: Upload directly downloadable debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: omega-x-ascension-android-debug-apk
+          path: omega-x-ascension-0.8.0-debug.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload APK checksum
+        uses: actions/upload-artifact@v7
+        with:
+          name: omega-x-ascension-android-debug-checksum
+          path: omega-x-ascension-0.8.0-debug.apk.sha256
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+  signed-release:
+    name: Build, test and publish signed release APK
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
     env:
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -55,10 +121,10 @@ jobs:
       - name: Prepare bundled dashboard assets
         run: ./android/build-apk.sh
 
-      - name: Build release APK
+      - name: Build signed release APK
         run: ./android/gradlew -p android assembleRelease --no-daemon --stacktrace
 
-      - name: Verify release signature and package identity
+      - name: Verify release signature, package identity and alignment
         shell: bash
         run: |
           set -euo pipefail
@@ -66,8 +132,9 @@ jobs:
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
           "$ANDROID_HOME/build-tools/34.0.0/zipalign" -c -p 4 "$APK"
+          sha256sum "$APK" > "$APK.sha256"
 
-      - name: Run release-variant UI smoke tests on Android 14 emulator
+      - name: Run release UI smoke tests on Android 14 emulator
         timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -84,11 +151,20 @@ jobs:
           disable-animations: true
           script: ./android/gradlew -p android connectedReleaseAndroidTest --no-daemon --stacktrace
 
-      - name: Upload signed release APK
-        uses: actions/upload-artifact@v4
+      - name: Publish signed APK as a GitHub Release asset
+        uses: softprops/action-gh-release@v2
         with:
-          name: omega-x-ascension-android-release
+          files: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/apk/release/app-release.apk.sha256
+          generate_release_notes: true
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: omega-x-ascension-android-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+          archive: false
           if-no-files-found: error
           retention-days: 14
 
