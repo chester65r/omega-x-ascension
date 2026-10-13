@@ -320,12 +320,17 @@
   // Overview
   async function pollHealth() {
     try {
+      const healthStartedAt = performance.now();
       const response = await apiFetch('/health/live');
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const live = await response.json();
+      const healthLatency = $('#health-latency');
+      if (healthLatency) healthLatency.textContent = `${Math.round(performance.now() - healthStartedAt)} ms response · checks every 10s`;
       $('#health-live').textContent = live.status === 'ok' ? 'Online' : 'Error';
       $('#card-live').className = 'card stat-card ' + (live.status === 'ok' ? 'ok' : 'err');
     } catch {
+      const healthLatency = $('#health-latency');
+      if (healthLatency) healthLatency.textContent = 'Health check unavailable';
       $('#health-live').textContent = 'Offline';
       $('#card-live').className = 'card stat-card err';
     }
@@ -1235,7 +1240,7 @@
   $('#logs-export').addEventListener('click', () => {
     const payload = {
       app: 'OMEGA-X ASCENSION',
-      version: '0.8.0',
+      version: '0.8.1',
       exported_at: new Date().toISOString(),
       local_events: storedLogs,
       server_audit_events: serverAuditEvents,
@@ -1266,6 +1271,58 @@
   function escapeHtml(value) {
     return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+
+
+  // Fast in-app command navigation: backend tasks continue through the authenticated API client.
+  const commandBackdrop = $('#command-palette-backdrop');
+  const commandSearch = $('#command-search');
+  const commandEmpty = $('#command-empty');
+  const commandTrigger = $('#command-trigger');
+  const commandClose = $('#command-close');
+  const commandItems = Array.from($$('[data-command-item]'));
+  let priorCommandFocus = null;
+  let toastStack = null;
+  function showUiToast(message, level = 'info') {
+    if (!toastStack) { toastStack = document.createElement('div'); toastStack.className = 'ui-toast-stack'; toastStack.setAttribute('aria-live','polite'); toastStack.setAttribute('aria-relevant','additions'); document.body.appendChild(toastStack); }
+    const toast = document.createElement('div'); toast.className = 'ui-toast ' + String(level).replace(/[^a-z_-]/g,''); toast.setAttribute('role','status');
+    const dot = document.createElement('span'); dot.className = 'status-dot'; const copy = document.createElement('span'); copy.textContent = String(message || '');
+    toast.append(dot,copy); toastStack.appendChild(toast); requestAnimationFrame(() => toast.classList.add('visible'));
+    window.setTimeout(() => { toast.classList.remove('visible'); window.setTimeout(() => toast.remove(),220); },3000);
+  }
+  function visibleCommandItems(){return commandItems.filter(item=>!item.hidden);}
+  function filterCommandItems(){
+    const query=String(commandSearch.value||'').trim().toLocaleLowerCase();let matches=0;
+    for(const item of commandItems){const match=!query||item.textContent.toLocaleLowerCase().includes(query);item.hidden=!match;item.classList.remove('selected');matches+=match?1:0;}
+    if(commandEmpty)commandEmpty.hidden=matches!==0;
+  }
+  function openCommandPalette(){if(!commandBackdrop)return;priorCommandFocus=document.activeElement;commandBackdrop.hidden=false;document.body.classList.add('command-palette-open');commandSearch.value='';filterCommandItems();commandSearch.focus();}
+  function closeCommandPalette(){if(!commandBackdrop||commandBackdrop.hidden)return;commandBackdrop.hidden=true;document.body.classList.remove('command-palette-open');if(priorCommandFocus&&typeof priorCommandFocus.focus==='function')priorCommandFocus.focus();else if(commandTrigger)commandTrigger.focus();}
+  function runCommand(item){
+    const destination=item.dataset.commandTab,action=item.dataset.commandAction;closeCommandPalette();
+    if(destination){activateTab(destination);showUiToast('Opened '+(item.querySelector('strong')?.textContent||destination)+'.','success');return;}
+    if(action==='refresh'){pollHealth();loadMetrics();loadModels();if(token&&apiBase){loadRuns();loadLogs();}addAgentLog('info','Manual system refresh requested.');showUiToast('System refresh requested. Returned status will appear on the dashboard.','success');}
+  }
+  if(commandTrigger&&commandBackdrop&&commandSearch){
+    commandTrigger.addEventListener('click',openCommandPalette);
+    if(commandClose)commandClose.addEventListener('click',closeCommandPalette);
+    commandBackdrop.addEventListener('click',event=>{if(event.target===commandBackdrop)closeCommandPalette();});
+    commandSearch.addEventListener('input',filterCommandItems);
+    commandItems.forEach(item=>item.addEventListener('click',()=>runCommand(item)));
+    document.addEventListener('keydown',event=>{
+      if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();if(commandBackdrop.hidden)openCommandPalette();else closeCommandPalette();return;}
+      if(commandBackdrop.hidden){
+        if(event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!event.target.closest('input,textarea,select,[contenteditable="true"]')){event.preventDefault();openCommandPalette();}
+        return;
+      }
+      if(event.key==='Escape'){event.preventDefault();closeCommandPalette();}
+      else if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+        event.preventDefault();const visible=visibleCommandItems();if(!visible.length)return;const current=visible.indexOf(document.activeElement);const direction=event.key==='ArrowDown'?1:-1;
+        const next=current<0?(direction>0?0:visible.length-1):(current+direction+visible.length)%visible.length;visible[next].focus();
+      }else if(event.key==='Enter'&&document.activeElement===commandSearch){const first=visibleCommandItems()[0];if(first){event.preventDefault();first.click();}}
+    });
+  }
+  function updateLocalClock(){const clock=$('#local-clock'),date=$('#local-date');if(!clock||!date)return;const now=new Date();clock.textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});date.textContent=now.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'}).toUpperCase();}
+  updateLocalClock();window.setInterval(updateLocalClock,15000);
 
   if (window.matchMedia('(max-width: 720px)').matches && !apiBase && !token) {
     const connectionDetails = $('#connection-details');

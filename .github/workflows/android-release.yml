@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=omega-x-ascension-0.8.0-debug.apk
+          APK=omega-x-ascension-0.8.1-debug.apk
           test -s "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: omega-x-ascension-android-debug-apk
-          path: omega-x-ascension-0.8.0-debug.apk
+          path: omega-x-ascension-0.8.1-debug.apk
           archive: false
           if-no-files-found: error
           retention-days: 14
@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: omega-x-ascension-android-debug-checksum
-          path: omega-x-ascension-0.8.0-debug.apk.sha256
+          path: omega-x-ascension-0.8.1-debug.apk.sha256
           archive: false
           if-no-files-found: error
           retention-days: 14

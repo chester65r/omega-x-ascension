@@ -98,6 +98,26 @@ public class DashboardSmokeTest {
                     "document.getElementById('browser-results') !== null && " +
                     "document.getElementById('browser-frame') !== null");
             assertEquals("Browser tab and its results/preview containers must exist (actual=" + browserWorks + ")", "true", browserWorks);
+
+            String paletteOpens = evaluate(webView,
+                    "document.getElementById('command-trigger').click();" +
+                    "!document.getElementById('command-palette-backdrop').hidden && " +
+                    "document.activeElement.id === 'command-search'");
+            assertEquals("Quick command palette must open and focus search (actual=" + paletteOpens + ")", "true", paletteOpens);
+
+            String paletteFilters = evaluate(webView,
+                    "var search = document.getElementById('command-search');" +
+                    "search.value = 'browser'; search.dispatchEvent(new Event('input', {bubbles:true}));" +
+                    "Array.from(document.querySelectorAll('[data-command-item]')).find(e => e.dataset.commandTab === 'browser').hidden === false && " +
+                    "Array.from(document.querySelectorAll('[data-command-item]')).find(e => e.dataset.commandTab === 'about').hidden === true && " +
+                    "document.getElementById('command-empty').hidden === true");
+            assertEquals("Command search must filter results accurately (actual=" + paletteFilters + ")", "true", paletteFilters);
+
+            String paletteNavigates = evaluate(webView,
+                    "Array.from(document.querySelectorAll('[data-command-item]')).find(e => e.dataset.commandTab === 'browser').click();" +
+                    "document.getElementById('browser').classList.contains('active') && " +
+                    "document.getElementById('command-palette-backdrop').hidden");
+            assertEquals("A command must navigate and close the palette (actual=" + paletteNavigates + ")", "true", paletteNavigates);
         }
     }
 
