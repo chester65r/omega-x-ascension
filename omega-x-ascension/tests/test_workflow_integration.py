@@ -46,9 +46,9 @@ class FakeRouter:
     def __init__(self, gateway):
         self.gateway = gateway
 
-    async def select(self, capability):
+    async def complete(self, capability, *, system, prompt):
         assert capability in self.gateway.capabilities
-        return FakeDecision(self.gateway)
+        return await self.gateway.complete(system=system, prompt=prompt)
 
 
 class FakeBrowser:
