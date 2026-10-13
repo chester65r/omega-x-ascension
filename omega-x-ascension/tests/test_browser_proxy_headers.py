@@ -1,7 +1,13 @@
 import asyncio
 from types import SimpleNamespace
+from uuid import uuid4
 
 from omega.api import BROWSER_PROXY_HEADERS, browser_proxy
+
+
+class FakeRedis:
+    async def eval(self, script, numkeys, key, ttl):
+        return 1
 
 
 class FakeBrowser:
@@ -11,8 +17,9 @@ class FakeBrowser:
 
 def test_browser_proxy_response_is_sandboxed_and_not_cached():
     async def check():
-        services = SimpleNamespace(browser=FakeBrowser())
-        response = await browser_proxy(url="https://public.example/", principal=None, svc=services)
+        services = SimpleNamespace(browser=FakeBrowser(), redis=FakeRedis())
+        principal = SimpleNamespace(tenant_id=uuid4(), user_id="test-user")
+        response = await browser_proxy(url="https://public.example/", principal=principal, svc=services)
 
         assert response.headers["content-security-policy"] == "sandbox allow-scripts allow-forms"
         assert response.headers["x-content-type-options"] == "nosniff"
