@@ -126,7 +126,9 @@ async def observability_and_security_headers(request: Request, call_next):
         if response is not None:
             response.headers["X-Request-ID"] = request_id
             response.headers["X-Content-Type-Options"] = "nosniff"
-            response.headers["X-Frame-Options"] = "DENY"
+            # The server-side browser is intentionally embedded in a same-origin iframe;
+            # its own CSP sandbox still applies there. All other routes deny framing.
+            response.headers["X-Frame-Options"] = "SAMEORIGIN" if route_name.endswith("/browser/proxy") else "DENY"
             response.headers["Referrer-Policy"] = "no-referrer"
             response.headers["Permissions-Policy"] = "camera=(), geolocation=()"
             forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
