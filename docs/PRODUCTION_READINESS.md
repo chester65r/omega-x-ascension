@@ -13,6 +13,19 @@ This document distinguishes code/CI verification from actions that require owner
 - An explicit opt-in real-inference smoke script, which never prints the signing secret or full model output.
 - Tests for limiter behavior, tenant/user isolation, fail-closed Redis behavior, metrics access, response headers, and bounded webhook reads.
 
+## Gemini API provider — optional server-side configuration
+
+The API and worker share the same provider registry. Gemini support uses Google's direct `generateContent` REST endpoint and keeps the key in the `x-goog-api-key` request header; the key is never embedded in the Android APK or URL.
+
+In Railway, add these variables to the **Omega API** service and the **worker** service (if the worker runs separately):
+
+- `OMEGA_GEMINI_API_KEY`: a Gemini API key created in Google AI Studio. Keep it in Railway Variables; never commit it or paste it into chat.
+- `OMEGA_GEMINI_MODEL`: optional; defaults to `gemini-3.8-flash`.
+- `OMEGA_GEMINI_PRIORITY`: optional; defaults to `100`. Higher priority providers are tried first. The default makes Gemini a first-choice provider when configured; lower this value to use it as a fallback.
+- `OMEGA_GEMINI_TIMEOUT_SECONDS`: optional; defaults to `180`.
+
+After setting the secret, deploy the API and worker, check the provider status endpoint, then run the one-time production inference smoke from a trusted environment. A successful health check alone does not prove inference works. Check Google AI Studio usage/limits if Gemini returns quota, billing, or permission errors. Gemini availability and free-tier limits depend on the project and model.
+
 ## GitHub webhook secret — owner action required
 
 The API intentionally rejects unsigned GitHub webhook requests. Configure one unique random value as `OMEGA_GITHUB_WEBHOOK_SECRET` in the Railway **API service** and use exactly the same value in the repository's GitHub webhook configuration. The available connected actions can deploy source and manage Railway variables, but cannot update the secret field on the GitHub repository webhook. Do not put the secret in source control or chat. After configuring both ends, use GitHub's “Redeliver” function on a test `ping` delivery and confirm a successful response in protected logs.
