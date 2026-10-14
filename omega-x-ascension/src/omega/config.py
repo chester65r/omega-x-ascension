@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     hf_inference_model: str = "Qwen/Qwen3-4B:featherless-ai"
     hf_inference_base_url: str = "https://router.huggingface.co/v1"
     hf_inference_priority: int = Field(default=80, ge=0, le=100)
+    # Optional first-choice Gemini gateway. Store the API key only in the deployment secret store.
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.8-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    gemini_priority: int = Field(default=110, ge=0, le=100)
+    gemini_timeout_seconds: float = Field(default=180, gt=0, le=600)
     log_level: str = "INFO"
     # Optional bearer token protecting Prometheus metrics in production.
     metrics_token: SecretStr | None = None
