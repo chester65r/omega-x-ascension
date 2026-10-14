@@ -309,13 +309,13 @@
     const toolPanel = target.classList.contains('tool-panel') ? target : target.closest('.tool-panel');
     const mainPage = target.classList.contains('tab-content') ? target : (toolPanel ? $('#tools') : null);
     if (!mainPage) return;
-    $('.tab').forEach((tab) => {
+    $$('.tab').forEach((tab) => {
       const active = tab.dataset.tab === mainPage.id;
       tab.classList.toggle('active', active);
       if (active) tab.setAttribute('aria-current', 'page');
       else tab.removeAttribute('aria-current');
     });
-    $('.tab-content').forEach((panel) => panel.classList.toggle('active', panel.id === mainPage.id));
+    $$('.tab-content').forEach((panel) => panel.classList.toggle('active', panel.id === mainPage.id));
     if (toolPanel) {
       const accordion = toolPanel.closest('.tool-accordion');
       if (accordion) accordion.open = true;
@@ -324,8 +324,8 @@
     scrollTarget.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     if (name === 'logs') loadLogs();
   }
-  $('.tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
-  $('[data-go-tab]').forEach((button) => button.addEventListener('click', () => activateTab(button.dataset.goTab)));
+  $$('.tab').forEach((tab) => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
+  $$('[data-go-tab]').forEach((button) => button.addEventListener('click', () => activateTab(button.dataset.goTab)));
 
   // Overview
   async function pollHealth() {
