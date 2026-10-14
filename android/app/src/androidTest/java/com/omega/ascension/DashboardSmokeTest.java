@@ -82,8 +82,10 @@ public class DashboardSmokeTest {
             assertEquals("Each navigation tab must map to an existing section (actual=" + tabConsistency + ")", "true", tabConsistency);
 
             String aboutWorks = evaluate(webView,
-                    "document.querySelector('[data-tab=\"about\"]').click();" +
-                    "document.getElementById('about').classList.contains('active')");
+                    "document.querySelector('[data-command-item][data-command-tab=\\\"about\\\"]').click();" +
+                    "document.getElementById('tools').classList.contains('active') && " +
+                    "document.getElementById('about').classList.contains('tool-panel') && " +
+                    "document.getElementById('tool-about').open");
             assertEquals("About tab must activate in the running WebView (actual=" + aboutWorks + ")", "true", aboutWorks);
 
             String assistantWorks = evaluate(webView,
@@ -93,8 +95,10 @@ public class DashboardSmokeTest {
             assertEquals("Personal Assistant tab and form must work (actual=" + assistantWorks + ")", "true", assistantWorks);
 
             String browserWorks = evaluate(webView,
-                    "document.querySelector('[data-tab=\"browser\"]').click();" +
-                    "document.getElementById('browser').classList.contains('active') && " +
+                    "document.querySelector('[data-command-item][data-command-tab=\\\"browser\\\"]').click();" +
+                    "document.getElementById('tools').classList.contains('active') && " +
+                    "document.getElementById('browser').classList.contains('tool-panel') && " +
+                    "document.getElementById('tool-browser').open && " +
                     "document.getElementById('browser-results') !== null && " +
                     "document.getElementById('browser-frame') !== null");
             assertEquals("Browser tab and its results/preview containers must exist (actual=" + browserWorks + ")", "true", browserWorks);
@@ -121,7 +125,8 @@ public class DashboardSmokeTest {
 
             String paletteNavigates = evaluate(webView,
                     "Array.from(document.querySelectorAll('[data-command-item]')).find(e => e.dataset.commandTab === 'browser').click();" +
-                    "document.getElementById('browser').classList.contains('active') && " +
+                    "document.getElementById('tools').classList.contains('active') && " +
+                    "document.getElementById('tool-browser').open && " +
                     "document.getElementById('command-palette-backdrop').hidden");
             assertEquals("A command must navigate and close the palette (actual=" + paletteNavigates + ")", "true", paletteNavigates);
         }
