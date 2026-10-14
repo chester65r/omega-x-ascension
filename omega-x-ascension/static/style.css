@@ -429,9 +429,12 @@ input, textarea, select { border-radius:4px; background:#080808; border-color:#3
 }
 
 
-.browser-native-action { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 0 12px; }
-.browser-native-action > span { color:var(--muted); font-size:11px; line-height:1.45; }
+.browser-native-action { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-start; gap:10px; padding:0 0 12px; }
+.browser-native-action > span { color:var(--muted); font-size:11px; line-height:1.45; flex:1 1 260px; }
 .browser-native-action .btn { flex:0 0 auto; }
+.browser-agent-output { grid-column:1 / -1; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--panel); min-width:0; }
+.browser-agent-output h3 { margin:0 0 10px; font-size:14px; color:var(--text); }
+.browser-agent-output pre { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; font-size:12px; line-height:1.6; color:var(--text); }
 @media (max-width:720px) {
   .browser-native-action { align-items:stretch; flex-direction:column; gap:6px; }
   .browser-native-action .btn { width:100%; }

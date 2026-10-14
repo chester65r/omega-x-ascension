@@ -176,7 +176,7 @@
             <button id="browser-back" class="icon-button" type="button" title="Back" aria-label="Back">←</button><button id="browser-forward" class="icon-button" type="button" title="Forward" aria-label="Forward">→</button><button id="browser-reload" class="icon-button" type="button" title="Reload" aria-label="Reload">↻</button>
             <label class="sr-only" for="browser-url">URL or search query</label><input type="text" id="browser-url" placeholder="Enter a URL or search the web..."><button id="browser-go" class="btn btn-primary" type="button">Go <span aria-hidden="true">↗</span></button>
           </div>
-          <div class="browser-native-action"><button id="browser-full-open" class="btn btn-quiet" type="button">Open full browser ↗</button><span>Standalone browsing works without the OMEGA server. Proxy research for agents needs the server.</span></div>
+          <div class="browser-native-action"><button id="browser-full-open" class="btn btn-quiet" type="button">Open full browser ↗</button><button id="browser-agent-research" class="btn btn-primary" type="button" title="Launch an autonomous, source-cited browser research workflow">Research with agent ↗</button><span>Automatic research uses the secure server-side browser. Opening pages in the standalone browser remains available separately.</span></div>
           <div class="browser-content"><iframe id="browser-frame" title="Browser page preview" sandbox="allow-scripts allow-forms"></iframe></div>
           <div id="browser-results" class="browser-results" hidden aria-live="polite"></div>
           <div class="browser-info"><span class="status-dot"></span><span id="browser-status">Ready — enter a URL above</span></div>
