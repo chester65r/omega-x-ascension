@@ -641,10 +641,14 @@
       if (run.status === 'waiting_approval') {
         renderBrowserAgentOutput(
           'Approval required',
-          'This workflow is waiting for an approval. Open Runs, select ' + String(runId).slice(0, 8) + ', and review the requested action before approving it.'
+          'This workflow is waiting for your approval. Open Runs, select ' + String(runId).slice(0, 8) + ', review the requested action, and approve it if you trust the request. This browser panel will resume polling automatically after approval.'
         );
-        browserStatus('Research is waiting for approval.', 'warning');
+        browserStatus('Approval required · waiting for your decision', 'warning');
         await loadRuns();
+        browserResearchPollTimer = window.setTimeout(
+          () => pollBrowserAgentRun(runId, elapsed + 5000),
+          5000
+        );
         return;
       }
       browserStatus('Agent researching · ' + String(run.status || 'pending') + ' · ' + String(runId).slice(0, 8));
@@ -694,6 +698,7 @@
     if (browserResearchPollTimer) window.clearTimeout(browserResearchPollTimer);
     browserResearchPollTimer = null;
     activeBrowserResearchRunId = null;
+    const requestedActions = $('#browser-use-remote-mcp').checked ? ['use_remote_mcp'] : [];
     const goal = [
       'Research this user request using the OMEGA internal browser.',
       'USER REQUEST / URL:',
@@ -706,9 +711,11 @@
       const response = await api('/v1/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal, task_type: 'research', requested_actions: [] })
+        body: JSON.stringify({ goal, task_type: 'research', requested_actions: requestedActions })
       });
       const run = await response.json();
+      // Tool selections apply to one run only; never carry elevated intent forward silently.
+      $('#browser-use-remote-mcp').checked = false;
       if (!run || typeof run.id !== 'string') {
         throw new Error('The server accepted no usable run identifier.');
       }
@@ -1132,9 +1139,13 @@
         return;
       }
       if (run.status === 'waiting_approval') {
-        assistantMessages[responseIndex].content = 'This task is waiting for an approval. Open Runs, select this task, and review the requested action before approving it.';
+        assistantMessages[responseIndex].content = 'This task is waiting for your approval. Open Runs, select this task, review the requested action, and approve it if you trust the request.';
         renderAssistantMessages();
         setAssistantStatus('Approval required · ' + String(runId).slice(0, 8), 'warning');
+        assistantRunTimer = window.setTimeout(
+          () => pollAssistantRun(runId, responseIndex, elapsed + 5000),
+          5000
+        );
         return;
       }
       assistantMessages[responseIndex].content = 'Task ' + String(run.status || 'pending') + ' · ' + String(runId).slice(0, 8) + '. Checking for the real result…';
@@ -1151,8 +1162,16 @@
     }
   }
 
+  function selectedAssistantActions() {
+    const actions = [];
+    if ($('#assistant-use-remote-mcp')?.checked) actions.push('use_remote_mcp');
+    if ($('#assistant-use-computer')?.checked) actions.push('execute_code');
+    return actions;
+  }
+
   async function submitAssistantTask(prompt) {
     const clean = String(prompt || '').trim();
+    const requestedActions = selectedAssistantActions();
     if (!clean) return;
     if (!apiBase || !token) {
       setAssistantStatus('Connect the API server first. Cloud agent tasks require a signed JWT with runs:write and a healthy configured model.', 'error');
@@ -1170,11 +1189,17 @@
       const response = await api('/v1/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goal: clean, task_type: $('#assistant-task-type').value, requested_actions: [] }),
+        body: JSON.stringify({ goal: clean, task_type: $('#assistant-task-type').value, requested_actions: requestedActions }),
       });
       const run = await response.json();
+      // Tool selections apply to one run only; never carry elevated intent forward silently.
+      $('#assistant-use-remote-mcp').checked = false;
+      $('#assistant-use-computer').checked = false;
       activeAssistantRunId = run.id;
-      assistantMessages[responseIndex].content = 'Task accepted by the server. Run ID: ' + run.id + '\nCurrent status: ' + run.status + '\nWaiting for the configured model workflow to finish…';
+      const toolSummary = requestedActions.length
+        ? '\nRequested tools: ' + requestedActions.join(', ') + (run.status === 'waiting_approval' ? '\nApproval is required before these tools can run.' : '')
+        : '';
+      assistantMessages[responseIndex].content = 'Task accepted by the server. Run ID: ' + run.id + '\nCurrent status: ' + run.status + toolSummary + '\nWaiting for the configured model workflow to finish…';
       renderAssistantMessages();
       setAssistantStatus('Run accepted · ' + String(run.id).slice(0, 8), 'success');
       addAgentLog('success', 'Assistant submitted run ' + String(run.id).slice(0, 8));
