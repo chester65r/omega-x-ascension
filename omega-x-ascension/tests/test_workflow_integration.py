@@ -450,3 +450,126 @@ def test_workspace_file_agent_blocks_private_key_and_traversal_paths():
             pass
         else:
             raise AssertionError(f"unsafe path must be rejected: {path}")
+
+
+def test_workspace_file_agent_is_opt_in_and_reads_only_enumerated_safe_files():
+    async def check():
+        class WorkspaceGateway(FakeGateway):
+            capabilities = frozenset({"planning", "coding", "reasoning", "analysis", "research"})
+
+            async def complete(self, *, system, prompt):
+                if "choose up to four relevant regular files" in system.lower():
+                    return '{"read_paths":["README.md","../escape",".env","api_token.txt","folder/notes.md"]}'
+                return await super().complete(system=system, prompt=prompt)
+
+        class WorkspaceComputer:
+            enabled = False
+            files_enabled = True
+
+            def __init__(self):
+                self.listed = []
+                self.read = []
+                self.written = []
+
+            async def list_dir(self, path=".", workspace_id=None):
+                self.listed.append((path, str(workspace_id)))
+                entries = [
+                    {"name": "README.md", "type": "file", "size": 12},
+                    {"name": ".env", "type": "file", "size": 40},
+                    {"name": "api_token.txt", "type": "file", "size": 12},
+                    {"name": "folder", "type": "dir", "size": 0},
+                    {"name": "shortcut", "type": "link", "size": 0},
+                ] if path == "." else [{"name": "notes.md", "type": "file", "size": 5}]
+                return {"entries": entries, "truncated": False}
+
+            async def read_file(self, path, workspace_id=None):
+                self.read.append((path, str(workspace_id)))
+                return {"path": path, "content": "safe content for " + path}
+
+            async def write_file(self, path, content, workspace_id=None):
+                self.written.append((path, content, str(workspace_id)))
+                return {"path": path, "written": True}
+
+        computer = WorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=FakeRouter(WorkspaceGateway()),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        tenant_id = uuid4()
+        no_opt_in = await workflow.workspace_file_executor({
+            "goal": "Inspect the workspace", "requested_actions": [], "workspace_id": str(tenant_id)
+        })
+        assert no_opt_in == {}
+        assert computer.listed == []
+
+        result = await workflow.workspace_file_executor({
+            "goal": "Summarize the project notes",
+            "plan": "Inspect safe documentation",
+            "requested_actions": ["use_workspace_files"],
+            "workspace_id": str(tenant_id),
+        })
+        read_paths = [item[0] for item in computer.read]
+        assert read_paths == ["README.md", "folder/notes.md"]
+        assert all(item[1] == str(tenant_id) for item in computer.read)
+        assert computer.written == []
+        assert ".env" not in result["workspace_file_output"]
+        assert "api_token.txt" not in result["workspace_file_output"]
+        assert "safe content for README.md" in result["workspace_file_output"]
+        assert "No shell command was executed" in result["workspace_file_output"]
+
+    asyncio.run(check())
+
+
+def test_workspace_file_agent_writes_only_after_explicit_write_action_and_safe_path():
+    async def check():
+        class WorkspaceGateway(FakeGateway):
+            capabilities = frozenset({"planning", "coding", "reasoning", "analysis", "research"})
+
+            async def complete(self, *, system, prompt):
+                if "choose up to four relevant regular files" in system.lower():
+                    return '{"read_paths":["README.md"]}'
+                if "propose at most two text-file updates" in system.lower():
+                    return '{"writes":[{"path":"summary.md","content":"Workspace summary"},{"path":"../outside.txt","content":"unsafe"},{"path":".env","content":"unsafe"}]}'
+                return await super().complete(system=system, prompt=prompt)
+
+        class WorkspaceComputer:
+            enabled = False
+            files_enabled = True
+
+            def __init__(self):
+                self.written = []
+
+            async def list_dir(self, path=".", workspace_id=None):
+                return {"entries":[{"name":"README.md","type":"file","size":10},{"name":"shortcut","type":"link","size":0}], "truncated":False}
+
+            async def read_file(self, path, workspace_id=None):
+                return {"path":path,"content":"Project notes"}
+
+            async def write_file(self, path, content, workspace_id=None):
+                self.written.append((path, content, str(workspace_id)))
+                return {"path":path,"written":True}
+
+        computer = WorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=FakeRouter(WorkspaceGateway()),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        tenant_id = uuid4()
+        result = await workflow.workspace_file_executor({
+            "goal": "Create a summary file of the project notes",
+            "plan": "Read documentation then prepare a summary",
+            "requested_actions": ["use_workspace_files", "write_workspace_files"],
+            "workspace_id": str(tenant_id),
+        })
+        assert len(computer.written) == 1
+        assert computer.written[0] == ("summary.md", "Workspace summary", str(tenant_id))
+        assert "summary.md" in result["workspace_file_output"]
+        assert "../outside.txt" not in [item[0] for item in computer.written]
+        assert ".env" not in [item[0] for item in computer.written]
+        assert "No shell command was executed" in result["workspace_file_output"]
+
+    asyncio.run(check())
