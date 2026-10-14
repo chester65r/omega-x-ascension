@@ -1165,6 +1165,11 @@
   function selectedAssistantActions() {
     const actions = [];
     if ($('#assistant-use-remote-mcp')?.checked) actions.push('use_remote_mcp');
+    const allowFileEdits = Boolean($('#assistant-allow-file-edits')?.checked);
+    if ($('#assistant-use-workspace-files')?.checked || allowFileEdits) {
+      actions.push('use_workspace_files');
+    }
+    if (allowFileEdits) actions.push('write_workspace_files');
     if ($('#assistant-use-computer')?.checked) actions.push('execute_code');
     return actions;
   }
@@ -1194,6 +1199,8 @@
       const run = await response.json();
       // Tool selections apply to one run only; never carry elevated intent forward silently.
       $('#assistant-use-remote-mcp').checked = false;
+      $('#assistant-use-workspace-files').checked = false;
+      $('#assistant-allow-file-edits').checked = false;
       $('#assistant-use-computer').checked = false;
       activeAssistantRunId = run.id;
       const toolSummary = requestedActions.length
