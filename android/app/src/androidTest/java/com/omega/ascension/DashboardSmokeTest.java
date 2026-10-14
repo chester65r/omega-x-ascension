@@ -98,11 +98,10 @@ public class DashboardSmokeTest {
             assertEquals("Personal Assistant tab and form must work (actual=" + assistantWorks + ")", "true", assistantWorks);
 
             String chatSidebarWorks = evaluate(webView,
-                    "document.getElementById('sidebar-toggle').click();" +
-                    "document.body.classList.contains('sidebar-open') && " +
-                    "!document.getElementById('sidebar-backdrop').hidden && " +
-                    "document.getElementById('sidebar-close').click();" +
-                    "!document.body.classList.contains('sidebar-open')");
+                    "(() => { document.getElementById('sidebar-toggle').click(); " +
+                    "const opened = document.body.classList.contains('sidebar-open') && !document.getElementById('sidebar-backdrop').hidden; " +
+                    "document.getElementById('sidebar-close').click(); " +
+                    "return opened && !document.body.classList.contains('sidebar-open') && document.getElementById('sidebar-backdrop').hidden; })()");
             assertEquals("Mobile sidebar must open and close without leaving an overlay (actual=" + chatSidebarWorks + ")", "true", chatSidebarWorks);
 
             String newChatWorks = evaluate(webView,
