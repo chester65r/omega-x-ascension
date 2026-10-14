@@ -75,6 +75,7 @@ class RemoteMCPClient:
         self._session_id: str | None = None
         self._initialized = False
         self._next_id = 1
+        self._protocol_version = "2024-11-05"
 
     @staticmethod
     def _validate_url(url: str) -> str:
@@ -93,26 +94,29 @@ class RemoteMCPClient:
         """Create an isolated MCP protocol session while reusing the HTTP pool."""
         return RemoteMCPClient(self.url, self.token, self.timeout_seconds, self.http)
 
-    def _headers(self) -> dict[str, str]:
+    def _headers(self, *, initialize_request: bool = False) -> dict[str, str]:
         headers = {
             "Accept": "application/json, text/event-stream",
             "Content-Type": "application/json",
-            "MCP-Protocol-Version": "2024-11-05",
         }
+        # The initial initialize request negotiates a protocol version in its JSON-RPC
+        # params. The MCP-Protocol-Version header belongs on subsequent requests.
+        if not initialize_request:
+            headers["MCP-Protocol-Version"] = self._protocol_version
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         if self._session_id:
             headers["Mcp-Session-Id"] = self._session_id
         return headers
 
-    async def _post(self, payload: dict[str, Any], *, notification: bool = False) -> dict[str, Any] | None:
+    async def _post(self, payload: dict[str, Any], *, notification: bool = False, initialize_request: bool = False) -> dict[str, Any] | None:
         if not self.url:
             raise RemoteMCPError("Remote MCP integration is disabled; configure OMEGA_REMOTE_MCP_URL")
         try:
             response = await self.http.post(
                 self.url,
                 json=payload,
-                headers=self._headers(),
+                headers=self._headers(initialize_request=initialize_request),
                 timeout=httpx.Timeout(self.timeout_seconds),
             )
         except httpx.HTTPError as exc:
@@ -153,11 +157,12 @@ class RemoteMCPClient:
             raise RemoteMCPError("Remote MCP response must be a JSON object")
         return result
 
-    async def _rpc(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _rpc(self, method: str, params: dict[str, Any] | None = None, *, initialize_request: bool = False) -> dict[str, Any]:
         request_id = self._next_id
         self._next_id += 1
         response = await self._post(
-            {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params or {}}
+            {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params or {}},
+            initialize_request=initialize_request,
         )
         if response is None:
             raise RemoteMCPError("Remote MCP did not return a JSON-RPC response")
@@ -182,13 +187,15 @@ class RemoteMCPClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "omega-x-ascension", "version": "0.8.0"},
+                "clientInfo": {"name": "omega-x-ascension", "version": "0.8.1"},
             },
+            initialize_request=True,
         )
         server_info = result.get("serverInfo", {})
         protocol = result.get("protocolVersion")
-        if not isinstance(server_info, dict) or not protocol:
+        if not isinstance(server_info, dict) or not isinstance(protocol, str) or not protocol.strip():
             raise RemoteMCPError("Remote MCP initialize response is missing server metadata")
+        self._protocol_version = protocol
         await self._post({"jsonrpc": "2.0", "method": "notifications/initialized"}, notification=True)
         self._initialized = True
         return {

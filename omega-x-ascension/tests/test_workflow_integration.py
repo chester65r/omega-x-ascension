@@ -1,4 +1,5 @@
 import asyncio
+import json
 from uuid import uuid4
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -312,5 +313,288 @@ def test_agent_browser_research_opens_user_supplied_url_safely():
         assert browser.fetched == ["https://public.example/article"]
         assert "This page contains the requested source text." in result["research"]
         assert "https://public.example/article" in result["research"]
+
+    asyncio.run(check())
+
+
+def test_requested_computer_execution_is_explicitly_reported_when_policy_disables_it():
+    async def check():
+        gateway = FakeGateway()
+        workflow = CoreWorkflow(
+            router=FakeRouter(gateway),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=DisabledComputer(),
+        )
+        result = await workflow.executor({
+            "goal": "Inspect a test workspace",
+            "solution": "List the workspace files",
+            "requested_actions": ["execute_code"],
+        })
+        assert "disabled by server policy" in result["computer_output"]
+        assert "No command was executed." in result["computer_output"]
+
+    asyncio.run(check())
+
+
+class WorkspacePlanRouter:
+    async def complete(self, capability, *, system, prompt):
+        if "careful workspace inspection agent" in system:
+            return '{"operations":[{"type":"list_dir","path":"."},{"type":"read_file","path":"notes.txt"}]}'
+        if "authorized tenant-workspace file editor" in system:
+            return '{"operations":[{"type":"write_file","path":"notes.txt","content":"updated safely"}]}'
+        raise AssertionError(f"unexpected model call: {system[:80]}")
+
+
+class RecordingWorkspaceComputer:
+    enabled = False
+    files_enabled = True
+
+    def __init__(self):
+        self.calls = []
+        self.contents = {"notes.txt": "existing notes"}
+
+    async def list_dir(self, path=".", workspace_id=None):
+        self.calls.append(("list_dir", path, str(workspace_id)))
+        return {
+            "path": path,
+            "entries": [
+                {"name": ".env", "type": "file", "size": 20},
+                {"name": ".git", "type": "dir", "size": 0},
+                {"name": "notes.txt", "type": "file", "size": 15},
+                {"name": "src", "type": "dir", "size": 0},
+            ],
+            "truncated": False,
+        }
+
+    async def read_file(self, path, workspace_id=None):
+        self.calls.append(("read_file", path, str(workspace_id)))
+        return {"path": path, "content": self.contents[path]}
+
+    async def write_file(self, path, content, workspace_id=None):
+        self.calls.append(("write_file", path, str(workspace_id)))
+        self.contents[path] = content
+        return {"path": path, "written": True, "bytes": len(content.encode("utf-8"))}
+
+    async def execute(self, *args, **kwargs):
+        raise AssertionError("workspace file operations must never execute shell commands")
+
+
+def test_agent_workspace_file_tools_are_tenant_scoped_read_only_by_default():
+    async def check():
+        computer = RecordingWorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=WorkspacePlanRouter(),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        workspace = str(uuid4())
+        state = {
+            "goal": "Inspect the workspace notes",
+            "plan": "List workspace files and read notes.txt",
+            "solution": "Inspect existing notes",
+            "workspace_id": workspace,
+            "requested_actions": ["use_workspace_files"],
+        }
+        first = await workflow.executor(state)
+        assert "existing notes" in first["computer_output"]
+        assert first["computer_actions_completed"] is True
+        assert ("list_dir", ".", workspace) in computer.calls
+        assert ("read_file", "notes.txt", workspace) in computer.calls
+        assert not any(call[0] == "write_file" for call in computer.calls)
+        listing = next(line for line in first["computer_output"].splitlines() if '"entries"' in line)
+        assert ".env" not in listing and ".git" not in listing
+        # A critic revision must not repeat a prior tool side effect.
+        state.update(first)
+        assert await workflow.executor(state) == {}
+        assert len([call for call in computer.calls if call[0] == "list_dir"]) == 1
+
+    asyncio.run(check())
+
+
+def test_agent_workspace_edits_run_only_with_explicit_write_action():
+    async def check():
+        computer = RecordingWorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=WorkspacePlanRouter(),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        workspace = str(uuid4())
+        result = await workflow.executor({
+            "goal": "Update notes.txt",
+            "plan": "Inspect and edit the notes",
+            "solution": "Replace the note with a concise update",
+            "workspace_id": workspace,
+            "requested_actions": ["use_workspace_files", "write_workspace_files"],
+        })
+        assert computer.contents["notes.txt"] == "updated safely"
+        assert ("write_file", "notes.txt", workspace) in computer.calls
+        assert '"written": true' in result["computer_output"]
+        assert result["computer_actions_completed"] is True
+
+    asyncio.run(check())
+
+
+def test_agent_workspace_file_tools_block_traversal_hidden_and_credential_paths():
+    for path in (
+        "../outside.txt", "/etc/passwd", ".env", ".git/config",
+        "credentials.json", "secrets.yaml", "nested/client_secret.json",
+        "service-account.json", "keys/client.pem",
+    ):
+        try:
+            CoreWorkflow._workspace_path(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"unsafe workspace path must be rejected: {path}")
+
+
+def test_workspace_file_actions_are_opt_in_tenant_scoped_and_hide_sensitive_entries():
+    async def check():
+        class WorkspaceGateway(FakeGateway):
+            capabilities = frozenset({"reasoning", "coding", "planning", "analysis", "research"})
+
+            async def complete(self, *, system, prompt):
+                if "careful workspace inspection agent" in system.lower():
+                    return json.dumps({
+                        "operations": [
+                            {"type": "list_dir", "path": "."},
+                            {"type": "read_file", "path": "README.md"},
+                        ]
+                    })
+                return await super().complete(system=system, prompt=prompt)
+
+        class WorkspaceComputer:
+            enabled = False
+            files_enabled = True
+
+            def __init__(self):
+                self.listed = []
+                self.read = []
+                self.written = []
+
+            async def list_dir(self, path=".", workspace_id=None):
+                self.listed.append((path, str(workspace_id)))
+                return {"entries": [
+                    {"name": "README.md", "type": "file", "size": 12},
+                    {"name": ".env", "type": "file", "size": 44},
+                    {"name": "token.json", "type": "file", "size": 20},
+                    {"name": "shortcut", "type": "link", "size": 0},
+                ], "truncated": False}
+
+            async def read_file(self, path, workspace_id=None):
+                self.read.append((path, str(workspace_id)))
+                return {"path": path, "content": "Safe project documentation."}
+
+            async def write_file(self, path, content, workspace_id=None):
+                self.written.append((path, content, str(workspace_id)))
+                return {"path": path, "written": True, "bytes": len(content)}
+
+        computer = WorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=FakeRouter(WorkspaceGateway()),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        tenant_id = uuid4()
+        state = {
+            "goal": "Inspect the project documentation",
+            "plan": "Review safe documentation only",
+            "solution": "Inspect README.md",
+            "workspace_id": str(tenant_id),
+        }
+
+        assert await workflow._workspace_file_actions(state, set()) is None
+        assert computer.listed == []
+        assert computer.read == []
+        assert computer.written == []
+
+        output = await workflow._workspace_file_actions(state, {"use_workspace_files"})
+        assert computer.listed == [(".", str(tenant_id))]
+        assert computer.read == [("README.md", str(tenant_id))]
+        assert computer.written == []
+        assert "Safe project documentation." in output
+        assert ".env" not in output
+        assert "token.json" not in output
+        assert "shortcut" not in output
+        assert "Safe project documentation." in output
+
+    asyncio.run(check())
+
+
+def test_workspace_file_writes_are_separate_explicit_action_and_stay_in_tenant_workspace():
+    async def check():
+        class WorkspaceGateway(FakeGateway):
+            capabilities = frozenset({"reasoning", "coding", "planning", "analysis", "research"})
+
+            async def complete(self, *, system, prompt):
+                if "careful workspace inspection agent" in system.lower():
+                    return json.dumps({
+                        "operations": [
+                            {"type": "list_dir", "path": "."},
+                            {"type": "read_file", "path": "README.md"},
+                        ]
+                    })
+                if "authorized tenant-workspace file editor" in system.lower():
+                    return json.dumps({
+                        "operations": [
+                            {"type": "write_file", "path": "summary.md", "content": "Project summary"},
+                            {"type": "write_file", "path": "../outside.txt", "content": "Blocked"},
+                            {"type": "write_file", "path": ".env", "content": "Blocked"},
+                        ]
+                    })
+                return await super().complete(system=system, prompt=prompt)
+
+        class WorkspaceComputer:
+            enabled = False
+            files_enabled = True
+
+            def __init__(self):
+                self.written = []
+
+            async def list_dir(self, path=".", workspace_id=None):
+                return {"entries": [
+                    {"name": "README.md", "type": "file", "size": 12},
+                    {"name": ".env", "type": "file", "size": 44},
+                    {"name": "shortcut", "type": "link", "size": 0},
+                ], "truncated": False}
+
+            async def read_file(self, path, workspace_id=None):
+                return {"path": path, "content": "Project documentation"}
+
+            async def write_file(self, path, content, workspace_id=None):
+                self.written.append((path, content, str(workspace_id)))
+                return {"path": path, "written": True, "bytes": len(content.encode("utf-8"))}
+
+        computer = WorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=FakeRouter(WorkspaceGateway()),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        tenant_id = uuid4()
+        state = {
+            "goal": "Create a summary file based on the project documentation",
+            "plan": "Inspect the README and draft a concise summary",
+            "solution": "The summary should capture the project purpose.",
+            "workspace_id": str(tenant_id),
+        }
+
+        read_only_output = await workflow._workspace_file_actions(state, {"use_workspace_files"})
+        assert "written" not in read_only_output.lower()
+        assert computer.written == []
+
+        output = await workflow._workspace_file_actions(
+            state, {"use_workspace_files", "write_workspace_files"}
+        )
+        assert computer.written == [("summary.md", "Project summary", str(tenant_id))]
+        assert "../outside.txt" not in [item[0] for item in computer.written]
+        assert ".env" not in [item[0] for item in computer.written]
+        assert "summary.md" in output
 
     asyncio.run(check())

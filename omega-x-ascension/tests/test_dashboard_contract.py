@@ -123,3 +123,43 @@ def test_native_browser_is_available_without_cloud_backend():
     assert "setAllowContentAccess(false)" in browser
     assert "WebSettings.MIXED_CONTENT_NEVER_ALLOW" in browser
     assert "addJavascriptInterface" not in browser
+
+
+def test_optional_agent_tools_are_opt_in_and_sent_to_the_real_workflow_api():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    for element_id in (
+        "assistant-use-remote-mcp",
+        "assistant-use-workspace-files",
+        "assistant-allow-file-edits",
+        "assistant-use-computer",
+        "browser-use-remote-mcp",
+    ):
+        assert f'id="{element_id}"' in html
+    assert "actions.push('use_remote_mcp')" in js
+    assert "actions.push('use_workspace_files')" in js
+    assert "actions.push('write_workspace_files')" in js
+    assert "actions.push('execute_code')" in js
+    assert "requested_actions: requestedActions" in js
+    # Tool choices must be one-run opt-ins, not sticky permission grants.
+    assert "$('#assistant-use-remote-mcp').checked = false;" in js
+    assert "$('#assistant-use-workspace-files').checked = false;" in js
+    assert "$('#assistant-allow-file-edits').checked = false;" in js
+    assert "$('#assistant-use-computer').checked = false;" in js
+    assert "$('#browser-use-remote-mcp').checked = false;" in js
+
+
+def test_approval_polling_resumes_after_user_approves_a_tool():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    assert "Approval required · waiting for your decision" in js
+    assert "() => pollBrowserAgentRun(runId, elapsed + 5000)" in js
+    assert "() => pollAssistantRun(runId, responseIndex, elapsed + 5000)" in js
+    assert "requested action, and approve it if you trust the request" in js
+
+
+def test_agent_tool_controls_have_mobile_friendly_styles():
+    css = Path("static/style.css").read_text(encoding="utf-8")
+    assert ".assistant-tool-options" in css
+    assert ".assistant-tool-option" in css
+    assert ".browser-agent-option" in css
+    assert "@media (max-width: 520px)" in css
