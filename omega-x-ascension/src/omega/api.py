@@ -37,10 +37,16 @@ def services(request: Request):
 
 
 def require_requested_action_scopes(actions: list[str], principal: Principal) -> None:
-    """Require explicit token scopes for privileged tool requests."""
+    """Require explicit token scopes for each requested computer capability."""
     normalized = {str(action).strip().casefold() for action in actions}
     if "execute_code" in normalized:
         principal.require({"computer:execute"})
+    if "use_workspace_files" in normalized:
+        principal.require({"computer:read"})
+    if "write_workspace_files" in normalized:
+        if "use_workspace_files" not in normalized:
+            raise HTTPException(400, "write_workspace_files requires use_workspace_files")
+        principal.require({"computer:write", "runs:approve"})
 
 
 def view(run: WorkflowRun) -> RunView:
