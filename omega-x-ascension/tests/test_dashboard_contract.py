@@ -65,10 +65,10 @@ def test_dashboard_calls_out_file_and_shell_flags_separately():
     assert "not a hardened per-job VM" in html
 
 
-def test_dashboard_has_local_ai_tab_and_chat_controls():
+def test_dashboard_has_local_ai_tool_and_chat_controls():
     html = Path("static/index.html").read_text(encoding="utf-8")
     for required in (
-        'data-tab="local-ai"',
+        'id="tool-local-ai"',
         'id="local-ai-url"',
         'id="local-ai-check"',
         'id="local-ai-form"',
