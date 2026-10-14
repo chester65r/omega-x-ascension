@@ -433,7 +433,17 @@ def test_workspace_file_agent_writes_only_when_explicitly_requested():
 
 
 def test_workspace_file_agent_blocks_private_key_and_traversal_paths():
-    for path in ("../outside.txt", "/etc/passwd", ".env", "keys/client.pem", ".git/config"):
+    for path in (
+        "../outside.txt",
+        "/etc/passwd",
+        ".env",
+        "keys/client.pem",
+        ".git/config",
+        "credentials.json",
+        "secrets.yaml",
+        "nested/client_secret.json",
+        "service-account.json",
+    ):
         try:
             CoreWorkflow._workspace_path(path)
         except ValueError:
