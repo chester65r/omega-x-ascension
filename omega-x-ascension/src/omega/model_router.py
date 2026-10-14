@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+import httpx
+
 from omega.config import Capability
 from omega.ports import ModelGateway, ModelRegistry
 
@@ -20,7 +22,11 @@ class RouteDecision:
 
 
 class ModelExecutionFailed(RuntimeError):
-    """Raised when bounded provider attempts fail to complete a request."""
+    """Safe summary of model failure and whether a queue retry can plausibly help."""
+
+    def __init__(self, message: str, *, retryable: bool = True):
+        super().__init__(message)
+        self.retryable = retryable
 
 
 class ModelRouter:
@@ -75,8 +81,19 @@ class ModelRouter:
                     type(exc).__name__,
                 )
 
+        # Authentication, billing, model/endpoint, and other permanent 4xx failures
+        # will not recover by requeueing the same task. Try every configured provider
+        # first, then allow a queue retry only if at least one failure was transient.
+        def is_retryable(exc: Exception) -> bool:
+            if isinstance(exc, httpx.HTTPStatusError):
+                status = exc.response.status_code
+                return status in {408, 409, 425, 429} or status >= 500
+            return bool(getattr(exc, "retryable", True))
+
+        retryable = any(is_retryable(exc) for exc in failures)
         raise ModelExecutionFailed(
-            f"all {len(attempted)} attempted model providers failed to complete the request"
+            f"all {len(attempted)} attempted model providers failed to complete the request",
+            retryable=retryable,
         ) from failures[-1]
 
     async def status(self) -> list[dict[str, object]]:
