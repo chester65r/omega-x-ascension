@@ -1135,7 +1135,7 @@
       currentConversationId = 'chat-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
     }
     const firstUser = assistantMessages.find((message) => message && message.role === 'user');
-    const title = String(firstUser?.content || 'New chat').trim().replace(/\\s+/g, ' ').slice(0, 54) || 'New chat';
+    const title = String(firstUser?.content || 'New chat').trim().replace(/\s+/g, ' ').slice(0, 54) || 'New chat';
     const snapshot = assistantMessages.slice(-80).map((message) => ({
       role: message.role === 'user' ? 'user' : 'assistant',
       content: String(message.content || '').slice(0, 20000)
@@ -1158,7 +1158,7 @@
 
   function appendInlineMarkdown(parent, value) {
     const text = String(value || '');
-    const tokenPattern = /(\\*\\*[^*]+\\*\\*|`[^`]+\\`|https?:\\/\\/[^\\s<]+)/g;
+    const tokenPattern = /(\*\*[^*]+\*\*|`[^`]+\`|https?:\/\/[^\s<]+)/g;
     let cursor = 0;
     let match;
     while ((match = tokenPattern.exec(text)) !== null) {
@@ -1198,15 +1198,15 @@
   function appendTextBlock(parent, value) {
     const block = String(value || '').trim();
     if (!block) return;
-    const lines = block.split('\\n');
-    const listLine = (line) => /^\\s*(?:[-*•]\\s+|\\d+[.)]\\s+)/.test(line);
+    const lines = block.split('\n');
+    const listLine = (line) => /^\s*(?:[-*•]\s+|\d+[.)]\s+)/.test(line);
     if (lines.every((line) => !line.trim() || listLine(line))) {
-      const ordered = lines.some((line) => /^\\s*\\d+[.)]\\s+/.test(line));
+      const ordered = lines.some((line) => /^\s*\d+[.)]\s+/.test(line));
       const list = document.createElement(ordered ? 'ol' : 'ul');
       for (const line of lines) {
         if (!line.trim()) continue;
         const li = document.createElement('li');
-        appendInlineMarkdown(li, line.replace(/^\\s*(?:[-*•]\\s+|\\d+[.)]\\s+)/, ''));
+        appendInlineMarkdown(li, line.replace(/^\s*(?:[-*•]\s+|\d+[.)]\s+)/, ''));
         list.appendChild(li);
       }
       parent.appendChild(list);
@@ -1215,7 +1215,7 @@
     const paragraph = document.createElement('p');
     lines.forEach((line, index) => {
       if (index) paragraph.appendChild(document.createElement('br'));
-      const heading = line.match(/^\\s{0,3}(#{1,3})\\s+(.+)$/);
+      const heading = line.match(/^\s{0,3}(#{1,3})\s+(.+)$/);
       if (heading) {
         const element = document.createElement('strong');
         element.textContent = heading[2];
@@ -1230,21 +1230,21 @@
   function renderMessageMarkdown(parent, value) {
     parent.replaceChildren();
     const text = String(value || '');
-    const codeBlock = /```([^\\n`]*)\\n([\\s\\S]*?)```/g;
+    const codeBlock = /```([^\n`]*)\n([\s\S]*?)```/g;
     let cursor = 0;
     let match;
     while ((match = codeBlock.exec(text)) !== null) {
       const before = text.slice(cursor, match.index);
-      before.split(/\\n\\s*\\n/).forEach((block) => appendTextBlock(parent, block));
+      before.split(/\n\s*\n/).forEach((block) => appendTextBlock(parent, block));
       const pre = document.createElement('pre');
       const code = document.createElement('code');
       if (match[1].trim()) code.className = 'language-' + match[1].trim().replace(/[^a-zA-Z0-9_-]/g, '');
-      code.textContent = match[2].replace(/\\n$/, '');
+      code.textContent = match[2].replace(/\n$/, '');
       pre.appendChild(code);
       parent.appendChild(pre);
       cursor = match.index + match[0].length;
     }
-    text.slice(cursor).split(/\\n\\s*\\n/).forEach((block) => appendTextBlock(parent, block));
+    text.slice(cursor).split(/\n\s*\n/).forEach((block) => appendTextBlock(parent, block));
     if (!parent.childNodes.length && text) parent.textContent = text;
   }
 
