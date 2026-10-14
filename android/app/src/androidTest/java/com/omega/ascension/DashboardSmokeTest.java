@@ -85,11 +85,12 @@ public class DashboardSmokeTest {
             assertEquals("Each navigation tab must map to an existing section (actual=" + tabConsistency + ")", "true", tabConsistency);
 
             String aboutWorks = evaluate(webView,
-                    "document.querySelector('[data-command-item][data-command-tab=\\\"about\\\"]').click();" +
+                    "document.querySelector('[data-tab=\\\"tools\\\"]').click();" +
+                    "document.getElementById('tool-about').querySelector('summary').click();" +
                     "document.getElementById('tools').classList.contains('active') && " +
                     "document.getElementById('about').classList.contains('tool-panel') && " +
                     "document.getElementById('tool-about').open");
-            assertEquals("About tab must activate in the running WebView (actual=" + aboutWorks + ")", "true", aboutWorks);
+            assertEquals("About tool group must open from the visible Tools page (actual=" + aboutWorks + ")", "true", aboutWorks);
 
             String assistantWorks = evaluate(webView,
                     "document.querySelector('[data-tab=\"assistant\"]').click();" +
@@ -113,13 +114,14 @@ public class DashboardSmokeTest {
             assertEquals("New chat must reset the thread and keep the assistant tab active (actual=" + newChatWorks + ")", "true", newChatWorks);
 
             String browserWorks = evaluate(webView,
-                    "document.querySelector('[data-command-item][data-command-tab=\\\"browser\\\"]').click();" +
+                    "document.querySelector('[data-tab=\\\"tools\\\"]').click();" +
+                    "document.getElementById('tool-browser').querySelector('summary').click();" +
                     "document.getElementById('tools').classList.contains('active') && " +
                     "document.getElementById('browser').classList.contains('tool-panel') && " +
                     "document.getElementById('tool-browser').open && " +
                     "document.getElementById('browser-results') !== null && " +
                     "document.getElementById('browser-frame') !== null");
-            assertEquals("Browser tab and its results/preview containers must exist (actual=" + browserWorks + ")", "true", browserWorks);
+            assertEquals("Browser tool group and its results/preview containers must exist (actual=" + browserWorks + ")", "true", browserWorks);
 
             String browserAgentResearch = evaluate(webView,
                     "document.getElementById('browser-agent-research') !== null && " +
@@ -150,15 +152,14 @@ public class DashboardSmokeTest {
 
             String allToolGroupsWork = evaluate(webView,
                     "(() => { " +
-                    "const search = document.getElementById('command-search'); search.value = ''; search.dispatchEvent(new Event('input', {bubbles:true})); " +
+                    "document.querySelector('[data-tab=\\\"tools\\\"]').click(); " +
                     "const names = ['overview', 'runs', 'browser', 'local-ai', 'agents', 'logs', 'about']; " +
                     "for (const name of names) { " +
-                    "const command = document.querySelector('[data-command-item][data-command-tab=\\\"' + name + '\\\"]'); " +
                     "const panel = document.getElementById(name); const group = document.getElementById('tool-' + name); " +
-                    "if (!command || !panel || !group) return false; command.click(); " +
+                    "if (!panel || !group) return false; group.querySelector('summary').click(); " +
                     "if (!document.getElementById('tools').classList.contains('active') || !panel.classList.contains('tool-panel') || !group.open) return false; " +
                     "} return true; })()");
-            assertEquals("Every tool group must be reachable through command navigation (actual=" + allToolGroupsWork + ")", "true", allToolGroupsWork);
+            assertEquals("Every tool group must be reachable from the visible Tools page (actual=" + allToolGroupsWork + ")", "true", allToolGroupsWork);
         }
     }
 
