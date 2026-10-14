@@ -168,3 +168,25 @@ def test_browser_proxy_converts_json_into_readable_safe_html():
             await client.aclose()
 
     asyncio.run(check())
+
+
+def test_browser_uses_ascii_idna_server_name_for_unicode_host():
+    async def check():
+        async def handler(request):
+            assert request.url.host == "93.184.216.34"
+            assert request.headers["host"] == "xn--mnchen-3ya.example"
+            assert request.extensions["sni_hostname"] == "xn--mnchen-3ya.example"
+            return httpx.Response(200, text="ok", request=request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            tool = BrowserTool(client)
+
+            async def resolve_test_host(_url):
+                return "93.184.216.34"
+
+            tool._validate_url = resolve_test_host
+            response, final_url = await tool._get_public("https://münchen.example/resource")
+            assert response.text == "ok"
+            assert final_url == "https://münchen.example/resource"
+
+    asyncio.run(check())
