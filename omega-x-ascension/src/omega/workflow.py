@@ -387,12 +387,19 @@ class CoreWorkflow:
             raise ValueError("workspace path must stay inside the relative workspace")
         blocked_parts = {".git", ".ssh", ".aws", ".config", "secrets", "credentials"}
         sensitive_suffixes = (".pem", ".key", ".p12", ".pfx", ".jks", ".keystore")
+        sensitive_prefixes = ("credentials.", "secrets.", "client_secret.", "service-account.")
+        sensitive_names = {
+            "credentials.json", "secrets.json", "secret.txt", "token.json", "tokens.json",
+            "client_secret.json", "service-account.json",
+        }
         for part in parts:
             lowered = part.casefold()
             if (
                 lowered in blocked_parts
                 or lowered == ".env"
                 or lowered.startswith(".env.")
+                or lowered.startswith(sensitive_prefixes)
+                or lowered in sensitive_names
                 or lowered in {"id_rsa", "id_ed25519", "authorized_keys"}
                 or lowered.endswith(sensitive_suffixes)
             ):
