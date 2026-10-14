@@ -182,6 +182,8 @@ def test_chat_interface_has_sidebar_local_history_and_safe_markdown():
     assert "function openSavedConversation" in js
     assert "function startNewConversation" in js
     assert "function renderMessageMarkdown" in js
+    assert "assistantMessages.slice(-24)" in js
+    assert "slice(0, 3500)" in js
     assert "link.rel = 'noopener noreferrer'" in js
     assert ".assistant-card.has-messages .assistant-empty-state { display: none; }" in css
     assert ".chat-sidebar" in css
