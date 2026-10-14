@@ -478,3 +478,41 @@ main{padding-top:clamp(22px,3vw,36px)}.page-heading h2{letter-spacing:-.055em}.e
 @media(max-width:720px){.app-shell{padding:0 13px calc(100px + env(safe-area-inset-bottom))}.topbar{grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;padding:12px 0}.brand-lockup{min-width:0;gap:8px}.brand-copy h1{font-size:11px}.brand-copy p{letter-spacing:.1em}.brand-mark{width:28px;height:28px}.version{font-size:8px;padding:2px 5px;margin-left:0}.header-utilities{grid-column:2;grid-row:1;justify-content:flex-end}.system-clock{display:none}.command-trigger{min-width:40px;width:40px;height:40px;justify-content:center;padding:0;border-radius:13px}.command-trigger-icon{font-size:19px}.command-trigger-label,.command-trigger kbd{display:none}.connection-details{grid-column:1/-1;width:100%}.connection-details>summary{justify-content:space-between;min-height:30px}.connection-panel{grid-template-columns:minmax(0,1fr) auto;gap:8px}.connection-panel input{width:100%}.tabs{padding:8px 7px calc(8px + env(safe-area-inset-bottom));background:rgba(5,13,20,.92);border-top-color:rgba(120,202,255,.2);box-shadow:0 -12px 34px rgba(0,0,0,.48)}.tab{border-radius:13px}.tab.active{background:rgba(52,113,150,.15)}.hero-panel{border-radius:19px}.hero-grid{padding:22px 17px 10px}.hero-copy h3{font-size:clamp(28px,8vw,34px)}.orbit-visual{width:175px}.cards{gap:9px}.stat-card{min-height:110px;padding:13px;border-radius:14px}.card{padding:15px;border-radius:15px}.page-heading{align-items:flex-start}.page-heading h2{font-size:clamp(27px,8vw,34px)}.heading-meta{font-size:9px;padding-top:5px}.command-palette-backdrop{align-items:flex-end;padding:0}.command-palette{max-height:86vh;width:100%;border-radius:22px 22px 0 0;border-bottom:0;padding-bottom:env(safe-area-inset-bottom)}.command-palette-heading{padding:19px 18px 12px}.command-search-wrap{margin:0 14px 11px}.command-list{padding-inline:8px;max-height:52vh}.command-item{min-height:55px}.command-palette-footer{padding-bottom:14px}.ui-toast-stack{right:12px;bottom:calc(92px + env(safe-area-inset-bottom))}}
 @media(max-width:380px){.brand-copy p{display:none}.brand-mark{width:25px;height:25px}.connection-panel{grid-template-columns:minmax(0,1fr) auto}.command-item-copy small{font-size:9px}.page-heading{gap:8px}.heading-meta{white-space:nowrap}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* Explicit, one-run tool selection for the agent. */
+.assistant-tool-options {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(18, 27, 37, .72), rgba(10, 14, 18, .9));
+}
+.assistant-tool-options-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+.assistant-tool-options-heading strong { color: var(--text, #f5f5f5); font-size: 13px; }
+.assistant-tool-options-heading span { color: var(--muted); font-size: 11px; }
+.assistant-tool-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #303943;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, .18);
+  cursor: pointer;
+}
+.assistant-tool-option input,
+.browser-agent-option input { flex: 0 0 auto; width: 17px; height: 17px; margin: 2px 0 0; accent-color: #74c7ff; }
+.assistant-tool-option span { display: grid; gap: 4px; min-width: 0; }
+.assistant-tool-option strong { color: #e8eef4; font-size: 12px; font-weight: 600; }
+.assistant-tool-option small { color: var(--muted); font-size: 11px; line-height: 1.55; }
+.browser-native-action { align-items: stretch; flex-direction: column; justify-content: flex-start; }
+.browser-actions-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.browser-agent-option { display: flex; align-items: flex-start; gap: 9px; color: #d4dce5; font-size: 12px; line-height: 1.5; cursor: pointer; }
+.browser-agent-option span { color: #d4dce5; font-size: 12px; line-height: 1.5; }
+@media (max-width: 520px) {
+  .assistant-tool-options-heading { align-items: flex-start; flex-direction: column; }
+  .browser-actions-row > button { flex: 1 1 100%; }
+}
