@@ -163,3 +163,25 @@ def test_agent_tool_controls_have_mobile_friendly_styles():
     assert ".assistant-tool-option" in css
     assert ".browser-agent-option" in css
     assert "@media (max-width: 520px)" in css
+
+
+def test_chat_interface_has_sidebar_local_history_and_safe_markdown():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    css = Path("static/style.css").read_text(encoding="utf-8")
+    for required in (
+        'id="chat-sidebar"',
+        'id="sidebar-toggle"',
+        'id="assistant-new-chat"',
+        'id="chat-history"',
+        'id="assistant-tool-details"',
+        'placeholder="Message OMEGA…"',
+    ):
+        assert required in html
+    assert "omega-chat-history-v1" in js
+    assert "function openSavedConversation" in js
+    assert "function startNewConversation" in js
+    assert "function renderMessageMarkdown" in js
+    assert "link.rel = 'noopener noreferrer'" in js
+    assert ".assistant-card.has-messages .assistant-empty-state { display: none; }" in css
+    assert ".chat-sidebar" in css
