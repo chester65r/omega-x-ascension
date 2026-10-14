@@ -382,8 +382,21 @@ class CoreWorkflow:
         path = value.strip()
         if not path or len(path) > 240 or "\x00" in path or "\\" in path:
             raise ValueError("workspace path is invalid")
-        if path.startswith("/") or any(part == ".." for part in path.split("/")):
+        parts = path.split("/")
+        if path.startswith("/") or any(part == ".." for part in parts):
             raise ValueError("workspace path must stay inside the relative workspace")
+        blocked_parts = {".git", ".ssh", ".aws", ".config", "secrets", "credentials"}
+        sensitive_suffixes = (".pem", ".key", ".p12", ".pfx", ".jks", ".keystore")
+        for part in parts:
+            lowered = part.casefold()
+            if (
+                lowered in blocked_parts
+                or lowered == ".env"
+                or lowered.startswith(".env.")
+                or lowered in {"id_rsa", "id_ed25519", "authorized_keys"}
+                or lowered.endswith(sensitive_suffixes)
+            ):
+                raise ValueError("hidden credentials and private-key paths are not available to agent file tools")
         return path
 
     async def _workspace_file_actions(self, state: State, actions: set[str]) -> str | None:
