@@ -87,7 +87,7 @@ class BrowserTool:
                 if not original_host_is_ip:
                     # Keep TLS SNI and certificate hostname verification bound to
                     # the original hostname rather than the pinned connection IP.
-                    extensions["sni_hostname"] = original_url.host
+                    extensions["sni_hostname"] = original_url.raw_host.decode("ascii")
 
             request_kwargs = {key: value for key, value in kwargs.items() if key != "headers"}
             request = self._client.build_request(
