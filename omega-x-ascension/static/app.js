@@ -1741,8 +1741,7 @@
       }else if(event.key==='Enter'&&document.activeElement===commandSearch){const first=visibleCommandItems()[0];if(first){event.preventDefault();first.click();}}
     });
   }
-  function updateLocalClock(){const clock=$('#local-clock'),date=$('#local-date');if(!clock||!date)return;const now=new Date();clock.textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});date.textContent=now.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'}).toUpperCase();}
-  updateLocalClock();window.setInterval(updateLocalClock,15000);
+  // The chat-first header intentionally omits the legacy dashboard clock.
 
   if (window.matchMedia('(max-width: 720px)').matches && !apiBase && !token) {
     const connectionDetails = $('#connection-details');
