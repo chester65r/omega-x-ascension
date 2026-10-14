@@ -176,3 +176,141 @@ def test_agent_workflow_self_correcting_feedback_loop():
         assert result["final"] == "Final verified test result after revision"
 
     asyncio.run(check())
+
+
+def test_agent_browser_research_iterates_with_bounded_searches_and_cited_sources():
+    async def check():
+        class IterativeGateway(FakeGateway):
+            def __init__(self):
+                super().__init__()
+                self.controller_calls = 0
+
+            async def complete(self, *, system, prompt):
+                self.calls.append(system)
+                normalized = system.lower()
+                if "ceo agent" in normalized:
+                    return "CEO objective analysis"
+                if "planner agent" in normalized:
+                    return "Find current evidence and compare sources"
+                if "you are a research agent" in normalized:
+                    return "first query"
+                if "browser research controller" in normalized:
+                    self.controller_calls += 1
+                    return '{"action":"search","query":"second query"}'
+                if "assigned specialist" in normalized:
+                    return "A concrete evidence-backed solution"
+                if "critic" in normalized:
+                    return "No blocking defects in the test candidate"
+                if "judge" in normalized:
+                    return "Final answer with citations"
+                return "Unexpected role"
+
+        class IterativeBrowser:
+            def __init__(self):
+                self.queries = []
+                self.fetched = []
+
+            async def search(self, query):
+                self.queries.append(query)
+                if query == "first query":
+                    count = 3
+                    prefix = "first"
+                elif query == "second query":
+                    count = 3
+                    prefix = "second"
+                else:
+                    count = 0
+                    prefix = "unknown"
+                return {
+                    "query": query,
+                    "results": [
+                        {
+                            "title": f"{prefix.title()} source {number}",
+                            "url": f"https://{prefix}{number}.example/article",
+                            "snippet": f"Evidence snippet {number}",
+                        }
+                        for number in range(1, count + 1)
+                    ],
+                }
+
+            async def fetch(self, url):
+                self.fetched.append(url)
+                return {
+                    "url": url,
+                    "title": f"Page {url}",
+                    "text": f"Reliable source evidence from {url}.",
+                    "status": 200,
+                }
+
+        gateway = IterativeGateway()
+        browser = IterativeBrowser()
+        workflow = CoreWorkflow(
+            router=FakeRouter(gateway),
+            checkpointer=InMemorySaver(),
+            browser=browser,
+            computer=DisabledComputer(),
+        )
+        result = await workflow.run(
+            tenant_id=uuid4(),
+            run_id=uuid4(),
+            goal="Research current evidence about a fictional model",
+            task_type="research",
+            requested_actions=[],
+        )
+        assert browser.queries == ["first query", "second query"]
+        assert len(browser.fetched) == 5
+        assert "Source [1]" in result["research"]
+        assert "Source [5]" in result["research"]
+        assert "URL: https://second2.example/article" in result["research"]
+        assert "untrusted external content" in result["research"].lower()
+        assert gateway.controller_calls == 1
+
+    asyncio.run(check())
+
+
+def test_agent_browser_research_opens_user_supplied_url_safely():
+    async def check():
+        class DirectURLBrowser:
+            def __init__(self):
+                self.fetched = []
+
+            async def fetch(self, url):
+                self.fetched.append(url)
+                return {
+                    "url": url,
+                    "title": "User supplied source",
+                    "text": "This page contains the requested source text.",
+                    "status": 200,
+                }
+
+            async def search(self, query):
+                return {
+                    "query": query,
+                    "results": [
+                        {
+                            "title": "The same page",
+                            "url": "https://public.example/article",
+                            "snippet": "duplicate URL",
+                        }
+                    ],
+                }
+
+        browser = DirectURLBrowser()
+        workflow = CoreWorkflow(
+            router=FakeRouter(FakeGateway()),
+            checkpointer=InMemorySaver(),
+            browser=browser,
+            computer=DisabledComputer(),
+        )
+        result = await workflow.run(
+            tenant_id=uuid4(),
+            run_id=uuid4(),
+            goal="Summarize this source https://public.example/article",
+            task_type="research",
+            requested_actions=[],
+        )
+        assert browser.fetched == ["https://public.example/article"]
+        assert "This page contains the requested source text." in result["research"]
+        assert "https://public.example/article" in result["research"]
+
+    asyncio.run(check())
