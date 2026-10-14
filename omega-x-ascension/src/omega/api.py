@@ -36,6 +36,13 @@ def services(request: Request):
     return request.app.state.services
 
 
+def require_requested_action_scopes(actions: list[str], principal: Principal) -> None:
+    """Require explicit token scopes for privileged tool requests."""
+    normalized = {str(action).strip().casefold() for action in actions}
+    if "execute_code" in normalized:
+        principal.require({"computer:execute"})
+
+
 def view(run: WorkflowRun) -> RunView:
     return RunView(
         id=run.id,
@@ -60,6 +67,7 @@ async def create_run(
         action="runs:create",
         limit=10,
     )
+    require_requested_action_scopes(body.requested_actions, principal)
     try:
         await svc.router.select(body.task_type)
     except NoEligibleModel as exc:
