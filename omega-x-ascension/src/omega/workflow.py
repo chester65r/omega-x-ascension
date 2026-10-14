@@ -356,12 +356,16 @@ class CoreWorkflow:
         return {"solution": solution, "revision_count": current_revisions}
 
     async def executor(self, state: State) -> dict[str, str]:
-        if (
-            not self.computer
-            or not self.computer.enabled
-            or "execute_code" not in state.get("requested_actions", [])
-        ):
+        if "execute_code" not in state.get("requested_actions", []):
             return {}
+        if not self.computer or not self.computer.enabled:
+            return {
+                "computer_output": (
+                    "Computer command execution was requested, but it is disabled by server policy. "
+                    "No command was executed. Use the isolated workspace file tools where permitted, "
+                    "or ask an administrator to review sandbox isolation before enabling execution."
+                )
+            }
         try:
             plan = await self._ask(
                 "coding",
