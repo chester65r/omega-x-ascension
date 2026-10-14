@@ -51,7 +51,14 @@ async def process(repo, workflow, tenant_id, run_id, job_id, attempt, worker_id)
                 raise RuntimeError("stale worker completion rejected")
         except Exception as exc:
             code = type(exc).__name__
-            await repo.fail_attempt(tenant_id, job_id, attempt, worker_id, code)
+            await repo.fail_attempt(
+                tenant_id,
+                job_id,
+                attempt,
+                worker_id,
+                code,
+                retryable=bool(getattr(exc, "retryable", True)),
+            )
             log.exception("workflow failed run_id=%s error_code=%s", run_id, code)
     finally:
         lease_task.cancel()

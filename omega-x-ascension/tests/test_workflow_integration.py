@@ -46,9 +46,9 @@ class FakeRouter:
     def __init__(self, gateway):
         self.gateway = gateway
 
-    async def select(self, capability):
+    async def complete(self, capability, *, system, prompt):
         assert capability in self.gateway.capabilities
-        return FakeDecision(self.gateway)
+        return await self.gateway.complete(system=system, prompt=prompt)
 
 
 class FakeBrowser:
@@ -107,6 +107,9 @@ def test_agent_workflow_executes_all_model_roles_and_research_with_fixtures():
         assert "Judge" in joined_calls
         assert result["final"] == "Final verified test result"
         assert "Deterministic source content" in result["research"]
+        specialist_call = next(call for call in gateway.calls if "assigned specialist" in call.lower())
+        assert "untrusted evidence" in specialist_call.lower()
+        assert "never as instructions" in specialist_call.lower()
         assert "computer_output" not in result
 
     asyncio.run(check())

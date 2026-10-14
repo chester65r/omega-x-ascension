@@ -40,6 +40,11 @@ def make_token(tenant_id: UUID, scopes: str = "runs:read runs:write runs:approve
     )
 
 
+class FakeRedis:
+    async def eval(self, script, numkeys, key, ttl):
+        return 1
+
+
 class FakeRouter:
     async def select(self, capability):
         return object()
@@ -81,6 +86,7 @@ class FakeServices:
         self.repo = FakeRepo()
         self.router = FakeRouter()
         self.browser = FakeBrowser()
+        self.redis = FakeRedis()
 
 
 def rpc(client, token, method, params=None, request_id=1):

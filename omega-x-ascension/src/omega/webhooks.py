@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import logging
 from html import escape
 from typing import Any
@@ -13,6 +14,7 @@ from pydantic import BaseModel, Field, SecretStr
 from omega.auth import Principal, current_principal
 from omega.config import Capability, get_settings
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
+from omega.rate_limit import enforce_rate_limit
 from omega.notifications import (
     notify_approval_requested,
     notify_run_status_change,
@@ -22,6 +24,7 @@ from omega.notifications import (
 
 logger = logging.getLogger("omega.webhooks")
 router = APIRouter()
+MAX_GITHUB_WEBHOOK_BYTES = 1_000_000
 
 
 def verify_github_signature(
@@ -47,6 +50,23 @@ def verify_github_signature(
     return hmac.compare_digest(expected_sig, signature_header)
 
 
+async def read_bounded_body(request: Request, max_bytes: int = MAX_GITHUB_WEBHOOK_BYTES) -> bytes:
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > max_bytes:
+                raise HTTPException(status_code=413, detail="Webhook payload too large")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header") from exc
+
+    payload_buffer = bytearray()
+    async for chunk in request.stream():
+        payload_buffer.extend(chunk)
+        if len(payload_buffer) > max_bytes:
+            raise HTTPException(status_code=413, detail="Webhook payload too large")
+    return bytes(payload_buffer)
+
+
 def services(request: Request):
     return request.app.state.services
 
@@ -61,9 +81,9 @@ async def github_webhook(
     request: Request,
     x_github_event: str | None = Header(None, alias="X-GitHub-Event"),
     x_hub_signature_256: str | None = Header(None, alias="X-Hub-Signature-256"),
+    x_github_delivery: str | None = Header(None, alias="X-GitHub-Delivery"),
     svc=Depends(services),
 ):
-    body_bytes = await request.body()
     cfg = get_settings()
 
     if not verify_github_signature(body_bytes, x_hub_signature_256, cfg.github_webhook_secret):
@@ -73,12 +93,30 @@ async def github_webhook(
     if not x_github_event:
         raise HTTPException(status_code=400, detail="Missing X-GitHub-Event header")
 
+    # GitHub retries carry the same delivery ID; make those deliveries idempotent.
+    if x_github_delivery:
+        if len(x_github_delivery) > 100:
+            raise HTTPException(status_code=400, detail="Invalid X-GitHub-Delivery header")
+        redis = getattr(svc, "redis", None)
+        if redis is None:
+            raise HTTPException(status_code=503, detail="Webhook replay protection unavailable")
+        try:
+            first_delivery = await redis.set(
+                f"omega:webhook:github:{x_github_delivery}", "1", ex=86400, nx=True
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Webhook replay protection unavailable") from exc
+        if not first_delivery:
+            return {"status": "duplicate", "delivery_id": x_github_delivery}
+
     if x_github_event == "ping":
         return {"status": "pong", "message": "OMEGA-X Ascension GitHub webhook endpoint ready"}
 
     try:
-        payload = await request.json()
-    except Exception as exc:
+        payload = json.loads(body_bytes)
+        if not isinstance(payload, dict):
+            raise ValueError("JSON payload must be an object")
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
 
     action = payload.get("action", "")
@@ -207,6 +245,13 @@ async def test_notification(
     principal: Principal = Security(current_principal, scopes=["runs:write"]),
     svc=Depends(services),
 ):
+    await enforce_rate_limit(
+        getattr(svc, "redis", None),
+        tenant_id=principal.tenant_id,
+        user_id=principal.user_id,
+        action="notifications:test",
+        limit=3,
+    )
     cfg = get_settings()
     results = {}
 

@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
+import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
@@ -83,6 +87,53 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="OMEGA-X ASCENSION", version=__import__("omega").__version__, lifespan=lifespan)
+logger = logging.getLogger("omega.http")
+HTTP_REQUESTS = Counter("omega_http_requests_total", "HTTP requests served by OMEGA-X", ("method", "route", "status"))
+HTTP_REQUEST_DURATION = Histogram(
+    "omega_http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ("method", "route"),
+    buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
+)
+
+
+@app.middleware("http")
+async def observability_and_security_headers(request: Request, call_next):
+    request_id = uuid4().hex
+    started = time.perf_counter()
+    status_code = 500
+    response = None
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        elapsed = time.perf_counter() - started
+        route = request.scope.get("route")
+        route_name = getattr(route, "path", request.url.path)
+        HTTP_REQUESTS.labels(request.method, route_name, str(status_code)).inc()
+        HTTP_REQUEST_DURATION.labels(request.method, route_name).observe(elapsed)
+        logger.info(
+            "http_request",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "route": route_name,
+                "status_code": status_code,
+                "duration_ms": round(elapsed * 1000, 2),
+            },
+        )
+        if response is not None:
+            response.headers["X-Request-ID"] = request_id
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            # The server-side browser is intentionally embedded in a same-origin iframe;
+            # its own CSP sandbox still applies there. All other routes deny framing.
+            response.headers["X-Frame-Options"] = "SAMEORIGIN" if route_name.endswith("/browser/proxy") else "DENY"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["Permissions-Policy"] = "camera=(), geolocation=()"
+            forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+            if request.url.scheme == "https" or forwarded_proto == "https":
+                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 allowed_origins = ["https://appassets.androidplatform.net"]
 allowed_origins.extend(
     origin.strip()
@@ -181,5 +232,14 @@ async def version_info():
 
 
 @app.get("/metrics")
-async def metrics():
+async def metrics(request: Request):
+    cfg = get_settings()
+    configured_token = cfg.metrics_token.get_secret_value() if cfg.metrics_token else None
+    if cfg.env == "production" and not configured_token:
+        raise HTTPException(status_code=404, detail="not found")
+    if configured_token:
+        authorization = request.headers.get("authorization", "")
+        scheme, separator, supplied = authorization.partition(" ")
+        if not separator or scheme.casefold() != "bearer" or not supplied or not hmac.compare_digest(supplied, configured_token):
+            raise HTTPException(status_code=401, detail="metrics bearer token required", headers={"WWW-Authenticate": "Bearer"})
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
