@@ -173,7 +173,7 @@ class CoreWorkflow:
 
         # If the user supplied a URL, inspect it directly as well as doing search.
         # BrowserTool.fetch still rejects credentials, private IPs and unsafe redirects.
-        direct_urls = re.findall(r"https?://[^\s<>\\"']+", goal, flags=re.IGNORECASE)
+        direct_urls = re.findall(r'''https?://[^\s<>"']+''', goal, flags=re.IGNORECASE)
         for raw_url in direct_urls[:2]:
             if pages_attempted >= self._MAX_BROWSER_PAGES:
                 break
