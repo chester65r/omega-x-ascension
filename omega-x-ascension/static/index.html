@@ -26,7 +26,7 @@
         <div class="system-clock" aria-label="Local device time"><span class="clock-orb" aria-hidden="true"></span><div><strong id="local-clock">--:--</strong><small id="local-date">LOCAL TIME</small></div></div>
         <button class="command-trigger" id="command-trigger" type="button" aria-haspopup="dialog" aria-controls="command-palette-backdrop"><span class="command-trigger-icon" aria-hidden="true">⌘</span><span class="command-trigger-label">Quick actions</span><kbd>Ctrl K</kbd></button>
       </div>
-      <details class="connection-details" id="connection-details" open>
+      <details class="connection-details" id="connection-details">
         <summary><span class="connection-title">BACKEND CONNECTION</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
         <div class="connection-panel" aria-label="Server connection">
           <label class="sr-only" for="api-base">API server URL</label>
@@ -41,66 +41,12 @@
     </header>
 
     <nav class="tabs" aria-label="Main navigation">
-      <button class="tab active" data-tab="overview" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span>Home</span></button>
-      <button class="tab" data-tab="assistant"><span class="nav-icon" aria-hidden="true">✳</span><span>Assistant</span></button>
-      <button class="tab" data-tab="runs"><span class="nav-icon" aria-hidden="true">↗</span><span>Runs</span></button>
-      <button class="tab" data-tab="browser"><span class="nav-icon" aria-hidden="true">◎</span><span>Browser</span></button>
-      <button class="tab" data-tab="local-ai"><span class="nav-icon" aria-hidden="true">◉</span><span>Local AI</span></button>
-      <button class="tab" data-tab="agents"><span class="nav-icon" aria-hidden="true">⌘</span><span>Workspace</span></button>
-      <button class="tab" data-tab="logs"><span class="nav-icon" aria-hidden="true">≋</span><span>Logs</span></button>
-      <button class="tab" data-tab="about"><span class="nav-icon" aria-hidden="true">ⓘ</span><span>About</span></button>
+      <button class="tab active" data-tab="assistant" aria-current="page"><span class="nav-icon" aria-hidden="true">✳</span><span>Assistant</span></button>
+      <button class="tab" data-tab="tools"><span class="nav-icon" aria-hidden="true">⌘</span><span>Tools</span></button>
     </nav>
 
     <main>
-      <section id="overview" class="tab-content active" aria-labelledby="overview-title">
-        <div class="page-heading">
-          <div>
-            <p class="eyebrow">SYSTEM OVERVIEW</p>
-            <h2 id="overview-title">Control center</h2>
-            <p class="page-subtitle">Your agent workspace, at a glance.</p>
-          </div>
-          <div class="heading-meta"><span class="live-pulse"></span><span>Live system checks</span></div>
-        </div>
-
-        <section class="hero-panel" aria-label="Agent status">
-          <div class="hero-grid">
-            <div class="hero-copy">
-              <div class="hero-kicker"><span class="status-dot"></span> AUTONOMOUS WORKSPACE</div>
-              <h3>Intelligence in motion.</h3>
-              <p>Monitor your environment, launch workflows, and review agent activity from one place.</p>
-              <button class="btn btn-primary hero-action" data-go-tab="runs" type="button">Create a task <span aria-hidden="true">↗</span></button>
-            </div>
-            <div class="orbit-visual" aria-hidden="true">
-              <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
-              <div class="orbit-core"><span></span></div>
-              <i class="orbit-point point-one"></i><i class="orbit-point point-two"></i><i class="orbit-point point-three"></i>
-            </div>
-          </div>
-          <div class="hero-footer"><span>OMEGA-X AGENT SYSTEM</span><span>STATUS MONITOR <b>●</b></span></div>
-        </section>
-
-        <div class="section-heading"><div><p class="eyebrow">AT A GLANCE</p><h3>System status</h3></div><span class="muted-label">Refreshed automatically</span></div>
-        <div class="cards">
-          <div class="card stat-card" id="card-live"><div class="stat-top"><span>API liveness</span><span class="stat-symbol">◌</span></div><div class="card-value" id="health-live">--</div><p class="stat-caption" id="health-latency">Waiting for first check</p></div>
-          <div class="card stat-card" id="card-ready"><div class="stat-top"><span>System readiness</span><span class="stat-symbol">◇</span></div><div class="card-value" id="health-ready">--</div><p class="stat-caption">Database and queue</p></div>
-          <div class="card stat-card"><div class="stat-top"><span>Model providers</span><span class="stat-symbol">✳</span></div><div class="card-value" id="model-count">--</div><p class="stat-caption">Configured endpoints</p></div>
-          <div class="card stat-card"><div class="stat-top"><span>Session uptime</span><span class="stat-symbol">◷</span></div><div class="card-value" id="uptime">--</div><p class="stat-caption">Since dashboard opened</p></div>
-        </div>
-
-        <div class="overview-grid">
-          <div class="card">
-            <div class="card-heading"><div><p class="eyebrow">CONFIGURATION</p><h3>Model providers</h3></div><span class="heading-icon">✳</span></div>
-            <div id="models-list" class="models-list"><div class="empty-state">Connect to a server to inspect model status.</div></div>
-          </div>
-          <div class="card">
-            <div class="card-heading"><div><p class="eyebrow">TELEMETRY</p><h3>Live metrics</h3></div><span class="heading-icon">⌁</span></div>
-            <pre id="metrics" class="metrics-display">Waiting for server configuration.</pre>
-          </div>
-        </div>
-      </section>
-
-
-      <section id="assistant" class="tab-content" aria-labelledby="assistant-title">
+<section id="assistant" class="tab-content" aria-labelledby="assistant-title">
         <div class="page-heading">
           <div><p class="eyebrow">PERSONAL ASSISTANT</p><h2 id="assistant-title">What can I help with?</h2><p class="page-subtitle">Send a task to the configured OMEGA agent workflow and track its real result.</p></div>
           <span class="section-chip">SERVER AGENT</span>
@@ -160,144 +106,261 @@
         </div>
       </section>
 
-      <section id="runs" class="tab-content" aria-labelledby="runs-title">
-        <div class="page-heading">
-          <div><p class="eyebrow">WORKFLOW MANAGEMENT</p><h2 id="runs-title">Runs</h2><p class="page-subtitle">Create work, track execution, and inspect results.</p></div>
-          <span class="section-chip">TASK CONTROL</span>
+<section id="tools" class="tab-content" aria-labelledby="tools-title">
+      <div class="page-heading tools-page-heading">
+        <div>
+          <p class="eyebrow">TOOLS & WORKSPACE</p>
+          <h2 id="tools-title">Everything in one place</h2>
+          <p class="page-subtitle">Open a tool when you need it. Your workspace, browser, tasks, diagnostics and settings stay together here.</p>
         </div>
-        <div class="runs-layout">
-          <div class="card form-card">
-            <div class="card-heading"><div><p class="eyebrow">NEW WORKFLOW</p><h3>Create a task</h3></div><span class="heading-icon">＋</span></div>
-            <form id="create-run-form">
-              <label for="run-goal">What should the agent do?</label>
-              <textarea id="run-goal" placeholder="Describe the outcome you want..." rows="4" required></textarea>
-              <label for="run-task-type">Task category</label>
-              <select id="run-task-type">
-                <option value="reasoning">Reasoning</option><option value="coding">Coding</option><option value="mathematics">Mathematics</option><option value="planning">Planning</option><option value="analysis">Analysis</option><option value="summarization">Summarization</option><option value="research">Research</option>
-              </select>
-              <label for="run-actions">Requested actions <span class="optional">(optional, comma-separated)</span></label>
-              <input type="text" id="run-actions" placeholder="e.g. research, summarize">
-              <p class="form-hint">Actions may require approval depending on policy.</p>
-              <button type="submit" class="btn btn-primary submit-btn">Launch workflow <span aria-hidden="true">↗</span></button>
-            </form>
-          </div>
-          <div class="card list-card">
-            <div class="card-heading"><div><p class="eyebrow">ACTIVITY</p><h3>Recent runs</h3></div><button id="refresh-runs" class="icon-button" type="button" aria-label="Refresh runs" title="Refresh runs">↻</button></div>
-            <div id="runs-list" class="runs-list"><div class="empty-state">Connect to view runs.</div></div>
-          </div>
-          <div class="card detail-card">
-            <div class="card-heading"><div><p class="eyebrow">INSPECTION</p><h3>Run details</h3></div><span class="heading-icon">⌕</span></div>
-            <div id="run-detail" class="run-detail"><div class="empty-state">Select a run to inspect its status and output.</div></div>
-          </div>
+        <span class="section-chip">TOOLS HUB</span>
+      </div>
+      <div class="tools-accordion-list">
+      <details class="tool-accordion" id="tool-overview" open>
+        <summary>
+          <span class="tool-accordion-icon" aria-hidden="true">⌁</span>
+          <span class="tool-accordion-copy"><strong>System status</strong><small>Health checks, model providers and live metrics</small></span>
+          <span class="tool-accordion-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tool-accordion-body">
+          <section id="overview" class="tool-panel" aria-labelledby="overview-title">
+                  <div class="page-heading">
+                    <div>
+                      <p class="eyebrow">SYSTEM OVERVIEW</p>
+                      <h2 id="overview-title">Control center</h2>
+                      <p class="page-subtitle">Your agent workspace, at a glance.</p>
+                    </div>
+                    <div class="heading-meta"><span class="live-pulse"></span><span>Live system checks</span></div>
+                  </div>
+          
+                  <section class="hero-panel" aria-label="Agent status">
+                    <div class="hero-grid">
+                      <div class="hero-copy">
+                        <div class="hero-kicker"><span class="status-dot"></span> AUTONOMOUS WORKSPACE</div>
+                        <h3>Intelligence in motion.</h3>
+                        <p>Monitor your environment, launch workflows, and review agent activity from one place.</p>
+                        <button class="btn btn-primary hero-action" data-go-tab="runs" type="button">Create a task <span aria-hidden="true">↗</span></button>
+                      </div>
+                      <div class="orbit-visual" aria-hidden="true">
+                        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div>
+                        <div class="orbit-core"><span></span></div>
+                        <i class="orbit-point point-one"></i><i class="orbit-point point-two"></i><i class="orbit-point point-three"></i>
+                      </div>
+                    </div>
+                    <div class="hero-footer"><span>OMEGA-X AGENT SYSTEM</span><span>STATUS MONITOR <b>●</b></span></div>
+                  </section>
+          
+                  <div class="section-heading"><div><p class="eyebrow">AT A GLANCE</p><h3>System status</h3></div><span class="muted-label">Refreshed automatically</span></div>
+                  <div class="cards">
+                    <div class="card stat-card" id="card-live"><div class="stat-top"><span>API liveness</span><span class="stat-symbol">◌</span></div><div class="card-value" id="health-live">--</div><p class="stat-caption" id="health-latency">Waiting for first check</p></div>
+                    <div class="card stat-card" id="card-ready"><div class="stat-top"><span>System readiness</span><span class="stat-symbol">◇</span></div><div class="card-value" id="health-ready">--</div><p class="stat-caption">Database and queue</p></div>
+                    <div class="card stat-card"><div class="stat-top"><span>Model providers</span><span class="stat-symbol">✳</span></div><div class="card-value" id="model-count">--</div><p class="stat-caption">Configured endpoints</p></div>
+                    <div class="card stat-card"><div class="stat-top"><span>Session uptime</span><span class="stat-symbol">◷</span></div><div class="card-value" id="uptime">--</div><p class="stat-caption">Since dashboard opened</p></div>
+                  </div>
+          
+                  <div class="overview-grid">
+                    <div class="card">
+                      <div class="card-heading"><div><p class="eyebrow">CONFIGURATION</p><h3>Model providers</h3></div><span class="heading-icon">✳</span></div>
+                      <div id="models-list" class="models-list"><div class="empty-state">Connect to a server to inspect model status.</div></div>
+                    </div>
+                    <div class="card">
+                      <div class="card-heading"><div><p class="eyebrow">TELEMETRY</p><h3>Live metrics</h3></div><span class="heading-icon">⌁</span></div>
+                      <pre id="metrics" class="metrics-display">Waiting for server configuration.</pre>
+                    </div>
+                  </div>
+                </section>
         </div>
-      </section>
-
-      <section id="browser" class="tab-content" aria-labelledby="browser-title">
-        <div class="page-heading"><div><p class="eyebrow">RESEARCH TOOL</p><h2 id="browser-title">Agent browser</h2><p class="page-subtitle">Use the secure OMEGA proxy when connected, or open the full internal Android browser without a cloud server.</p></div><span class="section-chip">PROXY SESSION</span></div>
-        <div class="card browser-card">
-          <div class="browser-toolbar">
-            <button id="browser-back" class="icon-button" type="button" title="Back" aria-label="Back">←</button><button id="browser-forward" class="icon-button" type="button" title="Forward" aria-label="Forward">→</button><button id="browser-reload" class="icon-button" type="button" title="Reload" aria-label="Reload">↻</button>
-            <label class="sr-only" for="browser-url">URL or search query</label><input type="text" id="browser-url" placeholder="Enter a URL or search the web..."><button id="browser-go" class="btn btn-primary" type="button">Go <span aria-hidden="true">↗</span></button>
-          </div>
-          <div class="browser-native-action"><div class="browser-actions-row"><button id="browser-full-open" class="btn btn-quiet" type="button">Open full browser ↗</button><button id="browser-agent-research" class="btn btn-primary" type="button" title="Launch an autonomous, source-cited browser research workflow">Research with agent ↗</button></div><label class="browser-agent-option" for="browser-use-remote-mcp"><input id="browser-use-remote-mcp" type="checkbox"><span>Also request one read-only external MCP tool (requires approval)</span></label><span>Research automatically searches public pages, verifies sources, and returns a report. The agent will not log in, submit forms, send messages, or make purchases.</span></div>
-          <div class="browser-content"><iframe id="browser-frame" title="Browser page preview" sandbox="allow-scripts allow-forms"></iframe></div>
-          <div id="browser-results" class="browser-results" hidden aria-live="polite"></div>
-          <div class="browser-info"><span class="status-dot"></span><span id="browser-status">Ready — enter a URL above</span></div>
+      </details>
+      <details class="tool-accordion" id="tool-runs">
+        <summary>
+          <span class="tool-accordion-icon" aria-hidden="true">↗</span>
+          <span class="tool-accordion-copy"><strong>Tasks & approvals</strong><small>Launch workflows, review outputs and approve gated actions</small></span>
+          <span class="tool-accordion-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tool-accordion-body">
+          <section id="runs" class="tool-panel" aria-labelledby="runs-title">
+                  <div class="page-heading">
+                    <div><p class="eyebrow">WORKFLOW MANAGEMENT</p><h2 id="runs-title">Runs</h2><p class="page-subtitle">Create work, track execution, and inspect results.</p></div>
+                    <span class="section-chip">TASK CONTROL</span>
+                  </div>
+                  <div class="runs-layout">
+                    <div class="card form-card">
+                      <div class="card-heading"><div><p class="eyebrow">NEW WORKFLOW</p><h3>Create a task</h3></div><span class="heading-icon">＋</span></div>
+                      <form id="create-run-form">
+                        <label for="run-goal">What should the agent do?</label>
+                        <textarea id="run-goal" placeholder="Describe the outcome you want..." rows="4" required></textarea>
+                        <label for="run-task-type">Task category</label>
+                        <select id="run-task-type">
+                          <option value="reasoning">Reasoning</option><option value="coding">Coding</option><option value="mathematics">Mathematics</option><option value="planning">Planning</option><option value="analysis">Analysis</option><option value="summarization">Summarization</option><option value="research">Research</option>
+                        </select>
+                        <label for="run-actions">Requested actions <span class="optional">(optional, comma-separated)</span></label>
+                        <input type="text" id="run-actions" placeholder="e.g. research, summarize">
+                        <p class="form-hint">Actions may require approval depending on policy.</p>
+                        <button type="submit" class="btn btn-primary submit-btn">Launch workflow <span aria-hidden="true">↗</span></button>
+                      </form>
+                    </div>
+                    <div class="card list-card">
+                      <div class="card-heading"><div><p class="eyebrow">ACTIVITY</p><h3>Recent runs</h3></div><button id="refresh-runs" class="icon-button" type="button" aria-label="Refresh runs" title="Refresh runs">↻</button></div>
+                      <div id="runs-list" class="runs-list"><div class="empty-state">Connect to view runs.</div></div>
+                    </div>
+                    <div class="card detail-card">
+                      <div class="card-heading"><div><p class="eyebrow">INSPECTION</p><h3>Run details</h3></div><span class="heading-icon">⌕</span></div>
+                      <div id="run-detail" class="run-detail"><div class="empty-state">Select a run to inspect its status and output.</div></div>
+                    </div>
+                  </div>
+                </section>
         </div>
-      </section>
-
-      <section id="local-ai" class="tab-content" aria-labelledby="local-ai-title">
-        <div class="page-heading">
-          <div><p class="eyebrow">ON-DEVICE INFERENCE</p><h2 id="local-ai-title">Local AI</h2><p class="page-subtitle">Chat with a model running on this Android device. No cloud account or API key required.</p></div>
-          <span id="local-ai-status" class="section-chip">NOT CONNECTED</span>
+      </details>
+      <details class="tool-accordion" id="tool-browser">
+        <summary>
+          <span class="tool-accordion-icon" aria-hidden="true">◎</span>
+          <span class="tool-accordion-copy"><strong>Browser & web research</strong><small>Search pages, preview sources and run cited research</small></span>
+          <span class="tool-accordion-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tool-accordion-body">
+          <section id="browser" class="tool-panel" aria-labelledby="browser-title">
+                  <div class="page-heading"><div><p class="eyebrow">RESEARCH TOOL</p><h2 id="browser-title">Agent browser</h2><p class="page-subtitle">Use the secure OMEGA proxy when connected, or open the full internal Android browser without a cloud server.</p></div><span class="section-chip">PROXY SESSION</span></div>
+                  <div class="card browser-card">
+                    <div class="browser-toolbar">
+                      <button id="browser-back" class="icon-button" type="button" title="Back" aria-label="Back">←</button><button id="browser-forward" class="icon-button" type="button" title="Forward" aria-label="Forward">→</button><button id="browser-reload" class="icon-button" type="button" title="Reload" aria-label="Reload">↻</button>
+                      <label class="sr-only" for="browser-url">URL or search query</label><input type="text" id="browser-url" placeholder="Enter a URL or search the web..."><button id="browser-go" class="btn btn-primary" type="button">Go <span aria-hidden="true">↗</span></button>
+                    </div>
+                    <div class="browser-native-action"><div class="browser-actions-row"><button id="browser-full-open" class="btn btn-quiet" type="button">Open full browser ↗</button><button id="browser-agent-research" class="btn btn-primary" type="button" title="Launch an autonomous, source-cited browser research workflow">Research with agent ↗</button></div><label class="browser-agent-option" for="browser-use-remote-mcp"><input id="browser-use-remote-mcp" type="checkbox"><span>Also request one read-only external MCP tool (requires approval)</span></label><span>Research automatically searches public pages, verifies sources, and returns a report. The agent will not log in, submit forms, send messages, or make purchases.</span></div>
+                    <div class="browser-content"><iframe id="browser-frame" title="Browser page preview" sandbox="allow-scripts allow-forms"></iframe></div>
+                    <div id="browser-results" class="browser-results" hidden aria-live="polite"></div>
+                    <div class="browser-info"><span class="status-dot"></span><span id="browser-status">Ready — enter a URL above</span></div>
+                  </div>
+                </section>
         </div>
-        <div class="card local-ai-setup">
-          <div class="card-heading"><div><p class="eyebrow">LOCAL MODEL SERVER</p><h3>Connection</h3></div><span class="heading-icon">⌁</span></div>
-          <p class="local-ai-note">Start llama.cpp's server in Termux first. The default address is this device only.</p>
-          <label for="local-ai-url">Server URL</label>
-          <div class="local-ai-connect"><input id="local-ai-url" type="url" value="http://127.0.0.1:8080" autocomplete="url"><button id="local-ai-check" class="btn btn-primary" type="button">Test connection</button></div>
-          <p class="local-ai-note">For privacy, use a loopback address only. This mode chats with the model directly; workflow runs, browser automation, and backend persistence still require the separate OMEGA API.</p>
+      </details>
+      <details class="tool-accordion" id="tool-local-ai">
+        <summary>
+          <span class="tool-accordion-icon" aria-hidden="true">◉</span>
+          <span class="tool-accordion-copy"><strong>Local AI</strong><small>Connect to an on-device model server</small></span>
+          <span class="tool-accordion-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tool-accordion-body">
+          <section id="local-ai" class="tool-panel" aria-labelledby="local-ai-title">
+                  <div class="page-heading">
+                    <div><p class="eyebrow">ON-DEVICE INFERENCE</p><h2 id="local-ai-title">Local AI</h2><p class="page-subtitle">Chat with a model running on this Android device. No cloud account or API key required.</p></div>
+                    <span id="local-ai-status" class="section-chip">NOT CONNECTED</span>
+                  </div>
+                  <div class="card local-ai-setup">
+                    <div class="card-heading"><div><p class="eyebrow">LOCAL MODEL SERVER</p><h3>Connection</h3></div><span class="heading-icon">⌁</span></div>
+                    <p class="local-ai-note">Start llama.cpp's server in Termux first. The default address is this device only.</p>
+                    <label for="local-ai-url">Server URL</label>
+                    <div class="local-ai-connect"><input id="local-ai-url" type="url" value="http://127.0.0.1:8080" autocomplete="url"><button id="local-ai-check" class="btn btn-primary" type="button">Test connection</button></div>
+                    <p class="local-ai-note">For privacy, use a loopback address only. This mode chats with the model directly; workflow runs, browser automation, and backend persistence still require the separate OMEGA API.</p>
+                  </div>
+                  <div class="card">
+                    <div class="card-heading"><div><p class="eyebrow">PRIVATE SESSION</p><h3>Chat</h3></div><button id="local-ai-clear" class="btn btn-quiet" type="button">Clear chat</button></div>
+                    <div id="local-ai-messages" class="local-ai-messages" role="log" aria-live="polite"><div class="local-ai-welcome">Your local conversation will appear here. Messages stay in this page session.</div></div>
+                    <form id="local-ai-form" class="local-ai-form">
+                      <label class="sr-only" for="local-ai-prompt">Message for local AI</label>
+                      <textarea id="local-ai-prompt" rows="3" maxlength="1200" placeholder="اكتب رسالتك هنا… / Ask your local model (1200 characters max)" required></textarea>
+                      <button id="local-ai-send" class="btn btn-primary" type="submit">Send</button>
+                    </form>
+                  </div>
+                </section>
         </div>
-        <div class="card">
-          <div class="card-heading"><div><p class="eyebrow">PRIVATE SESSION</p><h3>Chat</h3></div><button id="local-ai-clear" class="btn btn-quiet" type="button">Clear chat</button></div>
-          <div id="local-ai-messages" class="local-ai-messages" role="log" aria-live="polite"><div class="local-ai-welcome">Your local conversation will appear here. Messages stay in this page session.</div></div>
-          <form id="local-ai-form" class="local-ai-form">
-            <label class="sr-only" for="local-ai-prompt">Message for local AI</label>
-            <textarea id="local-ai-prompt" rows="3" maxlength="1200" placeholder="اكتب رسالتك هنا… / Ask your local model (1200 characters max)" required></textarea>
-            <button id="local-ai-send" class="btn btn-primary" type="submit">Send</button>
-          </form>
+      </details>
+      <details class="tool-accordion" id="tool-agents">
+        <summary>
+          <span class="tool-accordion-icon" aria-hidden="true">⌘</span>
+          <span class="tool-accordion-copy"><strong>Workspace & computer</strong><small>Inspect agent roles, workspace files and computer capabilities</small></span>
+          <span class="tool-accordion-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tool-accordion-body">
+          <section id="agents" class="tool-panel" aria-labelledby="agents-title">
+                  <div class="page-heading"><div><p class="eyebrow">ORCHESTRATION</p><h2 id="agents-title">Agents &amp; tools</h2><p class="page-subtitle">Understand the workflow pipeline and inspect available capabilities.</p></div><span class="section-chip">MULTI-AGENT</span></div>
+                  <div class="card">
+                    <div class="card-heading"><div><p class="eyebrow">WORKFLOW</p><h3>Execution pipeline</h3></div><span class="heading-icon">⌘</span></div>
+                    <div class="workflow-graph"><div class="wf-node" data-node="ceo">CEO</div><div class="wf-arrow">→</div><div class="wf-node" data-node="planner">Planner</div><div class="wf-arrow">→</div><div class="wf-node" data-node="researcher">Researcher</div><div class="wf-arrow">→</div><div class="wf-node" data-node="specialist">Specialist</div><div class="wf-arrow">→</div><div class="wf-node" data-node="executor">Executor</div><div class="wf-arrow">→</div><div class="wf-node" data-node="critic">Critic</div><div class="wf-arrow">→</div><div class="wf-node" data-node="judge">Judge</div></div>
+                    <p class="form-hint">The pipeline shows the configured workflow roles; active states depend on runtime events.</p>
+                  </div>
+                  <div class="card">
+                    <div class="card-heading"><div><p class="eyebrow">CAPABILITIES</p><h3>Available tools</h3></div><span class="heading-icon">⊞</span></div>
+                    <div class="tools-grid">
+                      <div class="tool-card"><div class="tool-icon">◎</div><div><h4>Browser tool</h4><p>Web browsing and search for agents</p></div><ul><li>Fetch web pages</li><li>Search the web</li><li>Extract content</li></ul></div>
+                      <div class="tool-card"><div class="tool-icon">⌘</div><div><h4>Computer tool</h4><p>Command execution and file operations, when enabled by server policy.</p></div><ul><li>Execute commands</li><li>Read and write files</li><li>List directories</li></ul></div>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <div class="card computer-files-card">
+                    <div class="card-heading"><div><p class="eyebrow">ISOLATED WORKSPACE</p><h3>Files and editor</h3></div><span class="section-chip">SANDBOX</span></div>
+                    <p class="form-hint">File browsing and editing have a separate server setting (OMEGA_ENABLE_COMPUTER_FILES) and require computer:read / computer:write permissions. Files are temporary and may be cleared when the sandbox container is recreated. Shell commands are a different capability and remain disabled by default; do not enable them on a shared or internet-facing deployment until per-job isolation is added.</p>
+                    <div class="computer-files-toolbar">
+                      <label class="sr-only" for="computer-path">Workspace folder path</label>
+                      <input id="computer-path" type="text" value="." maxlength="240" placeholder="Workspace folder, e.g. .">
+                      <button id="computer-files-refresh" class="btn btn-quiet" type="button">List files</button>
+                    </div>
+                    <div class="computer-files-layout">
+                      <div id="computer-files-list" class="computer-files-list" aria-label="Workspace files"><div class="empty-state">Connect to the API and choose List files.</div></div>
+                      <div class="computer-file-editor">
+                        <label for="computer-file-editor-path">File path</label>
+                        <input id="computer-file-editor-path" type="text" maxlength="240" placeholder="notes.txt">
+                        <label for="computer-file-content">Text content (100 KB limit)</label>
+                        <textarea id="computer-file-content" rows="12" maxlength="100000" placeholder="Open a text file or create a new file by entering a path here…"></textarea>
+                        <div class="computer-file-actions"><button id="computer-file-read" class="btn btn-quiet" type="button">Open file</button><button id="computer-file-save" class="btn btn-primary" type="button">Save file</button></div>
+                        <p id="computer-file-status" class="form-hint" role="status">Requires computer:read and computer:write scopes.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-heading"><div><p class="eyebrow">AUTHORIZED EXECUTION</p><h3>Computer terminal</h3></div><span class="section-chip">POLICY CONTROLLED</span></div>
+                    <p class="form-hint">Command execution requires OMEGA_ENABLE_COMPUTER_EXECUTION=true plus a token with computer:execute and runs:approve. Keep it off on multi-tenant or internet-facing systems; the current container is resource-limited but is not a hardened per-job VM.</p>
+                    <div class="terminal"><div class="terminal-topline"><span></span><span></span><span></span><label>TERMINAL SESSION</label></div><div id="terminal-output" class="terminal-output">$ ready&#10;</div><div class="terminal-input-row"><span class="terminal-prompt">$</span><input type="text" id="terminal-input" placeholder="Enter command..." aria-label="Terminal command"><button id="terminal-run" class="btn btn-primary" type="button">Run</button></div></div>
+                  </div>
+                  <div class="card">
+                    <div class="card-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>Agent activity</h3></div><span class="heading-icon">≋</span></div>
+                    <div id="agent-log" class="agent-log"><div class="empty-state">No activity yet. Create a run to see agent activity.</div></div>
+                  </div>
+                </section>
         </div>
-      </section>
-      <section id="agents" class="tab-content" aria-labelledby="agents-title">
-        <div class="page-heading"><div><p class="eyebrow">ORCHESTRATION</p><h2 id="agents-title">Agents &amp; tools</h2><p class="page-subtitle">Understand the workflow pipeline and inspect available capabilities.</p></div><span class="section-chip">MULTI-AGENT</span></div>
-        <div class="card">
-          <div class="card-heading"><div><p class="eyebrow">WORKFLOW</p><h3>Execution pipeline</h3></div><span class="heading-icon">⌘</span></div>
-          <div class="workflow-graph"><div class="wf-node" data-node="ceo">CEO</div><div class="wf-arrow">→</div><div class="wf-node" data-node="planner">Planner</div><div class="wf-arrow">→</div><div class="wf-node" data-node="researcher">Researcher</div><div class="wf-arrow">→</div><div class="wf-node" data-node="specialist">Specialist</div><div class="wf-arrow">→</div><div class="wf-node" data-node="executor">Executor</div><div class="wf-arrow">→</div><div class="wf-node" data-node="critic">Critic</div><div class="wf-arrow">→</div><div class="wf-node" data-node="judge">Judge</div></div>
-          <p class="form-hint">The pipeline shows the configured workflow roles; active states depend on runtime events.</p>
+      </details>
+      <details class="tool-accordion" id="tool-logs">
+        <summary>
+          <span class="tool-accordion-icon" aria-hidden="true">≋</span>
+          <span class="tool-accordion-copy"><strong>Activity logs</strong><small>Review local diagnostics and tenant audit events</small></span>
+          <span class="tool-accordion-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tool-accordion-body">
+          <section id="logs" class="tool-panel" aria-labelledby="logs-title">
+                  <div class="page-heading"><div><p class="eyebrow">OBSERVABILITY</p><h2 id="logs-title">Logs</h2><p class="page-subtitle">Local app events and tenant-scoped server audit records.</p></div><span class="section-chip">DIAGNOSTICS</span></div>
+                  <div class="card">
+                    <div class="card-heading"><div><p class="eyebrow">THIS DEVICE</p><h3>Application activity</h3></div><div class="log-actions"><button id="logs-refresh" class="btn btn-quiet" type="button">Refresh</button><button id="logs-export" class="btn btn-primary" type="button">Export</button><button id="logs-clear" class="btn btn-quiet" type="button">Clear local</button></div></div>
+                    <div id="logs-list" class="log-list"><div class="empty-state">No local events recorded yet.</div></div>
+                  </div>
+                  <div class="card">
+                    <div class="card-heading"><div><p class="eyebrow">SERVER AUDIT</p><h3>Workflow events</h3></div><span class="heading-icon">≋</span></div>
+                    <p class="form-hint">Server records are read-only and limited to the connected tenant. They are not deleted when local logs are cleared.</p>
+                    <div id="server-audit-list" class="log-list"><div class="empty-state">Connect with a signed JWT carrying runs:read to load server audit records.</div></div>
+                  </div>
+                </section>
         </div>
-        <div class="card">
-          <div class="card-heading"><div><p class="eyebrow">CAPABILITIES</p><h3>Available tools</h3></div><span class="heading-icon">⊞</span></div>
-          <div class="tools-grid">
-            <div class="tool-card"><div class="tool-icon">◎</div><div><h4>Browser tool</h4><p>Web browsing and search for agents</p></div><ul><li>Fetch web pages</li><li>Search the web</li><li>Extract content</li></ul></div>
-            <div class="tool-card"><div class="tool-icon">⌘</div><div><h4>Computer tool</h4><p>Command execution and file operations, when enabled by server policy.</p></div><ul><li>Execute commands</li><li>Read and write files</li><li>List directories</li></ul></div>
-          </div>
+      </details>
+      <details class="tool-accordion" id="tool-about">
+        <summary>
+          <span class="tool-accordion-icon" aria-hidden="true">ⓘ</span>
+          <span class="tool-accordion-copy"><strong>About & device</strong><small>Version details, device information and project links</small></span>
+          <span class="tool-accordion-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="tool-accordion-body">
+          <section id="about" class="tool-panel" aria-labelledby="about-title">
+                  <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.8.1</span></div>
+                  <div class="about-hero card">
+                    <div class="about-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+                    <div><p class="eyebrow">OMEGA-X ASCENSION</p><h3>Useful automation. Verifiable status.</h3><p>The app does not pretend that cloud tasks work without a backend and an available model provider. Local AI is a separate llama.cpp server running on this device.</p></div>
+                  </div>
+                  <div class="about-grid">
+                    <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.8.1</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Requires backend URL, signed JWT, database, queue, and healthy model endpoint</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
+                    <div class="card"><p class="eyebrow">PHONE FEATURES</p><h3>Device integrations</h3><ul class="about-feature-list"><li>Native Android share sheet</li><li>System speech dictation with permission prompt</li><li>Text-to-speech through Android TTS</li><li>Short haptic feedback for task completion</li><li>Exportable diagnostics and audit logs</li></ul><p id="device-info" class="form-hint">Device details are shown only when the secure Android WebView messaging feature is available.</p><button id="about-device-refresh" class="btn btn-quiet" type="button">Read device info</button></div>
+                  </div>
+                  <div class="card about-links"><p class="eyebrow">PROJECT</p><h3>Source and checks</h3><p>Review the source code, release workflow, and automated tests in the public repository.</p><p><a href="https://github.com/chester65r/omega-x-ascension" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a></p><p><a href="https://github.com/chester65r/omega-x-ascension/actions" target="_blank" rel="noopener noreferrer">Builds and automated tests ↗</a></p><p id="about-runtime-status" class="form-hint">Runtime status has not been verified on this device yet.</p></div>
+                </section>
         </div>
-        <div class="card">
-          <div class="card computer-files-card">
-          <div class="card-heading"><div><p class="eyebrow">ISOLATED WORKSPACE</p><h3>Files and editor</h3></div><span class="section-chip">SANDBOX</span></div>
-          <p class="form-hint">File browsing and editing have a separate server setting (OMEGA_ENABLE_COMPUTER_FILES) and require computer:read / computer:write permissions. Files are temporary and may be cleared when the sandbox container is recreated. Shell commands are a different capability and remain disabled by default; do not enable them on a shared or internet-facing deployment until per-job isolation is added.</p>
-          <div class="computer-files-toolbar">
-            <label class="sr-only" for="computer-path">Workspace folder path</label>
-            <input id="computer-path" type="text" value="." maxlength="240" placeholder="Workspace folder, e.g. .">
-            <button id="computer-files-refresh" class="btn btn-quiet" type="button">List files</button>
-          </div>
-          <div class="computer-files-layout">
-            <div id="computer-files-list" class="computer-files-list" aria-label="Workspace files"><div class="empty-state">Connect to the API and choose List files.</div></div>
-            <div class="computer-file-editor">
-              <label for="computer-file-editor-path">File path</label>
-              <input id="computer-file-editor-path" type="text" maxlength="240" placeholder="notes.txt">
-              <label for="computer-file-content">Text content (100 KB limit)</label>
-              <textarea id="computer-file-content" rows="12" maxlength="100000" placeholder="Open a text file or create a new file by entering a path here…"></textarea>
-              <div class="computer-file-actions"><button id="computer-file-read" class="btn btn-quiet" type="button">Open file</button><button id="computer-file-save" class="btn btn-primary" type="button">Save file</button></div>
-              <p id="computer-file-status" class="form-hint" role="status">Requires computer:read and computer:write scopes.</p>
-            </div>
-          </div>
-        </div>
-        <div class="card-heading"><div><p class="eyebrow">AUTHORIZED EXECUTION</p><h3>Computer terminal</h3></div><span class="section-chip">POLICY CONTROLLED</span></div>
-          <p class="form-hint">Command execution requires OMEGA_ENABLE_COMPUTER_EXECUTION=true plus a token with computer:execute and runs:approve. Keep it off on multi-tenant or internet-facing systems; the current container is resource-limited but is not a hardened per-job VM.</p>
-          <div class="terminal"><div class="terminal-topline"><span></span><span></span><span></span><label>TERMINAL SESSION</label></div><div id="terminal-output" class="terminal-output">$ ready&#10;</div><div class="terminal-input-row"><span class="terminal-prompt">$</span><input type="text" id="terminal-input" placeholder="Enter command..." aria-label="Terminal command"><button id="terminal-run" class="btn btn-primary" type="button">Run</button></div></div>
-        </div>
-        <div class="card">
-          <div class="card-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h3>Agent activity</h3></div><span class="heading-icon">≋</span></div>
-          <div id="agent-log" class="agent-log"><div class="empty-state">No activity yet. Create a run to see agent activity.</div></div>
-        </div>
-      </section>
-
-      <section id="logs" class="tab-content" aria-labelledby="logs-title">
-        <div class="page-heading"><div><p class="eyebrow">OBSERVABILITY</p><h2 id="logs-title">Logs</h2><p class="page-subtitle">Local app events and tenant-scoped server audit records.</p></div><span class="section-chip">DIAGNOSTICS</span></div>
-        <div class="card">
-          <div class="card-heading"><div><p class="eyebrow">THIS DEVICE</p><h3>Application activity</h3></div><div class="log-actions"><button id="logs-refresh" class="btn btn-quiet" type="button">Refresh</button><button id="logs-export" class="btn btn-primary" type="button">Export</button><button id="logs-clear" class="btn btn-quiet" type="button">Clear local</button></div></div>
-          <div id="logs-list" class="log-list"><div class="empty-state">No local events recorded yet.</div></div>
-        </div>
-        <div class="card">
-          <div class="card-heading"><div><p class="eyebrow">SERVER AUDIT</p><h3>Workflow events</h3></div><span class="heading-icon">≋</span></div>
-          <p class="form-hint">Server records are read-only and limited to the connected tenant. They are not deleted when local logs are cleared.</p>
-          <div id="server-audit-list" class="log-list"><div class="empty-state">Connect with a signed JWT carrying runs:read to load server audit records.</div></div>
-        </div>
-      </section>
-
-      <section id="about" class="tab-content" aria-labelledby="about-title">
-        <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.8.1</span></div>
-        <div class="about-hero card">
-          <div class="about-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-          <div><p class="eyebrow">OMEGA-X ASCENSION</p><h3>Useful automation. Verifiable status.</h3><p>The app does not pretend that cloud tasks work without a backend and an available model provider. Local AI is a separate llama.cpp server running on this device.</p></div>
-        </div>
-        <div class="about-grid">
-          <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.8.1</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Requires backend URL, signed JWT, database, queue, and healthy model endpoint</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
-          <div class="card"><p class="eyebrow">PHONE FEATURES</p><h3>Device integrations</h3><ul class="about-feature-list"><li>Native Android share sheet</li><li>System speech dictation with permission prompt</li><li>Text-to-speech through Android TTS</li><li>Short haptic feedback for task completion</li><li>Exportable diagnostics and audit logs</li></ul><p id="device-info" class="form-hint">Device details are shown only when the secure Android WebView messaging feature is available.</p><button id="about-device-refresh" class="btn btn-quiet" type="button">Read device info</button></div>
-        </div>
-        <div class="card about-links"><p class="eyebrow">PROJECT</p><h3>Source and checks</h3><p>Review the source code, release workflow, and automated tests in the public repository.</p><p><a href="https://github.com/chester65r/omega-x-ascension" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a></p><p><a href="https://github.com/chester65r/omega-x-ascension/actions" target="_blank" rel="noopener noreferrer">Builds and automated tests ↗</a></p><p id="about-runtime-status" class="form-hint">Runtime status has not been verified on this device yet.</p></div>
-      </section>
+      </details>
+      </div>
+    </section>
     </main>
 
     <div class="command-palette-backdrop" id="command-palette-backdrop" hidden>
