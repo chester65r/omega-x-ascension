@@ -1421,6 +1421,7 @@
       setAssistantStatus('Run accepted · ' + String(run.id).slice(0, 8), 'success');
       addAgentLog('success', 'Assistant submitted run ' + String(run.id).slice(0, 8));
       $('#assistant-prompt').value = '';
+      $('#assistant-prompt').style.height = 'auto';
       await loadRuns();
       pollAssistantRun(run.id, responseIndex);
     } catch (error) {
@@ -1460,6 +1461,12 @@
     chatPrompt.style.height = 'auto';
     chatPrompt.style.height = Math.min(chatPrompt.scrollHeight, 180) + 'px';
   });
+  chatPrompt.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      $('#assistant-send').click();
+    }
+  });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && document.body.classList.contains('sidebar-open')) closeChatSidebar();
     const typing = event.target && (event.target.matches('input, textarea, select, [contenteditable="true"]'));
@@ -1477,6 +1484,7 @@
   document.querySelectorAll('[data-assistant-prompt]').forEach((button) => {
     button.addEventListener('click', () => {
       $('#assistant-prompt').value = button.dataset.assistantPrompt || '';
+      $('#assistant-prompt').dispatchEvent(new Event('input', { bubbles: true }));
       $('#assistant-prompt').focus();
     });
   });
