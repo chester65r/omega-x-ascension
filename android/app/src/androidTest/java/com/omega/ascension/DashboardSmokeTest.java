@@ -64,6 +64,9 @@ public class DashboardSmokeTest {
                     "document.readyState === 'complete' && " +
                     "document.title === 'OMEGA-X ASCENSION' && " +
                     "document.getElementById('assistant') !== null && " +
+                    "document.getElementById('chat-sidebar') !== null && " +
+                    "document.getElementById('assistant-new-chat') !== null && " +
+                    "document.getElementById('chat-history') !== null && " +
                     "document.getElementById('browser-results') !== null && " +
                     "document.getElementById('logs') !== null && " +
                     "document.getElementById('about') !== null";
@@ -93,6 +96,22 @@ public class DashboardSmokeTest {
                     "document.getElementById('assistant').classList.contains('active') && " +
                     "document.getElementById('assistant-form') !== null");
             assertEquals("Personal Assistant tab and form must work (actual=" + assistantWorks + ")", "true", assistantWorks);
+
+            String chatSidebarWorks = evaluate(webView,
+                    "document.getElementById('sidebar-toggle').click();" +
+                    "document.body.classList.contains('sidebar-open') && " +
+                    "!document.getElementById('sidebar-backdrop').hidden && " +
+                    "document.getElementById('sidebar-close').click();" +
+                    "!document.body.classList.contains('sidebar-open')");
+            assertEquals("Mobile sidebar must open and close without leaving an overlay (actual=" + chatSidebarWorks + ")", "true", chatSidebarWorks);
+
+            String newChatWorks = evaluate(webView,
+                    "document.getElementById('assistant-new-chat').click();" +
+                    "document.getElementById('assistant').classList.contains('active') && " +
+                    "document.getElementById('assistant-prompt').placeholder === 'Message OMEGA…' && " +
+                    "document.getElementById('assistant-messages').children.length === 0 && " +
+                    "!document.querySelector('.assistant-card').classList.contains('has-messages')");
+            assertEquals("New chat must reset the thread and keep the assistant tab active (actual=" + newChatWorks + ")", "true", newChatWorks);
 
             String browserWorks = evaluate(webView,
                     "document.querySelector('[data-command-item][data-command-tab=\\\"browser\\\"]').click();" +
