@@ -334,3 +334,109 @@ def test_requested_computer_execution_is_explicitly_reported_when_policy_disable
         assert "No command was executed." in result["computer_output"]
 
     asyncio.run(check())
+
+
+class FileToolPlanner:
+    async def complete(self, capability, *, system, prompt):
+        if "careful workspace inspection agent" in system:
+            return '{"operations":[{"type":"list_dir","path":"."},{"type":"read_file","path":"notes.txt"}]}'
+        if "authorized workspace file editor" in system:
+            return '{"operations":[{"type":"write_file","path":"notes.txt","content":"updated safely"}]}'
+        raise AssertionError(f"unexpected model call: {system[:80]}")
+
+
+class RecordingFileComputer:
+    enabled = False
+    files_enabled = True
+
+    def __init__(self):
+        self.calls = []
+        self.contents = {"notes.txt": "existing notes"}
+        self.directories = [".env", ".git", "notes.txt", "src"]
+
+    async def list_dir(self, path=".", workspace_id=None):
+        self.calls.append(("list_dir", path, workspace_id))
+        return {
+            "path": path,
+            "entries": [
+                {"name": name, "type": "dir" if name in {".git", "src"} else "file", "size": 15}
+                for name in self.directories
+            ],
+            "truncated": False,
+        }
+
+    async def read_file(self, path, workspace_id=None):
+        self.calls.append(("read_file", path, workspace_id))
+        return {"path": path, "content": self.contents[path]}
+
+    async def write_file(self, path, content, workspace_id=None):
+        self.calls.append(("write_file", path, workspace_id))
+        self.contents[path] = content
+        return {"path": path, "written": True, "bytes": len(content.encode("utf-8"))}
+
+    async def execute(self, *args, **kwargs):
+        raise AssertionError("file tooling must not execute shell commands")
+
+
+def test_workspace_file_agent_reads_tenant_workspace_without_shell():
+    async def check():
+        computer = RecordingFileComputer()
+        workflow = CoreWorkflow(
+            router=FileToolPlanner(),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        workspace = str(uuid4())
+        output = await workflow.executor({
+            "goal": "Inspect notes.txt",
+            "plan": "Read workspace notes",
+            "solution": "Inspect the existing notes",
+            "workspace_id": workspace,
+            "requested_actions": ["use_workspace_files"],
+        })
+        assert "existing notes" in output["computer_output"]
+        assert ("list_dir", ".", workspace) in computer.calls
+        assert ("read_file", "notes.txt", workspace) in computer.calls
+        assert not any(call[0] == "write_file" for call in computer.calls)
+        assert not any(call[0] == "execute" for call in computer.calls)
+        # Sensitive file names are omitted from the listing shown to the model.
+        listing_line = next(line for line in output["computer_output"].splitlines() if '"entries"' in line)
+        assert ".env" not in listing_line
+        assert ".git" not in listing_line
+
+    asyncio.run(check())
+
+
+def test_workspace_file_agent_writes_only_when_explicitly_requested():
+    async def check():
+        computer = RecordingFileComputer()
+        workflow = CoreWorkflow(
+            router=FileToolPlanner(),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        workspace = str(uuid4())
+        output = await workflow.executor({
+            "goal": "Update notes.txt",
+            "plan": "Inspect then update notes",
+            "solution": "Keep the note concise",
+            "workspace_id": workspace,
+            "requested_actions": ["use_workspace_files", "write_workspace_files"],
+        })
+        assert computer.contents["notes.txt"] == "updated safely"
+        assert ("write_file", "notes.txt", workspace) in computer.calls
+        assert '"written": true' in output["computer_output"]
+
+    asyncio.run(check())
+
+
+def test_workspace_file_agent_blocks_private_key_and_traversal_paths():
+    for path in ("../outside.txt", "/etc/passwd", ".env", "keys/client.pem", ".git/config"):
+        try:
+            CoreWorkflow._workspace_path(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"unsafe path must be rejected: {path}")
