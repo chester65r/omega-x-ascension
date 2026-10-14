@@ -1,0 +1,41 @@
+name: One-time production model inference smoke
+
+on:
+  push:
+    branches: [ops/production-readiness]
+    paths:
+      - ".github/workflows/production-model-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  real-production-inference:
+    name: One real model-backed task (quota-consuming)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OMEGA_SMOKE_CONFIRM_REAL_INFERENCE: "YES"
+      OMEGA_API_BASE_URL: "https://omega-api-production-e4ed.up.railway.app"
+      OMEGA_JWT_SECRET: ${{ secrets.OMEGA_JWT_SECRET }}
+      OMEGA_JWT_ISSUER: ${{ secrets.OMEGA_JWT_ISSUER || 'omega-x' }}
+      OMEGA_JWT_AUDIENCE: ${{ secrets.OMEGA_JWT_AUDIENCE || 'omega-x-api' }}
+      OMEGA_JWT_ALGORITHM: ${{ secrets.OMEGA_JWT_ALGORITHM || 'HS256' }}
+    steps:
+      - name: Check out exact smoke-test source
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install minimal smoke-test dependencies
+        run: python -m pip install --disable-pip-version-check httpx PyJWT
+      - name: Run one real production inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${OMEGA_JWT_SECRET:-}" ]]; then
+            echo "::error::GitHub Actions secret OMEGA_JWT_SECRET is unavailable. No inference was submitted. Do not add secret values to source or logs."
+            exit 2
+          fi
+          python omega-x-ascension/scripts/production_model_smoke.py
