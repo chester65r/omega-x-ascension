@@ -130,15 +130,21 @@ def test_optional_agent_tools_are_opt_in_and_sent_to_the_real_workflow_api():
     js = Path("static/app.js").read_text(encoding="utf-8")
     for element_id in (
         "assistant-use-remote-mcp",
+        "assistant-use-workspace-files",
+        "assistant-allow-file-edits",
         "assistant-use-computer",
         "browser-use-remote-mcp",
     ):
         assert f'id="{element_id}"' in html
     assert "actions.push('use_remote_mcp')" in js
+    assert "actions.push('use_workspace_files')" in js
+    assert "actions.push('write_workspace_files')" in js
     assert "actions.push('execute_code')" in js
     assert "requested_actions: requestedActions" in js
     # Tool choices must be one-run opt-ins, not sticky permission grants.
     assert "$('#assistant-use-remote-mcp').checked = false;" in js
+    assert "$('#assistant-use-workspace-files').checked = false;" in js
+    assert "$('#assistant-allow-file-edits').checked = false;" in js
     assert "$('#assistant-use-computer').checked = false;" in js
     assert "$('#browser-use-remote-mcp').checked = false;" in js
 
