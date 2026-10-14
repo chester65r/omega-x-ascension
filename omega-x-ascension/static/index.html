@@ -122,9 +122,17 @@
               <input id="assistant-use-remote-mcp" type="checkbox">
               <span><strong>External MCP tools</strong><small>Request one safe, read-only external tool. Requires approval and a configured MCP server.</small></span>
             </label>
+            <label class="assistant-tool-option" for="assistant-use-workspace-files">
+              <input id="assistant-use-workspace-files" type="checkbox">
+              <span><strong>Workspace file access</strong><small>Let the agent list folders and inspect files in this tenant's isolated workspace. Requires computer:read and server policy enabled.</small></span>
+            </label>
+            <label class="assistant-tool-option" for="assistant-allow-file-edits">
+              <input id="assistant-allow-file-edits" type="checkbox">
+              <span><strong>Allow workspace file edits</strong><small>Permit creating or updating workspace files for this task only. Requires approval, computer:write, and workspace file access.</small></span>
+            </label>
             <label class="assistant-tool-option" for="assistant-use-computer">
               <input id="assistant-use-computer" type="checkbox">
-              <span><strong>Computer sandbox</strong><small>Request command execution in the isolated workspace. Requires approval, computer:execute permission, and server policy enabled.</small></span>
+              <span><strong>Computer terminal (advanced)</strong><small>Request shell commands in the sandbox. Requires approval, computer:execute permission, and server policy enabled; currently disabled by default.</small></span>
             </label>
             <p class="form-hint">External content is treated as untrusted data. Actions are not executed unless the server's approval policy permits them.</p>
           </div>
