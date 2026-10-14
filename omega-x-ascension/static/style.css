@@ -787,3 +787,7 @@ body { font-size: 14px; line-height: 1.55; overscroll-behavior-y: contain; }
 @media (prefers-reduced-motion: reduce) {
   .chat-sidebar { transition: none; }
 }
+
+/* Desktop keeps the sidebar pinned; the close affordance is mobile-only. */
+@media (min-width: 721px) { .sidebar-brand-row #sidebar-close { display: none; } }
+@media (max-width: 720px) { .sidebar-brand-row #sidebar-close { display: inline-flex; } }
