@@ -399,6 +399,17 @@ class CoreWorkflow:
                 raise ValueError("hidden credentials and private-key paths are not available to agent file tools")
         return path
 
+    @classmethod
+    def _workspace_entry_visible(cls, directory: str, name: object) -> bool:
+        if not isinstance(name, str) or not name or "/" in name or "\\" in name:
+            return False
+        full_path = name if directory in {"", "."} else directory.rstrip("/") + "/" + name
+        try:
+            cls._workspace_path(full_path)
+        except ValueError:
+            return False
+        return True
+
     async def _workspace_file_actions(self, state: State, actions: set[str]) -> str | None:
         wants_files = "use_workspace_files" in actions
         wants_writes = "write_workspace_files" in actions
@@ -442,10 +453,11 @@ class CoreWorkflow:
                             "type": str(entry.get("type", ""))[:20],
                             "size": entry.get("size", 0),
                         }
-                        for entry in entries[:60]
+                        for entry in entries[:200]
                         if isinstance(entry, dict)
-                    ] if isinstance(entries, list) else []
-                    record = {"type": kind, "path": path, "entries": safe_entries, "truncated": len(entries) > 60}
+                        and self._workspace_entry_visible(path, entry.get("name"))
+                    ][:60] if isinstance(entries, list) else []
+                    record = {"type": kind, "path": path, "entries": safe_entries, "truncated": len(entries) > len(safe_entries) or len(entries) > 60}
                 elif kind == "read_file":
                     result = await self.computer.read_file(path=path, workspace_id=workspace_id)
                     content = result.get("content", "")
