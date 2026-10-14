@@ -334,3 +334,118 @@ def test_requested_computer_execution_is_explicitly_reported_when_policy_disable
         assert "No command was executed." in result["computer_output"]
 
     asyncio.run(check())
+
+
+class WorkspacePlanRouter:
+    async def complete(self, capability, *, system, prompt):
+        if "careful workspace inspection agent" in system:
+            return '{"operations":[{"type":"list_dir","path":"."},{"type":"read_file","path":"notes.txt"}]}'
+        if "authorized tenant-workspace file editor" in system:
+            return '{"operations":[{"type":"write_file","path":"notes.txt","content":"updated safely"}]}'
+        raise AssertionError(f"unexpected model call: {system[:80]}")
+
+
+class RecordingWorkspaceComputer:
+    enabled = False
+    files_enabled = True
+
+    def __init__(self):
+        self.calls = []
+        self.contents = {"notes.txt": "existing notes"}
+
+    async def list_dir(self, path=".", workspace_id=None):
+        self.calls.append(("list_dir", path, str(workspace_id)))
+        return {
+            "path": path,
+            "entries": [
+                {"name": ".env", "type": "file", "size": 20},
+                {"name": ".git", "type": "dir", "size": 0},
+                {"name": "notes.txt", "type": "file", "size": 15},
+                {"name": "src", "type": "dir", "size": 0},
+            ],
+            "truncated": False,
+        }
+
+    async def read_file(self, path, workspace_id=None):
+        self.calls.append(("read_file", path, str(workspace_id)))
+        return {"path": path, "content": self.contents[path]}
+
+    async def write_file(self, path, content, workspace_id=None):
+        self.calls.append(("write_file", path, str(workspace_id)))
+        self.contents[path] = content
+        return {"path": path, "written": True, "bytes": len(content.encode("utf-8"))}
+
+    async def execute(self, *args, **kwargs):
+        raise AssertionError("workspace file operations must never execute shell commands")
+
+
+def test_agent_workspace_file_tools_are_tenant_scoped_read_only_by_default():
+    async def check():
+        computer = RecordingWorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=WorkspacePlanRouter(),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        workspace = str(uuid4())
+        state = {
+            "goal": "Inspect the workspace notes",
+            "plan": "List workspace files and read notes.txt",
+            "solution": "Inspect existing notes",
+            "workspace_id": workspace,
+            "requested_actions": ["use_workspace_files"],
+        }
+        first = await workflow.executor(state)
+        assert "existing notes" in first["computer_output"]
+        assert first["computer_actions_completed"] is True
+        assert ("list_dir", ".", workspace) in computer.calls
+        assert ("read_file", "notes.txt", workspace) in computer.calls
+        assert not any(call[0] == "write_file" for call in computer.calls)
+        listing = next(line for line in first["computer_output"].splitlines() if '"entries"' in line)
+        assert ".env" not in listing and ".git" not in listing
+        # A critic revision must not repeat a prior tool side effect.
+        state.update(first)
+        assert await workflow.executor(state) == {}
+        assert len([call for call in computer.calls if call[0] == "list_dir"]) == 1
+
+    asyncio.run(check())
+
+
+def test_agent_workspace_edits_run_only_with_explicit_write_action():
+    async def check():
+        computer = RecordingWorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=WorkspacePlanRouter(),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        workspace = str(uuid4())
+        result = await workflow.executor({
+            "goal": "Update notes.txt",
+            "plan": "Inspect and edit the notes",
+            "solution": "Replace the note with a concise update",
+            "workspace_id": workspace,
+            "requested_actions": ["use_workspace_files", "write_workspace_files"],
+        })
+        assert computer.contents["notes.txt"] == "updated safely"
+        assert ("write_file", "notes.txt", workspace) in computer.calls
+        assert '"written": true' in result["computer_output"]
+        assert result["computer_actions_completed"] is True
+
+    asyncio.run(check())
+
+
+def test_agent_workspace_file_tools_block_traversal_hidden_and_credential_paths():
+    for path in (
+        "../outside.txt", "/etc/passwd", ".env", ".git/config",
+        "credentials.json", "secrets.yaml", "nested/client_secret.json",
+        "service-account.json", "keys/client.pem",
+    ):
+        try:
+            CoreWorkflow._workspace_path(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"unsafe workspace path must be rejected: {path}")
