@@ -67,7 +67,16 @@ class WorkflowRun:
 
 class ApprovalPolicy:
     _gated = frozenset(
-        {"deploy", "release", "delete", "rotate_secret", "modify_infrastructure", "execute_code", "use_remote_mcp"}
+        {
+            "deploy",
+            "release",
+            "delete",
+            "rotate_secret",
+            "modify_infrastructure",
+            "execute_code",
+            "use_remote_mcp",
+            "write_workspace_files",
+        }
     )
 
     def requires_approval(self, actions: set[str]) -> bool:
