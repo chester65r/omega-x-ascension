@@ -314,3 +314,23 @@ def test_agent_browser_research_opens_user_supplied_url_safely():
         assert "https://public.example/article" in result["research"]
 
     asyncio.run(check())
+
+
+def test_requested_computer_execution_is_explicitly_reported_when_policy_disables_it():
+    async def check():
+        gateway = FakeGateway()
+        workflow = CoreWorkflow(
+            router=FakeRouter(gateway),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=DisabledComputer(),
+        )
+        result = await workflow.executor({
+            "goal": "Inspect a test workspace",
+            "solution": "List the workspace files",
+            "requested_actions": ["execute_code"],
+        })
+        assert "disabled by server policy" in result["computer_output"]
+        assert "No command was executed." in result["computer_output"]
+
+    asyncio.run(check())
