@@ -449,3 +449,151 @@ def test_agent_workspace_file_tools_block_traversal_hidden_and_credential_paths(
             pass
         else:
             raise AssertionError(f"unsafe workspace path must be rejected: {path}")
+
+
+def test_workspace_file_actions_are_opt_in_tenant_scoped_and_hide_sensitive_entries():
+    async def check():
+        class WorkspaceGateway(FakeGateway):
+            capabilities = frozenset({"reasoning", "coding", "planning", "analysis", "research"})
+
+            async def complete(self, *, system, prompt):
+                if "careful workspace inspection agent" in system.lower():
+                    return json.dumps({
+                        "operations": [
+                            {"type": "list_dir", "path": "."},
+                            {"type": "read_file", "path": "README.md"},
+                        ]
+                    })
+                return await super().complete(system=system, prompt=prompt)
+
+        class WorkspaceComputer:
+            enabled = False
+            files_enabled = True
+
+            def __init__(self):
+                self.listed = []
+                self.read = []
+                self.written = []
+
+            async def list_dir(self, path=".", workspace_id=None):
+                self.listed.append((path, str(workspace_id)))
+                return {"entries": [
+                    {"name": "README.md", "type": "file", "size": 12},
+                    {"name": ".env", "type": "file", "size": 44},
+                    {"name": "token.json", "type": "file", "size": 20},
+                    {"name": "shortcut", "type": "link", "size": 0},
+                ], "truncated": False}
+
+            async def read_file(self, path, workspace_id=None):
+                self.read.append((path, str(workspace_id)))
+                return {"path": path, "content": "Safe project documentation."}
+
+            async def write_file(self, path, content, workspace_id=None):
+                self.written.append((path, content, str(workspace_id)))
+                return {"path": path, "written": True, "bytes": len(content)}
+
+        computer = WorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=FakeRouter(WorkspaceGateway()),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        tenant_id = uuid4()
+        state = {
+            "goal": "Inspect the project documentation",
+            "plan": "Review safe documentation only",
+            "solution": "Inspect README.md",
+            "workspace_id": str(tenant_id),
+        }
+
+        assert await workflow._workspace_file_actions(state, set()) is None
+        assert computer.listed == []
+        assert computer.read == []
+        assert computer.written == []
+
+        output = await workflow._workspace_file_actions(state, {"use_workspace_files"})
+        assert computer.listed == [(".", str(tenant_id))]
+        assert computer.read == [("README.md", str(tenant_id))]
+        assert computer.written == []
+        assert "Safe project documentation." in output
+        assert ".env" not in output
+        assert "token.json" not in output
+        assert "shortcut" not in output
+        assert "Safe project documentation." in output
+
+    asyncio.run(check())
+
+
+def test_workspace_file_writes_are_separate_explicit_action_and_stay_in_tenant_workspace():
+    async def check():
+        class WorkspaceGateway(FakeGateway):
+            capabilities = frozenset({"reasoning", "coding", "planning", "analysis", "research"})
+
+            async def complete(self, *, system, prompt):
+                if "careful workspace inspection agent" in system.lower():
+                    return json.dumps({
+                        "operations": [
+                            {"type": "list_dir", "path": "."},
+                            {"type": "read_file", "path": "README.md"},
+                        ]
+                    })
+                if "authorized tenant-workspace file editor" in system.lower():
+                    return json.dumps({
+                        "operations": [
+                            {"type": "write_file", "path": "summary.md", "content": "Project summary"},
+                            {"type": "write_file", "path": "../outside.txt", "content": "Blocked"},
+                            {"type": "write_file", "path": ".env", "content": "Blocked"},
+                        ]
+                    })
+                return await super().complete(system=system, prompt=prompt)
+
+        class WorkspaceComputer:
+            enabled = False
+            files_enabled = True
+
+            def __init__(self):
+                self.written = []
+
+            async def list_dir(self, path=".", workspace_id=None):
+                return {"entries": [
+                    {"name": "README.md", "type": "file", "size": 12},
+                    {"name": ".env", "type": "file", "size": 44},
+                    {"name": "shortcut", "type": "link", "size": 0},
+                ], "truncated": False}
+
+            async def read_file(self, path, workspace_id=None):
+                return {"path": path, "content": "Project documentation"}
+
+            async def write_file(self, path, content, workspace_id=None):
+                self.written.append((path, content, str(workspace_id)))
+                return {"path": path, "written": True, "bytes": len(content.encode("utf-8"))}
+
+        computer = WorkspaceComputer()
+        workflow = CoreWorkflow(
+            router=FakeRouter(WorkspaceGateway()),
+            checkpointer=InMemorySaver(),
+            browser=FakeBrowser(),
+            computer=computer,
+        )
+        tenant_id = uuid4()
+        state = {
+            "goal": "Create a summary file based on the project documentation",
+            "plan": "Inspect the README and draft a concise summary",
+            "solution": "The summary should capture the project purpose.",
+            "workspace_id": str(tenant_id),
+        }
+
+        read_only_output = await workflow._workspace_file_actions(state, {"use_workspace_files"})
+        assert "written" not in read_only_output.lower()
+        assert computer.written == []
+
+        output = await workflow._workspace_file_actions(
+            state, {"use_workspace_files", "write_workspace_files"}
+        )
+        assert computer.written == [("summary.md", "Project summary", str(tenant_id))]
+        assert "../outside.txt" not in [item[0] for item in computer.written]
+        assert ".env" not in [item[0] for item in computer.written]
+        assert "summary.md" in output
+
+    asyncio.run(check())
