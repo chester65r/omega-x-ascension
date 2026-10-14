@@ -636,6 +636,7 @@ class SqlRunRepository:
         attempt: int,
         worker_id: str,
         error_code: str,
+        retryable: bool = True,
     ) -> bool:
         async with self._tenant_session(tenant_id) as session:
             job = (
@@ -671,10 +672,11 @@ class SqlRunRepository:
             job.lease_expires_at = None
             job.updated_at = now
 
-            if job.attempt_count >= job.max_attempts:
+            if job.attempt_count >= job.max_attempts or not retryable:
                 job.status = JobStatus.DEAD_LETTER
                 run.status = RunStatus.FAILED
-                run.error = f"workflow failed after retries; reference={run.id}"
+                # Keep provider-specific error details in protected logs only.
+                run.error = f"workflow failed; reference={run.id}"
                 kind = "run.failed"
             else:
                 job.status = JobStatus.QUEUED
