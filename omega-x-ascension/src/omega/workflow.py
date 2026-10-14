@@ -122,7 +122,6 @@ class CoreWorkflow:
                     or not parsed.hostname
                     or parsed.username
                     or parsed.password
-                    or parsed.fragment and not parsed.netloc
                 ):
                     notes.append("Skipped a search result with an invalid or non-web URL.")
                     return
