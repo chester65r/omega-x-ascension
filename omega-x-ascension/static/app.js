@@ -30,7 +30,7 @@
   try {
     const saved = JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]');
     chatConversations = Array.isArray(saved)
-      ? saved.filter((item) => item && typeof item.id === 'string' && Array.isArray(item.messages)).slice(0, 40)
+      ? saved.filter((item) => item && typeof item.id === 'string' && Array.isArray(item.messages)).slice(0, 20)
       : [];
   } catch (_) { chatConversations = []; }
 
@@ -1100,7 +1100,7 @@
     const list = $('#chat-history');
     if (!list) return;
     list.replaceChildren();
-    const ordered = [...chatConversations].sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0)).slice(0, 35);
+    const ordered = [...chatConversations].sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0)).slice(0, 20);
     if (!ordered.length) {
       const empty = document.createElement('p');
       empty.className = 'chat-history-empty';
@@ -1136,9 +1136,9 @@
     }
     const firstUser = assistantMessages.find((message) => message && message.role === 'user');
     const title = String(firstUser?.content || 'New chat').trim().replace(/\s+/g, ' ').slice(0, 54) || 'New chat';
-    const snapshot = assistantMessages.slice(-80).map((message) => ({
+    const snapshot = assistantMessages.slice(-24).map((message) => ({
       role: message.role === 'user' ? 'user' : 'assistant',
-      content: String(message.content || '').slice(0, 20000)
+      content: String(message.content || '').slice(0, 3500)
     }));
     const current = chatConversations.find((chat) => chat.id === currentConversationId);
     if (current) {
