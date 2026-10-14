@@ -1,5 +1,6 @@
 import asyncio
 
+import httpx
 import pytest
 
 from omega.model_router import ModelExecutionFailed, ModelRouter
@@ -71,5 +72,41 @@ def test_model_router_reports_safe_failure_when_all_providers_fail():
         )
         with pytest.raises(ModelExecutionFailed, match="all 2 attempted model providers failed"):
             await router.complete("planning", system="s", prompt="p")
+
+    asyncio.run(check())
+
+def _status_error(status: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "https://provider.example/v1/chat/completions")
+    response = httpx.Response(status, request=request)
+    return httpx.HTTPStatusError(
+        f"provider returned HTTP {status}",
+        request=request,
+        response=response,
+    )
+
+
+def test_model_router_marks_payment_required_as_non_retryable():
+    async def check():
+        provider = FakeGateway("huggingface", 80, error=_status_error(402))
+        router = ModelRouter(FakeRegistry([provider]))
+
+        with pytest.raises(ModelExecutionFailed) as caught:
+            await router.complete("planning", system="s", prompt="p")
+
+        assert caught.value.retryable is False
+        assert provider.calls == 1
+
+    asyncio.run(check())
+
+
+def test_model_router_keeps_transient_provider_status_retryable():
+    async def check():
+        provider = FakeGateway("temporary-outage", 80, error=_status_error(503))
+        router = ModelRouter(FakeRegistry([provider]))
+
+        with pytest.raises(ModelExecutionFailed) as caught:
+            await router.complete("planning", system="s", prompt="p")
+
+        assert caught.value.retryable is True
 
     asyncio.run(check())
