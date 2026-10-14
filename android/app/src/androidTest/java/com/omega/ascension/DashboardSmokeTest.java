@@ -99,6 +99,12 @@ public class DashboardSmokeTest {
                     "document.getElementById('browser-frame') !== null");
             assertEquals("Browser tab and its results/preview containers must exist (actual=" + browserWorks + ")", "true", browserWorks);
 
+            String browserAgentResearch = evaluate(webView,
+                    "document.getElementById('browser-agent-research') !== null && " +
+                    "document.getElementById('browser-agent-research').textContent.includes('Research with agent') && " +
+                    "document.getElementById('browser-agent-research').disabled === false");
+            assertEquals("Browser tab must expose the agent research action in the bundled WebView (actual=" + browserAgentResearch + ")", "true", browserAgentResearch);
+
             String paletteOpens = evaluate(webView,
                     "document.getElementById('command-trigger').click();" +
                     "!document.getElementById('command-palette-backdrop').hidden && " +
