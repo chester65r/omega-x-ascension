@@ -147,6 +147,18 @@ public class DashboardSmokeTest {
                     "document.getElementById('tool-browser').open && " +
                     "document.getElementById('command-palette-backdrop').hidden");
             assertEquals("A command must navigate and close the palette (actual=" + paletteNavigates + ")", "true", paletteNavigates);
+
+            String allToolGroupsWork = evaluate(webView,
+                    "(() => { " +
+                    "const search = document.getElementById('command-search'); search.value = ''; search.dispatchEvent(new Event('input', {bubbles:true})); " +
+                    "const names = ['overview', 'runs', 'browser', 'local-ai', 'agents', 'logs', 'about']; " +
+                    "for (const name of names) { " +
+                    "const command = document.querySelector('[data-command-item][data-command-tab=\\\"' + name + '\\\"]'); " +
+                    "const panel = document.getElementById(name); const group = document.getElementById('tool-' + name); " +
+                    "if (!command || !panel || !group) return false; command.click(); " +
+                    "if (!document.getElementById('tools').classList.contains('active') || !panel.classList.contains('tool-panel') || !group.open) return false; " +
+                    "} return true; })()");
+            assertEquals("Every tool group must be reachable through command navigation (actual=" + allToolGroupsWork + ")", "true", allToolGroupsWork);
         }
     }
 
