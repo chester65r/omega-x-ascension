@@ -161,7 +161,10 @@ def test_direct_computer_execution_requires_explicit_scopes():
 
 def test_agent_only_executes_computer_commands_when_requested_and_approved():
     workflow = Path("src/omega/workflow.py").read_text()
-    assert '"execute_code" not in state.get("requested_actions", [])' in workflow
+    assert 'actions = {str(item).strip().casefold() for item in state.get("requested_actions", [])}' in workflow
+    assert 'if "execute_code" in actions:' in workflow
+    assert "Computer command execution was requested, but it is disabled by server policy." in workflow
+    assert "async def _workspace_file_actions" in workflow
     assert 'workspace_id=state.get("workspace_id")' in workflow
     compose = Path("docker-compose.yml").read_text()
     assert "sandbox_internal:" in compose and "internal: true" in compose
