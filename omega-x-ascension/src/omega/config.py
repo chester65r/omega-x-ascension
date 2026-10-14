@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.8-flash"
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_priority: int = Field(default=110, ge=0, le=100)
+    gemini_priority: int = Field(default=100, ge=0, le=100)
     gemini_timeout_seconds: float = Field(default=180, gt=0, le=600)
     log_level: str = "INFO"
     # Optional bearer token protecting Prometheus metrics in production.
