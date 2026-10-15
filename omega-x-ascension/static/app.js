@@ -1900,6 +1900,33 @@
   }
   renderLocalLogs();
   $('#about-runtime-status').textContent = 'Runtime connectivity has not yet been verified.';
+
+  function initializeNativeDeviceSession() {
+    if (!isNativeApp) return;
+    window.addEventListener('omega:native', (event) => {
+      const detail = event.detail || {};
+      if (detail.action !== 'stored-refresh-token') return;
+      const savedToken = String(detail.text || '');
+      if (!savedToken) {
+        deviceRefreshToken = '';
+        setConnected(false);
+        setAssistantStatus('API server configured. Connect once with a valid access token to secure this device.', 'warning');
+        return;
+      }
+      deviceRefreshToken = savedToken;
+      setAssistantStatus('Restoring your secure device session…');
+      refreshDeviceSession().then(() => {
+        setAssistantStatus('Connected securely. This device will reconnect automatically.', 'success');
+        return loadRuns();
+      }).catch((error) => failSecureSession(error));
+    });
+    setAssistantStatus('Checking secure device session…');
+    if (!nativeMessage('getStoredRefreshToken')) {
+      setAssistantStatus('Secure device storage is unavailable in this WebView. Connect again to continue.', 'warning');
+    }
+  }
+
+  initializeNativeDeviceSession();
   startPolling();
-  loadRuns();
+  if (token && !isNativeApp) loadRuns();
 })();
