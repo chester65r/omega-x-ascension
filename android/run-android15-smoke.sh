@@ -11,7 +11,7 @@ mkdir -p "$(dirname "$OUT")"
   echo "OMEGA-X Android 15 launch smoke test"
   echo "Package: $PACKAGE"
   echo "UTC: $(date -u +%FT%TZ)"
-  test -s "$APK"
+  [[ -s "$APK" ]]
   adb wait-for-device
   for attempt in $(seq 1 60); do
     boot="$(adb shell getprop sys.boot_completed | tr -d '\r')"
