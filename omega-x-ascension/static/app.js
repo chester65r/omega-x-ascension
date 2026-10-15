@@ -6,6 +6,8 @@
   const isNativeApp = Boolean(window.OmegaNative && typeof window.OmegaNative.postMessage === 'function');
   // Access JWTs are short-lived and memory-only; Android silently renews them using Keystore storage.
   let token = '';
+  // Remove any JWT left by an older build; never reuse browser-storage credentials.
+  try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}
   let deviceRefreshToken = '';
   let sessionRefreshInFlight = null;
   let tokenExpiryTimer = null;
