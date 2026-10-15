@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from omega.adapters.database import SqlRunRepository, build_engine
 from omega.adapters.models import StaticRegistry, build_gateways
 from omega.api import router
+from omega.auth_sessions import router as auth_sessions_router
 from omega.mcp import router as mcp_router
 from omega.remote_mcp import RemoteMCPClient, router as remote_mcp_router
 from omega.webhooks import router as webhooks_router
@@ -148,6 +149,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-GitHub-Event", "X-Hub-Signature-256"],
 )
 app.include_router(router, prefix="/v1")
+app.include_router(auth_sessions_router, prefix="/v1")
 app.include_router(mcp_router, prefix="/mcp")
 app.include_router(mcp_router, prefix="/v1/mcp")
 app.include_router(remote_mcp_router, prefix="/v1/integrations/mcp")
