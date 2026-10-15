@@ -113,7 +113,9 @@ jobs:
           APK="omega-x-ascension-$APP_VERSION-debug.apk"
           test -s "$APK"
           BADGING="$( "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" )"
-          grep -F "versionCode='10' versionName='$APP_VERSION'" <<< "$BADGING"
+          APP_CODE="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\1/p' android/app/build.gradle | head -n 1)"
+          test -n "$APP_CODE"
+          grep -F "versionCode='$APP_CODE' versionName='$APP_VERSION'" <<< "$BADGING"
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension.android15test'"
 
