@@ -111,6 +111,36 @@ jobs:
             echo "PostgreSQL and Key Value identity/status verified ($phase); neither resource is a deletion target."
           }
 
+          # Delete only after the canonical Railway production API is reachable and ready.
+          # These checks prevent retirement during an unnoticed production outage.
+          readonly RAILWAY_BASE_URL="https://omega-api-production-e4ed.up.railway.app"
+          for endpoint in live ready version; do
+            curl --fail --silent --show-error --connect-timeout 8 --max-time 20 \
+              --retry 3 --retry-delay 2 \
+              "$RAILWAY_BASE_URL/health/$endpoint" \
+              --output "$WORK_DIR/railway-$endpoint.json" || {
+                if [[ "$endpoint" == "version" ]]; then
+                  echo "::error::Railway health/version preflight failed at /health/$endpoint. Nothing was deleted."
+                else
+                  echo "::error::Railway health preflight failed at /health/$endpoint. Nothing was deleted."
+                fi
+                exit 1
+              }
+          done
+          jq -e '.status == "ok"' "$WORK_DIR/railway-live.json" >/dev/null || {
+            echo "::error::Railway liveness check did not report status=ok. Nothing was deleted."
+            exit 1
+          }
+          jq -e '.status == "ready"' "$WORK_DIR/railway-ready.json" >/dev/null || {
+            echo "::error::Railway readiness check did not report status=ready. Nothing was deleted."
+            exit 1
+          }
+          jq -e '.name == "OMEGA-X ASCENSION"' "$WORK_DIR/railway-version.json" >/dev/null || {
+            echo "::error::Railway API identity check failed. Nothing was deleted."
+            exit 1
+          }
+          echo "Canonical Railway API health, readiness and identity verified."
+
           # Confirm the API credential belongs to the expected Render workspace and
           # both separately managed datastores are currently available before deletion.
           service_file="$WORK_DIR/service.json"
