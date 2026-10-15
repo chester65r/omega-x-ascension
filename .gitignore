@@ -14,3 +14,9 @@ android/local.properties
 *.keystore
 *.p12
 *.pfx
+
+# Real environment files hold secrets - generate them with scripts/generate_env.py, never commit.
+# (.env.example, and the already-tracked .env.base44-defaults, are unaffected.)
+.env
+.env.local
+.env.*.local
