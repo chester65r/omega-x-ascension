@@ -210,6 +210,9 @@ def test_dashboard_hides_manual_api_url_and_jwt_but_keeps_secure_device_enrollme
     assert "await saveRefreshTokenForDevice(refreshToken)" in js
     assert "sessionStorage.setItem('omega-jwt'" not in js
     assert "localStorage.setItem('omega-api-base'" not in js
+    assert "try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}" in js
+    for stale_prompt in ("Connect with a signed JWT", "Save your API server URL", "Backend Connection"):
+        assert stale_prompt not in js
 
 
 def test_device_bootstrap_persists_refresh_credential_before_authenticated_probe():
