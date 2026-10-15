@@ -1155,3 +1155,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 @media (max-width: 720px) {
   .chat-disclaimer { font-size: 9px; margin-top: 2px; }
 }
+
+/* Keep the unused message viewport out of the welcome layout until a chat starts. */
+.assistant-card:not(.has-messages) .assistant-messages { display: none; }
+.assistant-card.has-messages .assistant-messages { display: flex; }
