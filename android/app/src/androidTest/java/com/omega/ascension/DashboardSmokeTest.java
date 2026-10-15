@@ -130,6 +130,7 @@ public class DashboardSmokeTest {
             assertEquals("Browser tab must expose the agent research action in the bundled WebView (actual=" + browserAgentResearch + ")", "true", browserAgentResearch);
 
             String paletteOpens = evaluate(webView,
+                    "document.getElementById('sidebar-toggle').click();" +
                     "document.getElementById('command-trigger').click();" +
                     "!document.getElementById('command-palette-backdrop').hidden && " +
                     "document.activeElement.id === 'command-search'");
