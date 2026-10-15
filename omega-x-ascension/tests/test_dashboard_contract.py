@@ -199,3 +199,10 @@ def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment
     assert "persistRefreshTokenForDevice(refreshToken)" in js
     assert "getStoredRefreshToken" in js
     assert "Enter setup key or signed JWT once" in html
+
+
+
+def test_dashboard_initially_exposes_the_assistant_tab_before_javascript_runs():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    assert '<button class="tab active" data-tab="assistant"' in html
+    assert '<section id="assistant" class="tab-content active"' in html
