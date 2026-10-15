@@ -54,4 +54,4 @@ python -m pip install -e ".[dev]"
 python -m compileall -q src scripts tests
 pytest -q
 ```
-For the container stack, use the current `docker-compose.yml` and documented integration overlay; inspect `docs/DEPLOYMENT.md` for setup and live-validation steps. Do not assume legacy Base44/Render/Ollama defaults represent current production configuration.
+For local container testing, use `omega-x-ascension/docker-compose.yml` and its documented integration overlay; inspect `omega-x-ascension/docs/DEPLOYMENT.md` for setup and live-validation steps. The local-model profile is optional and separate from the Railway production provider.
