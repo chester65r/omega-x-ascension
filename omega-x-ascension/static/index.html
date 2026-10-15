@@ -44,6 +44,7 @@
         <div class="session-status-wrap" aria-label="Secure cloud session">
           <span class="connection-title">CLOUD SESSION</span>
           <span id="conn-status" class="status-badge disconnected" role="status"><span class="status-dot"></span> Checking…</span>
+          <button id="device-enrollment-open" class="btn btn-quiet" type="button" hidden>Enroll device</button>
           <button id="session-signout" class="btn btn-quiet" type="button" hidden>Sign out</button>
         </div>
       </div>
@@ -379,6 +380,22 @@
     </section>
     </main>
 
+    <div class="enrollment-backdrop" id="device-enrollment-backdrop" hidden>
+      <section class="enrollment-dialog" role="dialog" aria-modal="true" aria-labelledby="device-enrollment-title">
+        <div class="command-palette-heading">
+          <div><p class="eyebrow">SECURE DEVICE ENROLLMENT</p><h2 id="device-enrollment-title">Secure this device</h2></div>
+          <button id="device-enrollment-close" class="command-close" type="button" aria-label="Close device enrollment">×</button>
+        </div>
+        <p class="enrollment-description">Only a device without a saved secure session needs this step. Enter the one-time owner setup key. The API address is already configured, and no JWT is displayed or stored in the page.</p>
+        <label for="device-enrollment-key">One-time owner setup key</label>
+        <input id="device-enrollment-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="4096" placeholder="Enter the one-time setup key">
+        <div class="enrollment-actions">
+          <button id="device-enrollment-cancel" class="btn btn-quiet" type="button">Not now</button>
+          <button id="device-enrollment-submit" class="btn btn-primary" type="button">Secure device</button>
+        </div>
+        <p id="device-enrollment-status" class="form-hint" role="status">The key is used once and is not saved by the app.</p>
+      </section>
+    </div>
     <div class="command-palette-backdrop" id="command-palette-backdrop" hidden>
       <section class="command-palette" id="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
         <div class="command-palette-heading"><div><p class="eyebrow">OMEGA-X / COMMAND</p><h2 id="command-title">Where to next?</h2></div><button class="command-close" id="command-close" type="button" aria-label="Close command palette">×</button></div>
