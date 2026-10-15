@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 import ctypes
 import os
-from pathlib import Path
 import secrets
 import signal
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -15,7 +15,9 @@ MAX_OUTPUT_BYTES = 16_000
 MAX_FILE_BYTES = 100_000
 MAX_DIRECTORY_ENTRIES = 200
 WORKSPACE_ROOT = Path(os.environ.get("OMEGA_SANDBOX_WORKSPACE", "/workspace")).resolve()
-app = FastAPI(title="OMEGA isolated computer sandbox", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(
+    title="OMEGA isolated computer sandbox", docs_url=None, redoc_url=None, openapi_url=None
+)
 
 
 class WorkspaceInput(BaseModel):
@@ -142,19 +144,23 @@ class SandboxRuntime:
                     pass
                 try:
                     await asyncio.wait_for(proc.wait(), timeout=2)
-                except (asyncio.TimeoutError, ProcessLookupError):
+                except (TimeoutError, ProcessLookupError):
                     proc.kill()
             for task in (overflow_task, wait_task, stdout_task, stderr_task):
                 if not task.done():
                     task.cancel()
-            await asyncio.gather(overflow_task, wait_task, stdout_task, stderr_task, return_exceptions=True)
+            await asyncio.gather(
+                overflow_task, wait_task, stdout_task, stderr_task, return_exceptions=True
+            )
 
     def list_dir(self, workspace_id: UUID | str, path: str = ".") -> dict:
         target = self.resolve_path(workspace_id, path)
         if not target.is_dir():
             raise ValueError("path is not a directory")
         entries = []
-        for entry in sorted(target.iterdir(), key=lambda item: item.name.casefold())[:MAX_DIRECTORY_ENTRIES]:
+        for entry in sorted(target.iterdir(), key=lambda item: item.name.casefold())[
+            :MAX_DIRECTORY_ENTRIES
+        ]:
             if entry.is_symlink():
                 kind, size = "link", 0
             elif entry.is_dir():
@@ -165,7 +171,11 @@ class SandboxRuntime:
                 except OSError:
                     kind, size = "file", 0
             entries.append({"name": entry.name, "type": kind, "size": size})
-        return {"path": path, "entries": entries, "truncated": len(entries) == MAX_DIRECTORY_ENTRIES}
+        return {
+            "path": path,
+            "entries": entries,
+            "truncated": len(entries) == MAX_DIRECTORY_ENTRIES,
+        }
 
     def read_file(self, workspace_id: UUID | str, path: str) -> dict:
         target = self.resolve_path(workspace_id, path)
@@ -193,6 +203,7 @@ def get_runtime() -> SandboxRuntime:
     if runtime is None:
         runtime = SandboxRuntime()
     return runtime
+
 
 async def require_shared_token(
     request: Request,

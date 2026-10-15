@@ -4,13 +4,19 @@ import argparse
 import getpass
 import json
 import os
-from pathlib import Path
 import re
 import tempfile
+from pathlib import Path
 from urllib.parse import urlparse
 
 DEFAULT_CAPABILITIES = [
-    "reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"
+    "reasoning",
+    "coding",
+    "mathematics",
+    "planning",
+    "analysis",
+    "summarization",
+    "research",
 ]
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "ollama", "host.docker.internal"}
 
@@ -43,9 +49,15 @@ def update_env(path: Path, provider: dict) -> None:
             raise ValueError("OMEGA_MODEL_PROVIDERS must contain valid JSON.") from exc
         if not isinstance(current, list):
             raise ValueError("OMEGA_MODEL_PROVIDERS must be a JSON array.")
-    current = [item for item in current if not (isinstance(item, dict) and item.get("name") == provider["name"])]
+    current = [
+        item
+        for item in current
+        if not (isinstance(item, dict) and item.get("name") == provider["name"])
+    ]
     current.append(provider)
-    assignment = "OMEGA_MODEL_PROVIDERS=" + json.dumps(current, separators=(",", ":"), ensure_ascii=False)
+    assignment = "OMEGA_MODEL_PROVIDERS=" + json.dumps(
+        current, separators=(",", ":"), ensure_ascii=False
+    )
     if matches:
         lines[matches[0]] = assignment
     else:
@@ -66,7 +78,9 @@ def update_env(path: Path, provider: dict) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Safely add or replace an OpenAI-compatible model provider in .env.")
+    parser = argparse.ArgumentParser(
+        description="Safely add or replace an OpenAI-compatible model provider in .env."
+    )
     parser.add_argument("--env-file", default=".env")
     parser.add_argument("--name", default="")
     parser.add_argument("--base-url", default="")
@@ -77,7 +91,10 @@ def main() -> None:
     name = args.name.strip() or input("Provider name (e.g. openai, local-ollama): ").strip()
     if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name):
         parser.error("provider name must use only letters, numbers, dot, underscore, or dash")
-    raw_url = args.base_url.strip() or input("OpenAI-compatible base URL (including /v1 if required): ").strip()
+    raw_url = (
+        args.base_url.strip()
+        or input("OpenAI-compatible base URL (including /v1 if required): ").strip()
+    )
     try:
         base_url = validate_base_url(raw_url)
     except ValueError as exc:
@@ -87,16 +104,22 @@ def main() -> None:
         parser.error("model ID is required and must be 200 characters or fewer")
     host = urlparse(base_url).hostname
     if urlparse(base_url).scheme == "http" and host in LOCAL_HOSTS:
-        api_key = getpass.getpass("Local endpoint API key (blank uses 'local'): ").strip() or "local"
+        api_key = (
+            getpass.getpass("Local endpoint API key (blank uses 'local'): ").strip() or "local"
+        )
     else:
         api_key = getpass.getpass("Provider API key (input hidden): ").strip()
         if not api_key:
             parser.error("API key is required for a remote provider")
 
-    capabilities = sorted(set(item.strip() for item in args.capabilities.split(",") if item.strip()))
+    capabilities = sorted(
+        set(item.strip() for item in args.capabilities.split(",") if item.strip())
+    )
     unknown = set(capabilities) - set(DEFAULT_CAPABILITIES)
     if not capabilities or unknown:
-        parser.error("capabilities must be a comma-separated subset of: " + ", ".join(DEFAULT_CAPABILITIES))
+        parser.error(
+            "capabilities must be a comma-separated subset of: " + ", ".join(DEFAULT_CAPABILITIES)
+        )
     provider = {
         "name": name,
         "base_url": base_url,

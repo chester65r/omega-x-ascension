@@ -1,5 +1,7 @@
 from uuid import uuid4
+
 from omega.domain import WorkflowRun
+
 
 def test_run_requires_explicit_tenant_and_actor():
     tenant_id = uuid4()
