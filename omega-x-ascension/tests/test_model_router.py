@@ -49,6 +49,22 @@ def test_model_router_falls_back_to_next_healthy_provider():
     asyncio.run(check())
 
 
+def test_model_router_falls_through_multiple_provider_failures():
+    async def check():
+        primary = FakeGateway("primary", 100, error=TimeoutError("primary timeout"))
+        secondary = FakeGateway("secondary", 90, error=ConnectionError("secondary unavailable"))
+        tertiary = FakeGateway("tertiary", 80, error=TimeoutError("tertiary timeout"))
+        final_fallback = FakeGateway("final-fallback", 70, result="result from fourth provider")
+        router = ModelRouter(FakeRegistry([primary, secondary, tertiary, final_fallback]))
+
+        result = await router.complete("planning", system="system", prompt="prompt")
+
+        assert result == "result from fourth provider"
+        assert [g.calls for g in (primary, secondary, tertiary, final_fallback)] == [1, 1, 1, 1]
+
+    asyncio.run(check())
+
+
 def test_model_router_rejects_empty_completion_and_tries_fallback():
     async def check():
         primary = FakeGateway("primary", 100, result="  ")
