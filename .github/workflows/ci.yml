@@ -108,6 +108,9 @@ jobs:
       - name: Run API-to-worker end-to-end test
         run: python scripts/integration_smoke.py
 
+      - name: Verify sandbox health and tenant-scoped workspace file operations
+        run: docker compose -f docker-compose.yml -f docker-compose.integration.yml exec -T api python scripts/smoke_sandbox.py
+
       - name: Collect full-stack logs on failure
         if: failure()
         run: |
