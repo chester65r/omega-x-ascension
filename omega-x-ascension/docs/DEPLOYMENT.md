@@ -10,6 +10,18 @@ GitHub Actions usage for this public repository does not require a separate host
 
 This repository can be built, but live AI inference requires an actual provider endpoint and credentials. Do not commit secrets or paste them into chat.
 
+## Optional additional hosted model providers
+
+The API supports several optional model backends with server-side API keys. To enable one, add its key in Railway `Omega API` service Variables and keep the matching model/base URL/priority values as needed. Restart/redeploy the API so the API and embedded worker read the same configuration:
+
+- `OMEGA_GEMINI_API_KEY` — direct Google Gemini API; default model `gemini-3.8-flash`.
+- `OMEGA_OPENROUTER_API_KEY` — OpenRouter's OpenAI-compatible API; default model `google/gemini-3.8-flash`.
+- `OMEGA_DEEPSEEK_API_KEY` — DeepSeek's OpenAI-compatible API; default model `deepseek-flash`.
+- `OMEGA_GROQ_API_KEY` — Groq's OpenAI-compatible API; default model `qwen/qwen3.8-27b`.
+- Existing optional keys: `OMEGA_OPENAI_API_KEY` and `OMEGA_HF_INFERENCE_TOKEN`.
+
+Missing or blank keys do not create fake providers. Provider keys are never sent to Android or displayed in the dashboard. Verify live provider status with `GET /health/models`, then run an actual low-risk generation test; a passing health check alone does not prove inference works. Models and availability can change at each provider, so override the model setting when needed.
+
 ## Hosted Hugging Face model on Railway
 
 The current cloud API is deployed on Railway. Configure the API service with `OMEGA_HF_INFERENCE_BASE_URL`, `OMEGA_HF_INFERENCE_MODEL`, `OMEGA_HF_INFERENCE_PRIORITY`, and the secret `OMEGA_HF_INFERENCE_TOKEN`. The current project configuration uses `https://router.huggingface.co/v1` and `Qwen/Qwen3-4B:featherless-ai`. Store the token only in Railway Variables, give it only the inference permission it needs, and never commit or paste it into chat.
@@ -29,11 +41,13 @@ Hugging Face hosted inference is not unlimited free hosting. Free allowance and 
 7. Run `docker compose exec api python scripts/verify_model_provider.py`. This performs an actual routed chat completion and fails on an unhealthy or empty response; unlike `/health/models`, it verifies generation rather than just the provider's models endpoint.
 8. Finally, create a low-risk API task and verify a successful persisted run with non-empty output. The CI fixture-model test validates application flow but is not proof that your live provider account has quota or can serve your chosen model.
 
-## Connect the dashboard
+## Automatic Android cloud session
 
-The dashboard requires a reachable API base URL and a valid signed JWT. Use the repository's `scripts/issue_token.py` from inside `omega-x-ascension/` after configuring `.env`. Keep tokens private and short-lived. The default token lifetime is 60 minutes.
+The installed Android app is preconfigured to use the production Railway API origin. It automatically looks for the device refresh credential in Android Keystore, exchanges it for a short-lived access token, and refreshes that access token before expiry. The access token stays in memory; the long-lived refresh credential is encrypted with an Android Keystore key. The app UI does not ask users to enter an API URL or JWT.
 
-Use a private LAN address only on a trusted network, or a properly configured HTTPS domain for remote access. The Compose API port is bound to loopback by default. Do not expose the API directly to the public internet; put it behind a TLS reverse proxy and firewall.
+A device that already completed secure enrollment reconnects automatically after each app launch. If Android secure storage has no enrolled credential or the refresh credential has expired or been revoked, cloud tasks remain disabled until an owner-authorized enrollment is completed. Do not embed `OMEGA_TOKEN_BOOTSTRAP_SECRET`, a JWT signing secret, a provider key, or a long-lived token into the APK. Do not weaken the bootstrap check to anonymous enrollment: the API is multi-tenant and anonymous enrollment would grant unauthorized access.
+
+The browser dashboard still performs read-only public health checks against the configured endpoint, but it does not accept or persist a manually supplied JWT. Cloud agent actions require the enrolled Android device session.
 
 ## Webhook and token security
 
