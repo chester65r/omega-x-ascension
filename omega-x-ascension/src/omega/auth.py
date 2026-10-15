@@ -45,6 +45,8 @@ class TokenVerifier:
                 audience=self._audience,
                 options={"require": ["exp", "iat", "sub", "tenant_id", "iss", "aud"]},
             )
+            if claims.get("token_use") == "device_refresh":
+                raise InvalidTokenError("device refresh tokens cannot access API resources")
             tenant_id = UUID(str(claims["tenant_id"]))
             raw_scopes = claims.get("scope", "")
             scopes = frozenset(str(raw_scopes).split())
