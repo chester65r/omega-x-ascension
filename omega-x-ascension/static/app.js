@@ -647,14 +647,25 @@
   }
 
   async function loadMetrics() {
+    if (!apiBase) {
+      $('#metrics').textContent = 'Save your API server URL to view metrics.';
+      return;
+    }
     try {
       const res = await apiFetch('/metrics');
+      // Production intentionally hides Prometheus metrics unless a metrics token is configured.
+      // A hidden/restricted metrics endpoint is not evidence that the API connection is broken.
+      if (res.status === 404 || res.status === 401 || res.status === 403) {
+        $('#metrics').textContent = 'Metrics are hidden or restricted on this production deployment. API health and model status are checked separately.';
+        return;
+      }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const content = await res.text();
       const lines = content.split('\n').filter((line) => line && !line.startsWith('#')).slice(0, 30);
       $('#metrics').textContent = lines.length ? lines.join('\n') : 'No metrics reported yet.';
-    } catch {
-      $('#metrics').textContent = apiBase ? 'Metrics unavailable. Verify the server connection.' : 'Save your API server URL to view metrics.';
+    } catch (error) {
+      const detail = error && error.message ? ' (' + String(error.message).slice(0, 80) + ')' : '';
+      $('#metrics').textContent = 'Metrics request failed. Check server connectivity' + detail + '.';
     }
   }
 
