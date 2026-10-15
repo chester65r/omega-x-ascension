@@ -153,6 +153,15 @@
     return waitForNativeReply('refresh-token-stored', 'storeRefreshToken', { token: refreshToken });
   }
 
+  async function saveRefreshTokenForDevice(refreshToken) {
+    if (!isNativeApp || !refreshToken) return false;
+    let saved = await persistRefreshTokenForDevice(String(refreshToken));
+    // Android may commit the ciphertext even if its acknowledgement is missed.
+    if (!saved) saved = await persistRefreshTokenForDevice(String(refreshToken));
+    if (saved) deviceRefreshToken = String(refreshToken);
+    return saved;
+  }
+
   function clearRefreshTokenOnDevice() {
     if (isNativeApp) nativeMessage('clearStoredRefreshToken');
   }
@@ -386,10 +395,7 @@
       alert('This access token has expired. Generate a new token and try again.');
       return;
     }
-    if (!apiBase) {
-      alert('Save your API server URL first.');
-      return;
-    }
+    if (!apiBase) { alert('Save your API server URL first.'); return; }
     const isSetupKey = candidate.split('.').length !== 3;
     if (isSetupKey && !isNativeApp) {
       alert('The one-time setup key is for enrolling the installed Android app. Use a signed JWT for browser-only access.');
@@ -398,7 +404,9 @@
     const button = $('#connect-btn');
     button.disabled = true;
     button.textContent = 'Securing…';
-    let issuedRefreshToken = '';
+    let bootstrapRefreshToken = '';
+    let setupKeyConsumed = false;
+    let refreshCredentialStored = false;
     try {
       if (isSetupKey) {
         const bootstrapResponse = await apiFetch('/v1/auth/bootstrap', {
@@ -414,28 +422,53 @@
         if (!bootstrapData.access_token || !bootstrapData.refresh_token) {
           throw new Error('The server returned an incomplete device session.');
         }
+        // Bootstrap is one-use: persist the refresh credential before any other network request.
+        setupKeyConsumed = true;
         token = String(bootstrapData.access_token);
-        issuedRefreshToken = String(bootstrapData.refresh_token);
+        bootstrapRefreshToken = String(bootstrapData.refresh_token);
+        refreshCredentialStored = await saveRefreshTokenForDevice(bootstrapRefreshToken);
         $('#jwt-token').value = '';
+        if (!refreshCredentialStored) addAgentLog('warning', 'Android did not confirm secure storage yet; connection setup will retry it.');
       } else {
         token = candidate;
       }
 
       await api('/v1/runs?limit=1');
       if (isNativeApp) {
-        let refreshToken = issuedRefreshToken;
+        let refreshToken = bootstrapRefreshToken;
         if (!refreshToken) {
           const enrollmentResponse = await api('/v1/auth/device', { method: 'POST' });
+          if (!enrollmentResponse.ok) {
+            const body = await enrollmentResponse.text();
+            throw new Error('Device enrollment failed (' + enrollmentResponse.status + '). ' + body.slice(0, 180));
+          }
           const enrolled = await enrollmentResponse.json();
           refreshToken = String(enrolled.refresh_token || '');
         }
         if (!refreshToken) throw new Error('The server did not issue a device session.');
-        const stored = await persistRefreshTokenForDevice(refreshToken);
-        if (!stored) throw new Error('Android secure storage did not confirm saving the device session.');
-        deviceRefreshToken = refreshToken;
-        $('#jwt-token').value = '';
-        sessionStorage.removeItem('omega-jwt');
-        setAssistantStatus('Connected. This device is saved securely and will reconnect automatically.', 'success');
+        if (!refreshCredentialStored) refreshCredentialStored = await saveRefreshTokenForDevice(refreshToken);
+        if (!refreshCredentialStored && bootstrapRefreshToken) {
+          // A normal device-session exchange gives the Keystore bridge another recovery path.
+          const enrollmentResponse = await api('/v1/auth/device', { method: 'POST' });
+          if (enrollmentResponse.ok) {
+            const enrolled = await enrollmentResponse.json();
+            const replacementToken = String(enrolled.refresh_token || '');
+            if (replacementToken && await saveRefreshTokenForDevice(replacementToken)) {
+              refreshToken = replacementToken;
+              refreshCredentialStored = true;
+            }
+          }
+        }
+        if (refreshCredentialStored) {
+          deviceRefreshToken = refreshToken;
+          $('#jwt-token').value = '';
+          sessionStorage.removeItem('omega-jwt');
+          setAssistantStatus('Connected. This device is saved securely and will reconnect automatically.', 'success');
+        } else {
+          deviceRefreshToken = '';
+          setAssistantStatus('Connected for this session only. Android did not confirm secure session storage; avoid closing the app until this is resolved.', 'warning');
+          addAgentLog('warning', 'API access works, but persistent Android secure-session storage was not confirmed.');
+        }
       } else {
         sessionStorage.setItem('omega-jwt', token);
       }
@@ -443,21 +476,46 @@
       scheduleTokenExpiry(readTokenExpiry(token) || candidateExpiry || (Date.now() + 3600000));
       startPolling();
       await loadRuns();
-      addAgentLog('success', isNativeApp ? 'API verified; encrypted device session saved.' : 'API token verified for this page session.');
+      addAgentLog('success', isNativeApp && refreshCredentialStored
+        ? 'API verified; encrypted device session saved.'
+        : (isNativeApp ? 'API verified for this session; persistent device storage needs attention.' : 'API token verified for this page session.'));
     } catch (error) {
-      if (isNativeApp) {
-        token = '';
-        deviceRefreshToken = '';
-        clearRefreshTokenOnDevice();
+      // A final Keystore write can recover a delayed acknowledgement. Never erase a confirmed saved credential.
+      if (isNativeApp && !refreshCredentialStored && bootstrapRefreshToken) {
+        try { refreshCredentialStored = await saveRefreshTokenForDevice(bootstrapRefreshToken); }
+        catch (_) { refreshCredentialStored = false; }
       }
-      clearSession();
-      alert('Connection failed. Verify the API URL, one-time setup key or access token, and runs:read scope. ' + (error.message || ''));
+      if (isNativeApp && refreshCredentialStored && deviceRefreshToken) {
+        token = '';
+        sessionStorage.removeItem('omega-jwt');
+        clearSession();
+        const setupInput = $('#jwt-token');
+        const connectButton = $('#connect-btn');
+        if (setupInput) setupInput.hidden = true;
+        if (connectButton) connectButton.hidden = true;
+        const disconnect = $('#disconnect-btn');
+        if (disconnect) disconnect.hidden = false;
+        setAssistantStatus('Your device session is saved securely, but the server did not finish responding. Close and reopen OMEGA-X to retry automatically.', 'warning');
+        addAgentLog('warning', 'Connection verification failed after secure device enrollment; the saved refresh credential was retained for automatic recovery.');
+        alert('The device session was saved securely, but connection verification failed. Close and reopen OMEGA-X; it will retry using the saved session. ' + (error.message || ''));
+      } else {
+        if (isNativeApp) {
+          token = '';
+          deviceRefreshToken = '';
+          // If setup was consumed but storage was not confirmed, leave any uncertain device value untouched.
+          if (!setupKeyConsumed) clearRefreshTokenOnDevice();
+        }
+        clearSession();
+        const detail = setupKeyConsumed
+          ? ' The one-time setup key has been consumed. Android did not confirm a persistent session, so a new setup key may be required.'
+          : '';
+        alert('Connection failed. Verify the API URL, one-time setup key or access token, and runs:read scope. ' + (error.message || '') + detail);
+      }
     } finally {
       button.disabled = false;
       button.textContent = 'Connect once';
     }
   });
-
   function authHeaders() {
     return token ? { Authorization: 'Bearer ' + token } : {};
   }

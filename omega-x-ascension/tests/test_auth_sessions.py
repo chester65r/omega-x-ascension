@@ -158,3 +158,26 @@ def test_one_time_bootstrap_issues_scoped_access_and_refresh_tokens(monkeypatch)
         headers={"X-OMEGA-BOOTSTRAP-SECRET": Config.token_bootstrap_secret.get_secret_value()},
     )
     assert reused.status_code == 410
+
+
+
+def test_invalid_bootstrap_secret_does_not_consume_the_valid_setup_key(monkeypatch):
+    client, _app = make_client(monkeypatch)
+
+    rejected = client.post(
+        "/v1/auth/bootstrap",
+        headers={"X-OMEGA-BOOTSTRAP-SECRET": "c" * 64},
+    )
+    assert rejected.status_code == 401
+
+    accepted = client.post(
+        "/v1/auth/bootstrap",
+        headers={"X-OMEGA-BOOTSTRAP-SECRET": Config.token_bootstrap_secret.get_secret_value()},
+    )
+    assert accepted.status_code == 200
+
+    replay = client.post(
+        "/v1/auth/bootstrap",
+        headers={"X-OMEGA-BOOTSTRAP-SECRET": Config.token_bootstrap_secret.get_secret_value()},
+    )
+    assert replay.status_code == 410

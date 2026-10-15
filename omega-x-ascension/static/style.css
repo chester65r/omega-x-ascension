@@ -1058,7 +1058,7 @@ body { background: var(--chat-bg); color: #ececec; }
   width: min(100%, 820px);
   min-height: 16px;
   margin: 4px auto 0;
-  color: #858585;
+  color: #9a9a9a;
   font-size: 10px;
 }
 #tools.active {
@@ -1147,13 +1147,29 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   width: min(100%, 820px);
   margin: 3px auto 0;
   padding: 0 4px;
-  color: #777;
+  color: #9a9a9a;
   text-align: center;
   font-size: 10px;
   line-height: 1.35;
 }
 @media (max-width: 720px) {
   .chat-disclaimer { font-size: 9px; margin-top: 2px; }
+}
+
+/* Designly QA refinements: preserve one focal point, contrast and touch clarity. */
+::selection { background: #4b4b4b; color: #f5f5f5; }
+.chat-topbar { border-bottom: 1px solid #2d2d2d; }
+.chat-history, .chat-sidebar { overscroll-behavior-y: contain; }
+.quick-action:focus-visible,
+.sidebar-new-chat:focus-visible,
+.sidebar-search:focus-visible,
+.tab:focus-visible { outline: 2px solid #9bbcff; outline-offset: 3px; }
+.assistant-message-body a:hover { color: #fff; }
+@media (max-height: 700px) and (max-width: 720px) {
+  .assistant-empty-state { justify-content: flex-start; padding-top: 8px; padding-bottom: 8px; }
+  .chat-welcome-heading { margin-bottom: 12px; }
+  #assistant-backend-notice { margin-bottom: 10px; }
+  .quick-action { min-height: 52px; padding: 9px; }
 }
 
 /* Keep the unused message viewport out of the welcome layout until a chat starts. */

@@ -1,0 +1,103 @@
+{
+  "intent": {
+    "objective": "mobile usability and reliable task completion",
+    "primary_message": "OMEGA-X is a calm AI workspace: start with one message and open tools only when needed.",
+    "supporting_information": [
+      "Android device credentials are stored securely",
+      "Browser preview and workspace file tools are separate capabilities"
+    ],
+    "desired_action": "Start a conversation or open a tool without losing context",
+    "audience": "Android-first personal-assistant users on compact mobile screens and desktop browsers"
+  },
+  "concept": {
+    "creative_territory": "quiet intelligence",
+    "visual_proposition": "A full-height dark chat canvas anchors the screen around one centered welcome headline and a bottom composer, with optional task shortcuts and a separate tool workspace.",
+    "visual_proof": "The headline reads first, suggested tasks sit directly below it, and the composer remains accessible without vertical page scrolling.",
+    "brand_specific_angle": "Use the OMEGA-X wordmark and restrained neutrals rather than generic neon sci-fi effects."
+  },
+  "hierarchy": {
+    "primary": "Assistant welcome headline in the empty state and the latest response in an active conversation",
+    "secondary": "Two-by-two suggested task grid and optional tools",
+    "tertiary": "Connection status, metadata, navigation and disclaimer",
+    "one_second_read": "One calm headline leads directly to a message composer."
+  },
+  "composition": {
+    "aspect_ratio": "Responsive Android portrait and desktop viewport",
+    "grid_type": "modular",
+    "alignment_anchors": [
+      "header left edge",
+      "centered chat column",
+      "composer center"
+    ],
+    "hero": "The welcome headline when empty; the latest assistant response during a conversation",
+    "secondary_mass": "Two-by-two suggested task shortcuts on first launch",
+    "negative_space": "Separate the headline, shortcuts, and composer with comfortable breathing room.",
+    "reading_direction": "ltr",
+    "eye_path": "brand and status -> welcome or latest response -> composer -> optional tools",
+    "crop_logic": "Fit content to the viewport and preserve system safe areas; never clip the composer.",
+    "foreground": "Message text and interactive controls",
+    "middle_ground": "Composer and grouped task shortcuts",
+    "background": "Flat charcoal surfaces with clear value-based layering",
+    "typography_zone": "Narrow readable chat column over a quiet dark field",
+    "focal_points": 1
+  },
+  "typography": {
+    "class": "small-text",
+    "roles": [
+      "headline",
+      "body",
+      "metadata",
+      "action"
+    ],
+    "alignment": "Centered welcome headline; left-aligned conversation text; controls follow a stable grid",
+    "line_break_logic": "Break headlines at meaning boundaries and let response text wrap naturally.",
+    "language_direction": "ltr",
+    "exact_copy_locked": false
+  },
+  "color": {
+    "roles": [
+      "background",
+      "primary-text",
+      "muted-text",
+      "accent"
+    ],
+    "value_structure": "Primary text stays distinct from #212121; sidebar and composer differ by value, not competing hues.",
+    "accent_strategy": "Restrained grayscale with a bright send action and visible focus ring.",
+    "contrast_target": "WCAG AA minimum 4.5:1 for body text and 3:1 for large display text; verify small status labels on the rendered UI."
+  },
+  "lighting": {
+    "key_direction": "not applicable to a flat interface",
+    "softness": "no simulated lighting",
+    "shadow_behavior": "use only subtle surface separation when it clarifies focus",
+    "temperature": "neutral",
+    "motivation": "interface surfaces, not photographic lighting"
+  },
+  "materials": [
+    "flat dark interface surfaces",
+    "thin neutral dividers"
+  ],
+  "effects": [],
+  "style_families": [
+    "mobile-product-ui",
+    "chat-interface"
+  ],
+  "brand_rules": [
+    "Keep OMEGA-X naming consistent across the app.",
+    "Do not imply unsupported tools are enabled.",
+    "Do not display API setup secrets or refresh credentials in the UI."
+  ],
+  "observed_patterns": [
+    "A persistent assistant composer",
+    "A collapsible tool workspace distinct from the chat timeline"
+  ],
+  "inferred_choices": [
+    "Use short labels, clear focus rings, and large touch targets for Android."
+  ],
+  "restraints": [
+    "No decorative glow, particles, or neon gradients without a functional purpose",
+    "No equal-emphasis cluster of three or more primary actions",
+    "Respect keyboard viewport changes and Android safe areas",
+    "Never label command execution as working while server policy disables it"
+  ],
+  "heuristic_exceptions": []
+}

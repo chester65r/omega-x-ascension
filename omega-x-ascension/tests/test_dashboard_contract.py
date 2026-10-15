@@ -206,3 +206,17 @@ def test_dashboard_initially_exposes_the_assistant_tab_before_javascript_runs():
     html = Path("static/index.html").read_text(encoding="utf-8")
     assert '<button class="tab active" data-tab="assistant"' in html
     assert '<section id="assistant" class="tab-content active"' in html
+
+
+
+def test_android_bootstrap_stores_the_refresh_credential_before_network_verification():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    handler_start = js.index("$('#connect-btn').addEventListener('click'")
+    handler_end = js.index("\n  function authHeaders()", handler_start)
+    handler = js[handler_start:handler_end]
+    save_credential = handler.index("saveRefreshTokenForDevice(bootstrapRefreshToken)")
+    network_probe = handler.index("await api('/v1/runs?limit=1')")
+    recovery_path = handler.index("if (isNativeApp && refreshCredentialStored && deviceRefreshToken)")
+    assert save_credential < network_probe
+    assert "Close and reopen OMEGA-X to retry automatically" in handler[recovery_path:]
+    assert "the saved refresh credential was retained" in handler[recovery_path:]
