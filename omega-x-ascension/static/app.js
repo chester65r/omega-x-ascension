@@ -41,6 +41,8 @@
   } catch (_) { chatConversations = []; }
 
 
+  let deviceSessionChecked = false;
+
   function setConnected(connected) {
     const badge = $('#conn-status');
     if (badge) {
@@ -49,6 +51,8 @@
     }
     const signout = $('#session-signout');
     if (signout) signout.hidden = !connected;
+    const enroll = $('#device-enrollment-open');
+    if (enroll) enroll.hidden = connected || !isNativeApp || !deviceSessionChecked;
   }
 
   function clearSession(reason = '') {
@@ -322,6 +326,139 @@
     deviceRefreshToken = '';
     clearRefreshTokenOnDevice();
     clearSession('Signed out. The secure device session was revoked and removed.');
+  });
+
+  // First-time enrollment is deliberately separate from everyday sign-in.
+  // Already enrolled devices bypass this dialog and refresh silently from Android Keystore.
+  const enrollmentBackdrop = $('#device-enrollment-backdrop');
+  const enrollmentKey = $('#device-enrollment-key');
+  const enrollmentStatus = $('#device-enrollment-status');
+  const enrollmentSubmit = $('#device-enrollment-submit');
+
+  function closeDeviceEnrollment() {
+    if (enrollmentBackdrop) enrollmentBackdrop.hidden = true;
+    if (enrollmentKey) enrollmentKey.value = '';
+    if (enrollmentSubmit) {
+      enrollmentSubmit.disabled = false;
+      enrollmentSubmit.textContent = 'Secure device';
+    }
+  }
+
+  function openDeviceEnrollment() {
+    if (!isNativeApp || !enrollmentBackdrop) {
+      setAssistantStatus('Secure enrollment is available only in the installed Android app.', 'warning');
+      return;
+    }
+    enrollmentKey.value = '';
+    if (enrollmentStatus) {
+      enrollmentStatus.textContent = 'The one-time key is used only for enrollment and is never saved in the page.';
+      enrollmentStatus.dataset.level = 'info';
+    }
+    enrollmentBackdrop.hidden = false;
+    window.setTimeout(() => enrollmentKey.focus(), 0);
+  }
+
+  $('#device-enrollment-open').addEventListener('click', openDeviceEnrollment);
+  $('#device-enrollment-close').addEventListener('click', closeDeviceEnrollment);
+  $('#device-enrollment-cancel').addEventListener('click', closeDeviceEnrollment);
+  enrollmentBackdrop.addEventListener('click', (event) => {
+    if (event.target === enrollmentBackdrop) closeDeviceEnrollment();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && enrollmentBackdrop && !enrollmentBackdrop.hidden) {
+      closeDeviceEnrollment();
+    }
+  });
+
+  enrollmentSubmit.addEventListener('click', async () => {
+    if (!isNativeApp) {
+      if (enrollmentStatus) enrollmentStatus.textContent = 'Open OMEGA-X from the installed Android app to enroll this device.';
+      return;
+    }
+    const candidate = String(enrollmentKey.value || '').trim();
+    if (!candidate) {
+      if (enrollmentStatus) enrollmentStatus.textContent = 'Enter the one-time owner setup key to enroll this device.';
+      enrollmentKey.focus();
+      return;
+    }
+
+    enrollmentSubmit.disabled = true;
+    enrollmentSubmit.textContent = 'Securing…';
+    if (enrollmentStatus) enrollmentStatus.textContent = 'Requesting a one-time secure device session…';
+    let bootstrapConsumed = false;
+    try {
+      const response = await apiFetch('/v1/auth/bootstrap', {
+        method: 'POST',
+        headers: { 'X-OMEGA-BOOTSTRAP-SECRET': candidate },
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        // Do not render response bodies from the security endpoint into the UI.
+        if (enrollmentStatus) {
+          enrollmentStatus.textContent = response.status === 410
+            ? 'This setup key has already been used. Ask the owner to issue a new one-time enrollment key.'
+            : response.status === 429
+              ? 'Too many enrollment attempts. Wait before trying again.'
+              : 'Enrollment was rejected. Check the one-time setup key with the app owner.';
+        }
+        return;
+      }
+
+      const bootstrapData = await response.json();
+      if (!bootstrapData.access_token || !bootstrapData.refresh_token) {
+        bootstrapConsumed = true;
+        throw new Error('The server returned an incomplete secure device session.');
+      }
+      bootstrapConsumed = true;
+
+      // Persist the long-lived refresh credential first. Only Android Keystore retains it.
+      const refreshToken = String(bootstrapData.refresh_token);
+      const saved = await saveRefreshTokenForDevice(refreshToken);
+      enrollmentKey.value = '';
+      if (!saved) {
+        deviceRefreshToken = '';
+        token = '';
+        sessionStorage.removeItem('omega-jwt');
+        setConnected(false);
+        if (enrollmentStatus) {
+          enrollmentStatus.textContent = 'The one-time key was accepted, but Android did not confirm secure storage. Ask the owner to rotate or issue another setup key before retrying.';
+        }
+        addAgentLog('error', 'Device enrollment was accepted but Keystore persistence was not confirmed.');
+        return;
+      }
+
+      deviceRefreshToken = refreshToken;
+      token = String(bootstrapData.access_token);
+      sessionStorage.removeItem('omega-jwt');
+      setConnected(true);
+      scheduleTokenExpiry(Date.now() + Number(bootstrapData.expires_in || 300) * 1000);
+      closeDeviceEnrollment();
+      startPolling();
+      setAssistantStatus('Device enrolled securely. Future app launches will reconnect automatically.', 'success');
+      addAgentLog('success', 'Android device enrolled; refresh credential saved with Keystore-backed encryption.');
+
+      // Enrollment is successful once the refresh credential is durable. A temporary API
+      // hiccup should not discard the newly enrolled device or require the setup key again.
+      try {
+        await api('/v1/runs?limit=1');
+        await loadRuns();
+        setAssistantStatus('Connected securely. This device will reconnect automatically.', 'success');
+      } catch (error) {
+        setAssistantStatus('Device enrollment is saved securely. The cloud service did not finish responding; OMEGA will retry automatically.', 'warning');
+        addAgentLog('warning', 'Secure enrollment succeeded; first authenticated API probe did not complete: ' + String(error?.message || error).slice(0, 160));
+      }
+    } catch (error) {
+      if (enrollmentStatus) {
+        enrollmentStatus.textContent = bootstrapConsumed
+          ? 'The one-time key was consumed, but secure enrollment could not finish. Ask the owner to issue a fresh setup key.'
+          : 'Enrollment could not complete. Check the service connection and setup key, then retry.';
+      }
+      addAgentLog('error', 'Secure device enrollment failed: ' + String(error?.message || error).slice(0, 180));
+    } finally {
+      enrollmentKey.value = '';
+      enrollmentSubmit.disabled = false;
+      enrollmentSubmit.textContent = 'Secure device';
+    }
   });
 
   function authHeaders() {
@@ -1798,14 +1935,16 @@
       const detail = event.detail || {};
       if (detail.action !== 'stored-refresh-token') return;
       const savedToken = String(detail.text || '');
+      deviceSessionChecked = true;
       if (!savedToken) {
         deviceRefreshToken = '';
         setConnected(false);
-        setAssistantStatus('No secure device session was found. Owner-approved device enrollment is required before cloud tasks can run.', 'warning');
-        addAgentLog('warning', 'Secure device session is not enrolled; no credentials were requested or stored in the app UI.');
+        setAssistantStatus('No secure device session was found. Enroll this device once; later sessions reconnect automatically.', 'warning');
+        addAgentLog('info', 'No enrolled device session was found; waiting for owner-authorized one-time enrollment.');
         return;
       }
       deviceRefreshToken = savedToken;
+      setConnected(false);
       setAssistantStatus('Restoring your secure device session…');
       refreshDeviceSession().then(() => {
         setAssistantStatus('Connected securely. This device will reconnect automatically.', 'success');
@@ -1814,7 +1953,9 @@
     });
     setAssistantStatus('Checking secure device session…');
     if (!nativeMessage('getStoredRefreshToken')) {
-      setAssistantStatus('Secure device storage is unavailable in this WebView. Connect again to continue.', 'warning');
+      deviceSessionChecked = true;
+      setConnected(false);
+      setAssistantStatus('Secure device storage is unavailable in this WebView. Device enrollment cannot continue until Android WebView messaging is available.', 'warning');
     }
   }
 
