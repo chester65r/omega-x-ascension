@@ -56,7 +56,7 @@ jobs:
           BADGING="$( "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" )"
           grep -F "versionCode='10' versionName='$APP_VERSION'" <<< "$BADGING"
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension.android15test'"
           sha256sum "$APK" > "$APK.sha256"
           ls -lh "$APK" "$APK.sha256"
 

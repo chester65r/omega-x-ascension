@@ -36,6 +36,11 @@ android {
     }
 
     buildTypes {
+        // Debug/APK test builds install beside the production package, avoiding data loss or
+        // certificate-mismatch failures when the CI debug keystore changes between runs.
+        debug {
+            applicationIdSuffix ".android15test"
+        }
         release {
             minifyEnabled false
             if (releaseSigningConfigured) {
