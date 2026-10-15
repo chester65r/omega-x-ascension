@@ -195,8 +195,9 @@ def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment
     html = Path("static/index.html").read_text(encoding="utf-8")
     assert "'/v1/auth/bootstrap'" in js
     assert "'X-OMEGA-BOOTSTRAP-SECRET': candidate" in js
-    assert "issuedRefreshToken = String(bootstrapData.refresh_token)" in js
-    assert "persistRefreshTokenForDevice(refreshToken)" in js
+    assert "bootstrapRefreshToken = String(bootstrapData.refresh_token)" in js
+    assert "saveRefreshTokenForDevice(bootstrapRefreshToken)" in js
+    assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index("await api('/v1/runs?limit=1')")
     assert "getStoredRefreshToken" in js
     assert "Enter setup key or signed JWT once" in html
 
