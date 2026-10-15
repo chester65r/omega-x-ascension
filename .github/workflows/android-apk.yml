@@ -113,7 +113,7 @@ jobs:
           APK="omega-x-ascension-$APP_VERSION-debug.apk"
           test -s "$APK"
           BADGING="$( "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" )"
-          grep -F "versionCode='9' versionName='$APP_VERSION'" <<< "$BADGING"
+          grep -F "versionCode='10' versionName='$APP_VERSION'" <<< "$BADGING"
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension'"
 
@@ -136,7 +136,7 @@ jobs:
         timeout-minutes: 18
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: 35
           target: default
           arch: x86_64
           profile: pixel_2
