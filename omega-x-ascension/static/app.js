@@ -879,7 +879,7 @@
       return;
     }
     if (!apiBase) {
-      browserStatus('Save your API server URL in Backend Connection first.', 'error');
+      browserStatus('The cloud browser is unavailable until the configured service responds. Check the secure session and service health.', 'error');
       return;
     }
     if (!token) {
@@ -938,7 +938,7 @@
 
   function browserReady() {
     if (!apiBase) {
-      browserStatus('Set the HTTPS API server URL in Backend Connection first.', 'error');
+      browserStatus('The cloud browser needs the configured HTTPS service to be online. Check service health and Logs.', 'error');
       return false;
     }
     if (!token) {
