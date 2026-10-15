@@ -711,7 +711,7 @@
 
   $('#create-run-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    if (!token) { alert('Your secure device session is not active yet. Existing enrollments reconnect automatically; enroll this device once if needed.'); return; }
     const goal = $('#run-goal').value.trim();
     const task_type = $('#run-task-type').value;
     const actions = $('#run-actions').value.split(',').map((value) => value.trim()).filter(Boolean);
@@ -883,7 +883,7 @@
       return;
     }
     if (!token) {
-      browserStatus('Connect with a signed JWT that includes runs:write to launch agent research.', 'error');
+      browserStatus('Your secure device session is not ready to launch agent research yet. Check enrollment, permissions, and service health.', 'error');
       return;
     }
     const button = $('#browser-agent-research');
@@ -927,7 +927,7 @@
       browserStatus('Could not start agent research: ' + (error.message || String(error)), 'error');
       renderBrowserAgentOutput(
         'Could not start agent research',
-        (error.message || String(error)) + '\n\nCheck the API connection and make sure the JWT includes runs:write.'
+        (error.message || String(error)) + '\n\nCheck the secure device session, task permissions, and service health.'
       );
       addAgentLog('error', 'Browser agent launch failed: ' + (error.message || String(error)).slice(0, 300));
     } finally {
@@ -942,7 +942,7 @@
       return false;
     }
     if (!token) {
-      browserStatus('Connect with a signed JWT token that includes runs:read before browsing.', 'error');
+      browserStatus('Your secure device session is not ready for cloud browsing. Check enrollment, permissions, and service health.', 'error');
       return false;
     }
     return true;
@@ -1136,7 +1136,7 @@
 
   // Sandbox file manager — the API validates permissions and the sandbox confines paths.
   async function loadComputerFiles(directory) {
-    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    if (!token) { alert('Your secure device session is not active yet. Existing enrollments reconnect automatically; enroll this device once if needed.'); return; }
     const path = (directory ?? $('#computer-path').value).trim() || '.';
     $('#computer-path').value = path;
     const list = $('#computer-files-list');
@@ -1213,7 +1213,7 @@
   $('#computer-files-refresh').addEventListener('click', () => loadComputerFiles());
   $('#computer-file-read').addEventListener('click', () => openComputerFile($('#computer-file-editor-path').value.trim()));
   $('#computer-file-save').addEventListener('click', async () => {
-    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    if (!token) { alert('Your secure device session is not active yet. Existing enrollments reconnect automatically; enroll this device once if needed.'); return; }
     const path = $('#computer-file-editor-path').value.trim();
     if (!path || path.startsWith('/')) {
       $('#computer-file-status').textContent = 'Enter a relative workspace file path first.';
@@ -1246,7 +1246,7 @@
     output.scrollTop = output.scrollHeight;
   }
   async function runCommand() {
-    if (!token) { alert('Connect with a signed JWT token first.'); return; }
+    if (!token) { alert('Your secure device session is not active yet. Existing enrollments reconnect automatically; enroll this device once if needed.'); return; }
     const input = $('#terminal-input');
     const command = input.value.trim();
     if (!command) return;
@@ -1839,7 +1839,7 @@
   $('#logs-export').addEventListener('click', () => {
     const payload = {
       app: 'OMEGA-X ASCENSION',
-      version: '0.8.1',
+      version: '0.8.4',
       exported_at: new Date().toISOString(),
       local_events: storedLogs,
       server_audit_events: serverAuditEvents,
