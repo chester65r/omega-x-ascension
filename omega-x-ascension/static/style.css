@@ -1175,3 +1175,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 /* Keep the unused message viewport out of the welcome layout until a chat starts. */
 .assistant-card:not(.has-messages) .assistant-messages { display: none; }
 .assistant-card.has-messages .assistant-messages { display: flex; }
+
+
+/* Minimal cloud-session indicator: no API URL or token form is exposed in the UI. */
+.session-status-wrap { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+.session-status-wrap .connection-title { white-space: nowrap; }
+.session-status-wrap .status-badge { cursor: default; }
+.session-status-wrap #session-signout { min-height: 32px; padding: 6px 12px; font-size: 10px; }
+@media (max-width: 720px) {
+  .session-status-wrap { gap: 6px; }
+  .session-status-wrap .connection-title { display: none; }
+  .session-status-wrap .status-badge { padding: 6px 8px; font-size: 9px; }
+  .session-status-wrap #session-signout { min-height: 30px; padding: 4px 9px; font-size: 10px; }
+}
