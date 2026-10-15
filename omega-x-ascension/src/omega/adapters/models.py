@@ -194,5 +194,48 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
                 timeout_seconds=90,
             )
         )
+
+    # Additional providers are optional, use server-side keys, and are never fabricated.
+    optional_compatible_providers = (
+        (
+            "openrouter",
+            config.openrouter_api_key,
+            config.openrouter_model,
+            config.openrouter_base_url,
+            config.openrouter_priority,
+            config.openrouter_timeout_seconds,
+        ),
+        (
+            "deepseek",
+            config.deepseek_api_key,
+            config.deepseek_model,
+            config.deepseek_base_url,
+            config.deepseek_priority,
+            config.deepseek_timeout_seconds,
+        ),
+        (
+            "groq",
+            config.groq_api_key,
+            config.groq_model,
+            config.groq_base_url,
+            config.groq_priority,
+            config.groq_timeout_seconds,
+        ),
+    )
+    for name, token, model, base_url, priority, timeout_seconds in optional_compatible_providers:
+        if token is None or not token.get_secret_value().strip():
+            continue
+        providers.append(
+            ProviderConfig(
+                name=name,
+                base_url=base_url.rstrip("/"),
+                api_key=token,
+                model=model,
+                capabilities=_ALL_CAPABILITIES,
+                priority=priority,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+
     gateways.extend(OpenAICompatibleGateway(provider, client) for provider in providers)
     return gateways
