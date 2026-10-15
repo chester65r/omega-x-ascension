@@ -58,7 +58,7 @@ def test_openai_flagship_gateway_uses_configured_secret():
     async def check():
         settings = make_settings(
             openai_api_key=SecretStr("sk-test-not-a-real-key"),
-            openai_model="gpt-6-astra",
+            openai_model="gpt-6.1-sol",
             openai_base_url="https://api.openai.com/v1",
         )
         async with httpx.AsyncClient() as client:
@@ -66,9 +66,9 @@ def test_openai_flagship_gateway_uses_configured_secret():
 
         assert len(gateways) == 1
         gateway = gateways[0]
-        assert gateway.name == "openai-gpt-6-astra"
+        assert gateway.name == "openai-gpt-6.1-sol"
         assert gateway._config.base_url == "https://api.openai.com/v1"
-        assert gateway._config.model == "gpt-6-astra"
+        assert gateway._config.model == "gpt-6.1-sol"
         assert gateway._config.api_key.get_secret_value() == "sk-test-not-a-real-key"
         assert gateway.priority == 100
 

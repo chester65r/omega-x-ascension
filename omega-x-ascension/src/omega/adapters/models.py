@@ -49,17 +49,25 @@ class OpenAICompatibleGateway:
         reraise=True,
     )
     async def complete(self, *, system: str, prompt: str) -> str:
+        payload = {
+            "model": self._config.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+        }
+        # New reasoning models (including GPT-6) reject temperature when their
+        # reasoning effort is active; keep deterministic sampling on compatible
+        # non-reasoning/OpenAI-compatible providers.
+        model_id = self._config.model.strip().lower()
+        reasoning_model = model_id.startswith(("gpt-6", "gpt-5.6", "gpt-5.5", "o1", "o3", "o4"))
+        if not reasoning_model:
+            payload["temperature"] = 0.1
+
         response = await self._client.post(
             f"{self._config.base_url.rstrip('/')}/chat/completions",
             headers=self._headers(),
-            json={
-                "model": self._config.model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.1,
-            },
+            json=payload,
             timeout=self._config.timeout_seconds,
         )
         response.raise_for_status()

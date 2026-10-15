@@ -37,9 +37,9 @@ class Settings(BaseSettings):
     # One-time setup key; it is never embedded in the Android APK.
     token_bootstrap_secret: SecretStr | None = None
     model_providers: list[ProviderConfig] = Field(default_factory=list)
-    # Optional OpenAI flagship gateway; set the API key only in a deployment secret store.
+    # Optional OpenAI reasoning-model gateway; set the API key only in a deployment secret store.
     openai_api_key: SecretStr | None = None
-    openai_model: str = "gpt-6-astra"
+    openai_model: str = "gpt-6.1-sol"
     openai_base_url: str = "https://api.openai.com/v1"
     openai_priority: int = Field(default=100, ge=0, le=100)
     openai_timeout_seconds: float = Field(default=180, gt=0, le=600)
