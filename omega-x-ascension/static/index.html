@@ -30,7 +30,6 @@
         <p class="chat-history-empty">Your recent chats will appear here.</p>
       </div>
       <div class="sidebar-footer">
-        <button id="sidebar-connect" class="sidebar-footer-action" type="button"><span aria-hidden="true">⇄</span><span>Connect to server</span></button>
         <button class="sidebar-footer-action" data-go-tab="about" type="button"><span aria-hidden="true">⚙</span><span>Settings &amp; tools</span></button>
         <div class="sidebar-user-row"><span class="sidebar-user-avatar">Ω</span><span><strong>OMEGA-X</strong><small>Personal assistant</small></span></div>
       </div>
@@ -42,18 +41,11 @@
         <div class="chat-model-label"><strong>OMEGA-X</strong><span class="model-divider">›</span><span class="chat-mode-name">Agent</span><span class="model-chevron" aria-hidden="true">⌄</span></div>
       </div>
       <div class="header-utilities">
-      <details class="connection-details" id="connection-details">
-        <summary><span class="connection-title">DEVICE SESSION</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
-        <div class="connection-panel" aria-label="Server connection">
-          <label class="sr-only" for="api-base">API server URL</label>
-          <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url">
-          <button id="save-server-btn" class="btn btn-quiet" type="button">Save</button>
-          <label class="sr-only" for="jwt-token">One-time setup key or access token</label>
-          <input type="password" id="jwt-token" placeholder="Enter setup key or signed JWT once" autocomplete="off" autocapitalize="off" spellcheck="false">
-          <button id="connect-btn" class="btn btn-primary" type="button">Connect once</button>
-          <button id="disconnect-btn" class="btn btn-quiet" type="button">Disconnect</button>
+        <div class="session-status-wrap" aria-label="Secure cloud session">
+          <span class="connection-title">CLOUD SESSION</span>
+          <span id="conn-status" class="status-badge disconnected" role="status"><span class="status-dot"></span> Checking…</span>
+          <button id="session-signout" class="btn btn-quiet" type="button" hidden>Sign out</button>
         </div>
-      </details>
       </div>
     </header>
 
@@ -70,7 +62,7 @@
                 <p class="page-subtitle">Ask OMEGA anything, or choose a place to start.</p>
               </div>
             </div>
-          <div id="assistant-backend-notice" class="assistant-notice" role="status">Connect once to activate cloud tasks. OMEGA uses your configured model provider and enabled tools; responses are never simulated.</div>
+          <div id="assistant-backend-notice" class="assistant-notice" role="status">Cloud tasks reconnect automatically after this device has been securely enrolled. OMEGA uses the configured model providers and enabled tools; responses are never simulated.</div>
           <div class="assistant-quick-actions" aria-label="Suggested tasks">
             <button class="quick-action" type="button" data-assistant-prompt="Research the topic and summarize the most useful findings with source links."><span class="quick-action-icon" aria-hidden="true">⌕</span><span class="quick-action-copy"><strong>Research</strong><small>Explore a topic</small></span></button>
             <button class="quick-action" type="button" data-assistant-prompt="Create a practical plan with clear steps, priorities, and measurable outcomes."><span class="quick-action-icon" aria-hidden="true">☷</span><span class="quick-action-copy"><strong>Plan</strong><small>Turn an idea into steps</small></span></button>
@@ -125,7 +117,7 @@
             <button id="assistant-share" class="btn btn-quiet" type="button">Share answer</button>
             <button id="assistant-clear" class="btn btn-quiet" type="button">Clear session</button>
           </div>
-          <p id="assistant-status" class="form-hint" role="status">Ready. Connect the backend before sending an agent task.</p>
+          <p id="assistant-status" class="form-hint" role="status">Checking the secure cloud session automatically…</p>
           <p class="chat-disclaimer">OMEGA can make mistakes. Verify important information.</p>
         </div>
       </section>
@@ -319,7 +311,7 @@
                       <button id="computer-files-refresh" class="btn btn-quiet" type="button">List files</button>
                     </div>
                     <div class="computer-files-layout">
-                      <div id="computer-files-list" class="computer-files-list" aria-label="Workspace files"><div class="empty-state">Connect to the API and choose List files.</div></div>
+                      <div id="computer-files-list" class="computer-files-list" aria-label="Workspace files"><div class="empty-state">Cloud session required. Choose List files after secure enrollment.</div></div>
                       <div class="computer-file-editor">
                         <label for="computer-file-editor-path">File path</label>
                         <input id="computer-file-editor-path" type="text" maxlength="240" placeholder="notes.txt">
@@ -357,7 +349,7 @@
                   <div class="card">
                     <div class="card-heading"><div><p class="eyebrow">SERVER AUDIT</p><h3>Workflow events</h3></div><span class="heading-icon">≋</span></div>
                     <p class="form-hint">Server records are read-only and limited to the connected tenant. They are not deleted when local logs are cleared.</p>
-                    <div id="server-audit-list" class="log-list"><div class="empty-state">Connect with a signed JWT carrying runs:read to load server audit records.</div></div>
+                    <div id="server-audit-list" class="log-list"><div class="empty-state">Server audit records load automatically after secure device enrollment.</div></div>
                   </div>
                 </section>
         </div>
@@ -370,13 +362,13 @@
         </summary>
         <div class="tool-accordion-body">
           <section id="about" class="tool-panel" aria-labelledby="about-title">
-                  <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.8.1</span></div>
+                  <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.8.4</span></div>
                   <div class="about-hero card">
                     <div class="about-mark" aria-hidden="true"><span></span><span></span><span></span></div>
                     <div><p class="eyebrow">OMEGA-X ASCENSION</p><h3>Useful automation. Verifiable status.</h3><p>The app does not pretend that cloud tasks work without a backend and an available model provider. Local AI is a separate llama.cpp server running on this device.</p></div>
                   </div>
                   <div class="about-grid">
-                    <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.8.1</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Requires backend URL, signed JWT, database, queue, and healthy model endpoint</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
+                    <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.8.4</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Uses an automatically renewed secure device session and a healthy model provider</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
                     <div class="card"><p class="eyebrow">PHONE FEATURES</p><h3>Device integrations</h3><ul class="about-feature-list"><li>Native Android share sheet</li><li>System speech dictation with permission prompt</li><li>Text-to-speech through Android TTS</li><li>Short haptic feedback for task completion</li><li>Exportable diagnostics and audit logs</li></ul><p id="device-info" class="form-hint">Device details are shown only when the secure Android WebView messaging feature is available.</p><button id="about-device-refresh" class="btn btn-quiet" type="button">Read device info</button></div>
                   </div>
                   <div class="card about-links"><p class="eyebrow">PROJECT</p><h3>Source and checks</h3><p>Review the source code, release workflow, and automated tests in the public repository.</p><p><a href="https://github.com/chester65r/omega-x-ascension" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a></p><p><a href="https://github.com/chester65r/omega-x-ascension/actions" target="_blank" rel="noopener noreferrer">Builds and automated tests ↗</a></p><p id="about-runtime-status" class="form-hint">Runtime status has not been verified on this device yet.</p></div>
@@ -407,7 +399,7 @@
         <div class="command-palette-footer"><span><i class="status-dot"></i> Commands run inside this app</span><span><kbd>Esc</kbd> Close</span></div>
       </section>
     </div>
-    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.8.1</span></footer>
+    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.8.4</span></footer>
   </div>
   <script src="/static/app.js"></script>
   <script>
