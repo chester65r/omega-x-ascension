@@ -37,12 +37,11 @@ def test_dashboard_tab_order_and_ids_are_consistent():
 
 def test_local_ai_event_handlers_are_registered_on_page_load():
     js = Path("static/app.js").read_text(encoding="utf-8")
-    save_handler = js.index("$('#save-server-btn').addEventListener")
-    save_handler_end = js.index("\n  });", save_handler)
-    local_ai_block = js.index("// Local on-device model mode:")
 
-    # Regression guard: Local AI must not be initialized only after saving the API URL.
-    assert local_ai_block > save_handler_end
+    # Local AI is independent of cloud enrollment and must work without a server JWT.
+    local_ai_block = js.index("// Local on-device model mode:")
+    session_ui_block = js.index("function setConnected")
+    assert local_ai_block > session_ui_block
     assert "$('#local-ai-check').addEventListener" in js
     assert "$('#local-ai-form').addEventListener" in js
     assert "renderLocalAiMessages();" in js[local_ai_block:]
@@ -190,16 +189,45 @@ def test_chat_interface_has_sidebar_local_history_and_safe_markdown():
 
 
 
-def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment():
+def test_dashboard_hides_manual_api_url_and_jwt_but_keeps_secure_device_enrollment():
     js = Path("static/app.js").read_text(encoding="utf-8")
     html = Path("static/index.html").read_text(encoding="utf-8")
+
+    for removed_id in ("api-base", "save-server-btn", "jwt-token", "connect-btn", "disconnect-btn", "connection-details", "sidebar-connect"):
+        assert f'id="{removed_id}"' not in html
+        assert f"$('#{removed_id}')" not in js
+
+    assert "const apiBase = DEFAULT_API_BASE;" in js
+    assert "nativeMessage('getStoredRefreshToken')" in js
+    assert "async function refreshDeviceSession()" in js
+    assert 'id="device-enrollment-key"' in html
+    assert 'id="device-enrollment-submit"' in html
+    assert 'id="session-signout"' in html
+
+    # One-time bootstrap stores only the refresh credential, never the access JWT in browser storage.
     assert "'/v1/auth/bootstrap'" in js
     assert "'X-OMEGA-BOOTSTRAP-SECRET': candidate" in js
-    assert "bootstrapRefreshToken = String(bootstrapData.refresh_token)" in js
-    assert "saveRefreshTokenForDevice(bootstrapRefreshToken)" in js
-    assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index("await api('/v1/runs?limit=1')")
-    assert "getStoredRefreshToken" in js
-    assert "Enter setup key or signed JWT once" in html
+    assert "await saveRefreshTokenForDevice(refreshToken)" in js
+    assert "sessionStorage.setItem('omega-jwt'" not in js
+    assert "localStorage.setItem('omega-api-base'" not in js
+
+
+def test_device_bootstrap_persists_refresh_credential_before_authenticated_probe():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    handler_start = js.index("enrollmentSubmit.addEventListener('click'")
+    handler_end = js.index("\n  function authHeaders()", handler_start)
+    handler = js[handler_start:handler_end]
+
+    save_credential = handler.index("await saveRefreshTokenForDevice(refreshToken)")
+    network_probe = handler.index("await api('/v1/runs?limit=1')")
+    assert save_credential < network_probe
+    assert "Owner-authorized one-time enrollment" in js or "owner-authorized one-time enrollment" in js
+    assert "initializeNativeDeviceSession();" in js
+    assert "nativeMessage('getStoredRefreshToken')" in js
+
+    native = Path("../android/app/src/main/java/com/omega/ascension/MainActivity.java").read_text(encoding="utf-8")
+    assert 'Cipher.getInstance("AES/GCM/NoPadding")' in native
+    assert "Android Keystore key" in native or "Android Keystore" in native
 
 
 
@@ -210,14 +238,3 @@ def test_dashboard_initially_exposes_the_assistant_tab_before_javascript_runs():
 
 
 
-def test_android_bootstrap_stores_the_refresh_credential_before_network_verification():
-    js = Path("static/app.js").read_text(encoding="utf-8")
-    handler_start = js.index("$('#connect-btn').addEventListener('click'")
-    handler_end = js.index("\n  function authHeaders()", handler_start)
-    handler = js[handler_start:handler_end]
-    save_credential = handler.index("saveRefreshTokenForDevice(bootstrapRefreshToken)")
-    network_probe = handler.index("await api('/v1/runs?limit=1')")
-    recovery_path = handler.index("if (isNativeApp && refreshCredentialStored && deviceRefreshToken)")
-    assert save_credential < network_probe
-    assert "Close and reopen OMEGA-X to retry automatically" in handler[recovery_path:]
-    assert "the saved refresh credential was retained" in handler[recovery_path:]
