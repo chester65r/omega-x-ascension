@@ -89,7 +89,7 @@ def test_local_ai_android_mixed_content_is_restricted_to_loopback():
 
 def test_personal_assistant_does_not_fake_backend_responses():
     js = Path("static/app.js").read_text(encoding="utf-8")
-    assert "Cloud agent tasks require a signed JWT" in js
+    assert "The secure cloud session is not ready yet" in js
     assert "No fake answer was generated." in js
     assert "run.status === 'succeeded'" in js
     assert "run.status === 'failed'" in js
