@@ -1455,7 +1455,7 @@
     $('#connection-details').open = true;
     $('#connection-details').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   });
-  $('.chat-sidebar .tab').forEach((tab) => tab.addEventListener('click', closeChatSidebar));
+  $$('.chat-sidebar .tab').forEach((tab) => tab.addEventListener('click', closeChatSidebar));
   const chatPrompt = $('#assistant-prompt');
   chatPrompt.addEventListener('input', () => {
     chatPrompt.style.height = 'auto';
