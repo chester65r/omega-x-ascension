@@ -50,7 +50,9 @@ def main() -> int:
         )
         return 1
 
-    print(f"PASS: live inference completed through provider '{name}' ({length} response characters).")
+    print(
+        f"PASS: live inference completed through provider '{name}' ({length} response characters)."
+    )
     return 0
 
 

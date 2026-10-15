@@ -1,27 +1,37 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import AsyncIterator
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     DateTime,
-    Enum as SAEnum,
     ForeignKeyConstraint,
     Index,
     Integer,
-    JSON,
     String,
     Text,
     select,
     text,
 )
+from sqlalchemy import (
+    Enum as SAEnum,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.engine import CursorResult
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from omega.config import Capability
 from omega.domain import RunStatus, WorkflowRun
 
 
@@ -51,12 +61,10 @@ class RunRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    __table_args__ = (
-        Index("ix_workflow_runs_tenant_created", "tenant_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_workflow_runs_tenant_created", "tenant_id", "created_at"),)
 
 
-class JobStatus(str, Enum):
+class JobStatus(str, Enum):  # noqa: UP042 - keep str() semantics
     QUEUED = "QUEUED"
     LEASED = "LEASED"
     COMPLETED = "COMPLETED"
@@ -149,7 +157,7 @@ class SqlRunRepository:
             tenant_id=row.tenant_id,
             created_by=row.created_by,
             goal=row.goal,
-            task_type=row.task_type,
+            task_type=cast(Capability, row.task_type),
             status=row.status,
             requested_actions=row.requested_actions or [],
             approval_digest=row.approval_digest,
@@ -197,13 +205,17 @@ class SqlRunRepository:
 
         async with self._tenant_session(tenant_id) as session:
             rows = (
-                await session.execute(
-                    select(RunRow)
-                    .where(RunRow.tenant_id == tenant_id)
-                    .order_by(RunRow.created_at.desc(), RunRow.id.desc())
-                    .limit(limit)
+                (
+                    await session.execute(
+                        select(RunRow)
+                        .where(RunRow.tenant_id == tenant_id)
+                        .order_by(RunRow.created_at.desc(), RunRow.id.desc())
+                        .limit(limit)
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             return [self._run_from_row(row) for row in rows]
 
     async def save(self, tenant_id: UUID, run: WorkflowRun) -> None:
@@ -326,11 +338,15 @@ class SqlRunRepository:
         async with self._maker() as session:
             async with session.begin():
                 row = (
-                    await session.execute(
-                        text("SELECT * FROM claim_workflow_job(:worker, :lease)"),
-                        {"worker": worker_id, "lease": lease_seconds},
+                    (
+                        await session.execute(
+                            text("SELECT * FROM claim_workflow_job(:worker, :lease)"),
+                            {"worker": worker_id, "lease": lease_seconds},
+                        )
                     )
-                ).mappings().first()
+                    .mappings()
+                    .first()
+                )
 
                 if row is None:
                     return None
@@ -375,7 +391,7 @@ class SqlRunRepository:
                     "worker": worker_id,
                 },
             )
-            return result.rowcount == 1
+            return cast(CursorResult[Any], result).rowcount == 1
 
     async def finish_job(
         self,
@@ -445,9 +461,7 @@ class SqlRunRepository:
                 event_kind = "run.failed"
             else:
                 job.status = JobStatus.QUEUED
-                job.available_at = now + timedelta(
-                    seconds=min(300, 2**job.attempt_count)
-                )
+                job.available_at = now + timedelta(seconds=min(300, 2**job.attempt_count))
                 run.status = RunStatus.PENDING
                 run.error = f"workflow failed; reference={run.id}"
                 event_kind = "run.retry_scheduled"
@@ -663,9 +677,7 @@ class SqlRunRepository:
                 kind = "run.failed"
             else:
                 job.status = JobStatus.QUEUED
-                job.available_at = now + timedelta(
-                    seconds=min(300, 2**job.attempt_count)
-                )
+                job.available_at = now + timedelta(seconds=min(300, 2**job.attempt_count))
                 run.status = RunStatus.PENDING
                 run.error = f"workflow failed; reference={run.id}"
                 kind = "run.retry_scheduled"

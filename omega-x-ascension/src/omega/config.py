@@ -6,7 +6,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-Capability = Literal["reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"]
+Capability = Literal[
+    "reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"
+]
 
 
 class ProviderConfig(BaseModel):

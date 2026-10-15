@@ -11,7 +11,9 @@ class FakeBrowser:
 
 def test_browser_proxy_response_is_sandboxed_and_not_cached():
     services = SimpleNamespace(browser=FakeBrowser())
-    response = asyncio.run(browser_proxy(url="https://public.example/", principal=None, svc=services))
+    response = asyncio.run(
+        browser_proxy(url="https://public.example/", principal=None, svc=services)
+    )
 
     assert response.headers["content-security-policy"] == "sandbox allow-scripts allow-forms"
     assert response.headers["x-content-type-options"] == "nosniff"

@@ -5,7 +5,6 @@ from uuid import UUID
 
 import httpx
 
-
 _DEFAULT_WORKSPACE = "00000000-0000-0000-0000-000000000001"
 
 
@@ -67,7 +66,11 @@ class ComputerTool:
         except ValueError:
             body = {"detail": "sandbox returned an invalid response"}
         if not response.is_success:
-            detail = body.get("detail", f"sandbox HTTP {response.status_code}") if isinstance(body, dict) else f"sandbox HTTP {response.status_code}"
+            detail = (
+                body.get("detail", f"sandbox HTTP {response.status_code}")
+                if isinstance(body, dict)
+                else f"sandbox HTTP {response.status_code}"
+            )
             if response.status_code in (400, 413, 422):
                 raise ValueError(str(detail))
             raise RuntimeError(str(detail))
@@ -86,8 +89,9 @@ class ComputerTool:
         except httpx.HTTPError:
             return False
 
-    async def execute(self, command: str, timeout: int = 30,
-                      workspace_id: str | UUID | None = None) -> dict:
+    async def execute(
+        self, command: str, timeout: int = 30, workspace_id: str | UUID | None = None
+    ) -> dict:
         command = command.strip()
         if not command:
             raise ValueError("command must not be empty")
@@ -95,7 +99,11 @@ class ComputerTool:
             raise ValueError("command must be 1000 characters or fewer")
         timeout = min(max(int(timeout), 1), 120)
         return await self._request(
-            "POST", "/execute", feature="execution", workspace_id=workspace_id, timeout=timeout + 10,
+            "POST",
+            "/execute",
+            feature="execution",
+            workspace_id=workspace_id,
+            timeout=timeout + 10,
             json={"command": command, "timeout": timeout},
         )
 
@@ -109,11 +117,14 @@ class ComputerTool:
             "GET", "/files/read", workspace_id=workspace_id, params={"path": path}
         )
 
-    async def write_file(self, path: str, content: str,
-                         workspace_id: str | UUID | None = None) -> dict:
+    async def write_file(
+        self, path: str, content: str, workspace_id: str | UUID | None = None
+    ) -> dict:
         if len(content) > 100_000:
             raise ValueError("file content must be 100 KB or less")
         return await self._request(
-            "PUT", "/files", workspace_id=workspace_id,
+            "PUT",
+            "/files",
+            workspace_id=workspace_id,
             json={"path": path, "content": content},
         )
