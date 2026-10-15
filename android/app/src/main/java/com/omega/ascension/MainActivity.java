@@ -5,6 +5,10 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.SharedPreferences;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
+import android.util.Base64;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -22,6 +26,12 @@ import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -34,6 +44,11 @@ public class MainActivity extends Activity {
     private static final String APP_ASSET_HOST = "appassets.androidplatform.net";
     private static final int REQUEST_RECORD_AUDIO = 4101;
     private static final int REQUEST_SPEECH = 4102;
+
+    private static final String SECURE_SESSION_PREFS = "omega_secure_session";
+    private static final String SECURE_REFRESH_TOKEN_KEY = "device_refresh_token";
+    private static final String ANDROID_KEYSTORE = "AndroidKeyStore";
+    private static final String DEVICE_SESSION_KEY_ALIAS = "omega_device_session_key";
 
     private WebView webView;
     private volatile boolean dashboardLoaded = false;
@@ -175,8 +190,20 @@ public class MainActivity extends Activity {
             String action = message.optString("action", "");
             String text = message.optString("text", "");
             String url = message.optString("url", "");
+            String sessionToken = message.optString("token", "");
 
             switch (action) {
+                case "getStoredRefreshToken":
+                    dispatchNativeEvent("stored-refresh-token", readStoredRefreshToken());
+                    break;
+                case "storeRefreshToken":
+                    storeRefreshToken(sessionToken);
+                    dispatchNativeEvent("refresh-token-stored", "ok");
+                    break;
+                case "clearStoredRefreshToken":
+                    clearStoredRefreshToken();
+                    dispatchNativeEvent("refresh-token-cleared", "ok");
+                    break;
                 case "openBrowser":
                     openBrowser(url);
                     break;
@@ -205,6 +232,82 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {
             dispatchNativeEvent("native-error", "The Android action request was invalid.");
         }
+    }
+
+    /**
+     * Encrypt the revocable device refresh token with a non-exportable Android Keystore key.
+     * The stored preference contains only the AES-GCM IV and ciphertext, never the raw token.
+     */
+    private SecretKey deviceSessionKey() throws Exception {
+        KeyStore keyStore = KeyStore.getInstance(ANDROID_KEYSTORE);
+        keyStore.load(null);
+        if (keyStore.containsAlias(DEVICE_SESSION_KEY_ALIAS)) {
+            KeyStore.Entry entry = keyStore.getEntry(DEVICE_SESSION_KEY_ALIAS, null);
+            if (entry instanceof KeyStore.SecretKeyEntry) {
+                return ((KeyStore.SecretKeyEntry) entry).getSecretKey();
+            }
+        }
+        KeyGenerator generator = KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE);
+        generator.init(new KeyGenParameterSpec.Builder(
+                DEVICE_SESSION_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build());
+        return generator.generateKey();
+    }
+
+    private SharedPreferences secureSessionPreferences() {
+        return getSharedPreferences(SECURE_SESSION_PREFS, MODE_PRIVATE);
+    }
+
+    private void storeRefreshToken(String token) throws Exception {
+        String value = token == null ? "" : token.trim();
+        if (value.length() < 60 || value.length() > 4096) {
+            throw new IllegalArgumentException("Invalid device session token.");
+        }
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, deviceSessionKey());
+        byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
+        String iv = Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP);
+        String ciphertext = Base64.encodeToString(encrypted, Base64.NO_WRAP);
+        boolean saved = secureSessionPreferences().edit()
+                .putString(SECURE_REFRESH_TOKEN_KEY, iv + "." + ciphertext)
+                .commit();
+        if (!saved) {
+            throw new IllegalStateException("Could not save secure device session.");
+        }
+    }
+
+    private String readStoredRefreshToken() {
+        String stored = secureSessionPreferences().getString(SECURE_REFRESH_TOKEN_KEY, "");
+        if (stored == null || stored.isEmpty()) return "";
+        int separator = stored.indexOf('.');
+        if (separator <= 0 || separator >= stored.length() - 1) {
+            clearStoredRefreshToken();
+            return "";
+        }
+        try {
+            byte[] iv = Base64.decode(stored.substring(0, separator), Base64.NO_WRAP);
+            byte[] encrypted = Base64.decode(stored.substring(separator + 1), Base64.NO_WRAP);
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, deviceSessionKey(), new GCMParameterSpec(128, iv));
+            String token = new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+            if (token.length() < 60 || token.length() > 4096) {
+                clearStoredRefreshToken();
+                return "";
+            }
+            return token;
+        } catch (Exception ignored) {
+            clearStoredRefreshToken();
+            return "";
+        }
+    }
+
+    private void clearStoredRefreshToken() {
+        secureSessionPreferences().edit().remove(SECURE_REFRESH_TOKEN_KEY).commit();
     }
 
     private void openBrowser(String url) {
