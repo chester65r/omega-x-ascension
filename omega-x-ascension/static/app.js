@@ -441,10 +441,10 @@
     if (res.status === 401 && token && deviceRefreshToken && !__afterRefreshRetry) {
       try {
         await refreshDeviceSession();
-        return api(path, { ...fetchOptions, __afterRefreshRetry: true });
       } catch (error) {
         failSecureSession(error);
       }
+      if (token) return api(path, { ...fetchOptions, __afterRefreshRetry: true });
     }
     if (res.status === 401 && token) {
       clearSession('The API rejected this access token. Reconnect with a valid token.');
