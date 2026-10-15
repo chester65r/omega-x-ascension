@@ -136,7 +136,7 @@ jobs:
 
       - name: Run Android emulator UI instrumentation tests
         timeout-minutes: 18
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           # This image reliably runs the AndroidX instrumentation suite in CI.
           api-level: 34
@@ -154,7 +154,7 @@ jobs:
 
       - name: Run Android 15 install and launch smoke test
         timeout-minutes: 12
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 35
           target: google_apis
