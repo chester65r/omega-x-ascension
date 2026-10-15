@@ -1907,7 +1907,7 @@
   $('#logs-export').addEventListener('click', () => {
     const payload = {
       app: 'OMEGA-X ASCENSION',
-      version: '0.8.1',
+      version: '0.8.3',
       exported_at: new Date().toISOString(),
       local_events: storedLogs,
       server_audit_events: serverAuditEvents,
