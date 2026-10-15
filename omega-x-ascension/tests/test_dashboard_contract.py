@@ -187,3 +187,15 @@ def test_chat_interface_has_sidebar_local_history_and_safe_markdown():
     assert "link.rel = 'noopener noreferrer'" in js
     assert ".assistant-card.has-messages .assistant-empty-state { display: none; }" in css
     assert ".chat-sidebar" in css
+
+
+
+def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    assert "'/v1/auth/bootstrap'" in js
+    assert "'X-OMEGA-BOOTSTRAP-SECRET': candidate" in js
+    assert "issuedRefreshToken = String(bootstrapData.refresh_token)" in js
+    assert "persistRefreshTokenForDevice(refreshToken)" in js
+    assert "getStoredRefreshToken" in js
+    assert "Enter setup key or signed JWT once" in html

@@ -146,7 +146,7 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-GitHub-Event", "X-Hub-Signature-256"],
+    allow_headers=["Authorization", "Content-Type", "X-OMEGA-BOOTSTRAP-SECRET", "X-GitHub-Event", "X-Hub-Signature-256"],
 )
 app.include_router(router, prefix="/v1")
 app.include_router(auth_sessions_router, prefix="/v1")

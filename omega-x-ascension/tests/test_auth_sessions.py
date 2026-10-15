@@ -16,6 +16,7 @@ class Config:
     jwt_issuer = "omega-x"
     jwt_audience = "omega-x-api"
     jwt_algorithm = "HS256"
+    token_bootstrap_secret = SecretStr("b" * 64)
 
 
 class MemoryRedis:
@@ -25,8 +26,19 @@ class MemoryRedis:
     async def get(self, key):
         return self.values.get(key)
 
-    async def set(self, key, value, ex=None):
+    async def set(self, key, value, ex=None, nx=False):
+        if nx and key in self.values:
+            return None
         self.values[key] = value
+        return True
+
+    async def incr(self, key):
+        value = int(self.values.get(key, 0)) + 1
+        self.values[key] = value
+        return value
+
+    async def expire(self, key, seconds):
+        return key in self.values
 
 
 def make_client(monkeypatch):
@@ -102,3 +114,47 @@ def test_device_refresh_token_cannot_authorize_normal_api_calls(monkeypatch):
         assert getattr(exc, "status_code", None) == 401
     else:
         raise AssertionError("device refresh tokens must never authorize regular API endpoints")
+
+
+
+def test_one_time_bootstrap_issues_scoped_access_and_refresh_tokens(monkeypatch):
+    client, _app = make_client(monkeypatch)
+
+    response = client.post(
+        "/v1/auth/bootstrap",
+        headers={"X-OMEGA-BOOTSTRAP-SECRET": Config.token_bootstrap_secret.get_secret_value()},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["expires_in"] == 300
+    assert data["access_token"]
+    assert data["refresh_token"]
+
+    access_claims = jwt.decode(
+        data["access_token"],
+        Config.jwt_secret.get_secret_value(),
+        algorithms=["HS256"],
+        issuer=Config.jwt_issuer,
+        audience=Config.jwt_audience,
+    )
+    assert access_claims["sub"] == "omega-primary-device"
+    assert access_claims["token_use"] == "access"
+    assert "runs:read" in access_claims["scope"].split()
+    assert "runs:write" in access_claims["scope"].split()
+    assert "computer:execute" not in access_claims["scope"].split()
+
+    refresh_claims = jwt.decode(
+        data["refresh_token"],
+        Config.jwt_secret.get_secret_value(),
+        algorithms=["HS256"],
+        issuer=Config.jwt_issuer,
+        audience=Config.jwt_audience,
+    )
+    assert refresh_claims["token_use"] == "device_refresh"
+    assert refresh_claims["access_scope"] == access_claims["scope"]
+
+    reused = client.post(
+        "/v1/auth/bootstrap",
+        headers={"X-OMEGA-BOOTSTRAP-SECRET": Config.token_bootstrap_secret.get_secret_value()},
+    )
+    assert reused.status_code == 410

@@ -376,8 +376,8 @@
   $('#connect-btn').addEventListener('click', async () => {
     const candidate = $('#jwt-token').value.trim();
     if (!candidate) {
-      clearSession('No access token supplied.');
-      alert('Paste a signed JWT token first.');
+      clearSession('No setup key or access token supplied.');
+      alert('Enter the one-time setup key or a valid signed access token.');
       return;
     }
     const candidateExpiry = readTokenExpiry(candidate);
@@ -390,19 +390,49 @@
       alert('Save your API server URL first.');
       return;
     }
+    const isSetupKey = candidate.split('.').length !== 3;
+    if (isSetupKey && !isNativeApp) {
+      alert('The one-time setup key is for enrolling the installed Android app. Use a signed JWT for browser-only access.');
+      return;
+    }
     const button = $('#connect-btn');
     button.disabled = true;
     button.textContent = 'Securing…';
-    token = candidate;
+    let issuedRefreshToken = '';
     try {
+      if (isSetupKey) {
+        const bootstrapResponse = await apiFetch('/v1/auth/bootstrap', {
+          method: 'POST',
+          headers: { 'X-OMEGA-BOOTSTRAP-SECRET': candidate },
+          cache: 'no-store',
+        });
+        if (!bootstrapResponse.ok) {
+          const body = await bootstrapResponse.text();
+          throw new Error('Setup failed (' + bootstrapResponse.status + '). ' + body.slice(0, 180));
+        }
+        const bootstrapData = await bootstrapResponse.json();
+        if (!bootstrapData.access_token || !bootstrapData.refresh_token) {
+          throw new Error('The server returned an incomplete device session.');
+        }
+        token = String(bootstrapData.access_token);
+        issuedRefreshToken = String(bootstrapData.refresh_token);
+        $('#jwt-token').value = '';
+      } else {
+        token = candidate;
+      }
+
       await api('/v1/runs?limit=1');
       if (isNativeApp) {
-        const enrollmentResponse = await api('/v1/auth/device', { method: 'POST' });
-        const enrolled = await enrollmentResponse.json();
-        if (!enrolled.refresh_token) throw new Error('The server did not issue a device session.');
-        const stored = await persistRefreshTokenForDevice(String(enrolled.refresh_token));
+        let refreshToken = issuedRefreshToken;
+        if (!refreshToken) {
+          const enrollmentResponse = await api('/v1/auth/device', { method: 'POST' });
+          const enrolled = await enrollmentResponse.json();
+          refreshToken = String(enrolled.refresh_token || '');
+        }
+        if (!refreshToken) throw new Error('The server did not issue a device session.');
+        const stored = await persistRefreshTokenForDevice(refreshToken);
         if (!stored) throw new Error('Android secure storage did not confirm saving the device session.');
-        deviceRefreshToken = String(enrolled.refresh_token);
+        deviceRefreshToken = refreshToken;
         $('#jwt-token').value = '';
         sessionStorage.removeItem('omega-jwt');
         setAssistantStatus('Connected. This device is saved securely and will reconnect automatically.', 'success');
@@ -410,7 +440,7 @@
         sessionStorage.setItem('omega-jwt', token);
       }
       setConnected(true);
-      scheduleTokenExpiry(candidateExpiry || (Date.now() + 3600000));
+      scheduleTokenExpiry(readTokenExpiry(token) || candidateExpiry || (Date.now() + 3600000));
       startPolling();
       await loadRuns();
       addAgentLog('success', isNativeApp ? 'API verified; encrypted device session saved.' : 'API token verified for this page session.');
@@ -421,7 +451,7 @@
         clearRefreshTokenOnDevice();
       }
       clearSession();
-      alert('Connection failed. Verify the API URL, token validity, and runs:read scope. ' + (error.message || ''));
+      alert('Connection failed. Verify the API URL, one-time setup key or access token, and runs:read scope. ' + (error.message || ''));
     } finally {
       button.disabled = false;
       button.textContent = 'Connect once';

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import time
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import jwt
-from fastapi import APIRouter, HTTPException, Request, Security, status
+from fastapi import APIRouter, Header, HTTPException, Request, Security, status
 from pydantic import BaseModel, Field
 from jwt import InvalidTokenError
 
@@ -17,6 +19,16 @@ router = APIRouter(tags=["device sessions"])
 ACCESS_TOKEN_LIFETIME_SECONDS = 60 * 60
 DEVICE_REFRESH_LIFETIME_SECONDS = 30 * 24 * 60 * 60
 REFRESH_REVOKED_PREFIX = "omega:device-refresh:revoked:"
+BOOTSTRAP_USED_PREFIX = "omega:token-bootstrap:used:"
+BOOTSTRAP_ATTEMPT_PREFIX = "omega:token-bootstrap:attempts:"
+BOOTSTRAP_RATE_WINDOW_SECONDS = 60
+BOOTSTRAP_MAX_ATTEMPTS = 12
+BOOTSTRAP_ACCESS_LIFETIME_SECONDS = 5 * 60
+BOOTSTRAP_TENANT_ID = UUID("00000000-0000-0000-0000-000000000001")
+BOOTSTRAP_SUBJECT = "omega-primary-device"
+BOOTSTRAP_SCOPES = frozenset({
+    "runs:read", "runs:write", "runs:approve", "computer:read", "computer:write",
+})
 
 
 class RefreshRequest(BaseModel):
@@ -85,6 +97,93 @@ async def _assert_not_revoked(request: Request, claims: dict) -> int:
         # Fail closed: never allow a refresh when revocation state cannot be checked.
         raise HTTPException(status_code=503, detail="session service temporarily unavailable") from exc
     return ttl
+
+
+@router.post("/auth/bootstrap")
+async def bootstrap_device(
+    request: Request,
+    supplied_secret: str | None = Header(default=None, alias="X-OMEGA-BOOTSTRAP-SECRET"),
+):
+    """Enroll the trusted Android app without putting the JWT signing key in the APK."""
+    cfg = get_settings()
+    configured_secret = (
+        cfg.token_bootstrap_secret.get_secret_value()
+        if cfg.token_bootstrap_secret
+        else ""
+    )
+    if len(configured_secret) < 32:
+        raise HTTPException(status_code=404, detail="not found")
+
+    redis = request.app.state.services.redis
+    client_host = request.client.host if request.client else "unknown"
+    attempts_key = BOOTSTRAP_ATTEMPT_PREFIX + hashlib.sha256(
+        client_host.encode("utf-8")
+    ).hexdigest()[:24]
+    try:
+        attempts = await redis.incr(attempts_key)
+        if attempts == 1:
+            await redis.expire(attempts_key, BOOTSTRAP_RATE_WINDOW_SECONDS)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="setup service temporarily unavailable") from exc
+    if attempts > BOOTSTRAP_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="too many setup attempts; try again shortly")
+
+    if not supplied_secret or not hmac.compare_digest(supplied_secret, configured_secret):
+        raise HTTPException(status_code=401, detail="invalid one-time setup key")
+
+    # Atomically consume the setup key. Redis failure is fail-closed.
+    secret_fingerprint = hashlib.sha256(configured_secret.encode("utf-8")).hexdigest()
+    try:
+        claimed = await redis.set(
+            BOOTSTRAP_USED_PREFIX + secret_fingerprint,
+            "1",
+            nx=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="setup service temporarily unavailable") from exc
+    if not claimed:
+        raise HTTPException(status_code=410, detail="this setup key has already been used")
+
+    now = datetime.now(UTC)
+    issued_at = int(now.timestamp())
+    scope_string = " ".join(sorted(BOOTSTRAP_SCOPES))
+    access_expiry = int((now + timedelta(seconds=BOOTSTRAP_ACCESS_LIFETIME_SECONDS)).timestamp())
+    refresh_expiry = int((now + timedelta(seconds=DEVICE_REFRESH_LIFETIME_SECONDS)).timestamp())
+    access_claims = {
+        "sub": BOOTSTRAP_SUBJECT,
+        "tenant_id": str(BOOTSTRAP_TENANT_ID),
+        "scope": scope_string,
+        "iss": cfg.jwt_issuer,
+        "aud": cfg.jwt_audience,
+        "iat": issued_at,
+        "exp": access_expiry,
+        "token_use": "access",
+    }
+    access_token = jwt.encode(
+        access_claims, cfg.jwt_secret.get_secret_value(), algorithm=cfg.jwt_algorithm
+    )
+    refresh_claims = {
+        "sub": BOOTSTRAP_SUBJECT,
+        "tenant_id": str(BOOTSTRAP_TENANT_ID),
+        "scope": "device:refresh",
+        "access_scope": scope_string,
+        "iss": cfg.jwt_issuer,
+        "aud": cfg.jwt_audience,
+        "iat": issued_at,
+        "exp": refresh_expiry,
+        "jti": uuid4().hex,
+        "token_use": "device_refresh",
+    }
+    refresh_token = jwt.encode(
+        refresh_claims, cfg.jwt_secret.get_secret_value(), algorithm=cfg.jwt_algorithm
+    )
+    return {
+        "token_type": "Bearer",
+        "access_token": access_token,
+        "expires_in": BOOTSTRAP_ACCESS_LIFETIME_SECONDS,
+        "refresh_token": refresh_token,
+        "refresh_expires_at": refresh_expiry,
+    }
 
 
 @router.post("/auth/device")

@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     jwt_issuer: str = "omega-x"
     jwt_audience: str = "omega-x-api"
     jwt_algorithm: Literal["HS256", "HS384", "HS512"] = "HS256"
+    # One-time setup key; it is never embedded in the Android APK.
+    token_bootstrap_secret: SecretStr | None = None
     model_providers: list[ProviderConfig] = Field(default_factory=list)
     # Optional OpenAI flagship gateway; set the API key only in a deployment secret store.
     openai_api_key: SecretStr | None = None
