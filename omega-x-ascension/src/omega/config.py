@@ -54,6 +54,28 @@ class Settings(BaseSettings):
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     gemini_priority: int = Field(default=100, ge=0, le=100)
     gemini_timeout_seconds: float = Field(default=180, gt=0, le=600)
+
+    # Optional additional OpenAI-compatible providers. Keep keys in Railway Variables.
+    # OpenRouter exposes a changing model catalog; override the model ID when needed.
+    openrouter_api_key: SecretStr | None = None
+    openrouter_model: str = "google/gemini-3.8-flash"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_priority: int = Field(default=90, ge=0, le=100)
+    openrouter_timeout_seconds: float = Field(default=180, gt=0, le=600)
+
+    # DeepSeek's OpenAI-compatible endpoint.
+    deepseek_api_key: SecretStr | None = None
+    deepseek_model: str = "deepseek-flash"
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_priority: int = Field(default=85, ge=0, le=100)
+    deepseek_timeout_seconds: float = Field(default=180, gt=0, le=600)
+
+    # Groq's OpenAI-compatible endpoint.
+    groq_api_key: SecretStr | None = None
+    groq_model: str = "qwen/qwen3.8-27b"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_priority: int = Field(default=80, ge=0, le=100)
+    groq_timeout_seconds: float = Field(default=120, gt=0, le=600)
     log_level: str = "INFO"
     # Optional bearer token protecting Prometheus metrics in production.
     metrics_token: SecretStr | None = None
