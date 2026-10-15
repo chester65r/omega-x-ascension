@@ -132,11 +132,12 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           ls -l /dev/kvm
 
-      - name: Run Android emulator UI smoke test
+      - name: Run Android emulator UI instrumentation tests
         timeout-minutes: 18
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          # This image reliably runs the AndroidX instrumentation suite in CI.
+          api-level: 34
           target: default
           arch: x86_64
           profile: pixel_2
@@ -149,6 +150,23 @@ jobs:
           disable-animations: true
           script: bash android/run-instrumented-tests.sh
 
+      - name: Run Android 15 install and launch smoke test
+        timeout-minutes: 12
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 4
+          ram-size: 4096M
+          heap-size: 1024M
+          emulator-boot-timeout: 900
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash android/run-android15-smoke.sh
+
       - name: Upload Android test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -160,5 +178,6 @@ jobs:
             android/app/build/ci-logcat.txt
             android/app/build/ci-exit-info.txt
             android/app/build/ci-final-screen.png
+            android/app/build/ci-android15-smoke.txt
           if-no-files-found: warn
           retention-days: 7
