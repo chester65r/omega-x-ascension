@@ -79,6 +79,22 @@ public class DashboardSmokeTest {
             }
             assertEquals("Bundled HTML and critical screens must load in WebView (actual=" + ready + ")", "true", ready);
 
+            String blankChatLayout = evaluate(webView,
+                    "(() => { " +
+                    "const card = document.querySelector('.assistant-card'); " +
+                    "const welcome = document.querySelector('.assistant-empty-state'); " +
+                    "const messages = document.getElementById('assistant-messages'); " +
+                    "const composer = document.getElementById('assistant-form'); " +
+                    "const status = document.getElementById('assistant-status'); " +
+                    "const formRect = composer.getBoundingClientRect(); " +
+                    "const statusRect = status.getBoundingClientRect(); " +
+                    "return !card.classList.contains('has-messages') && " +
+                    "getComputedStyle(messages).display === 'none' && " +
+                    "getComputedStyle(welcome).display !== 'none' && " +
+                    "formRect.width > 0 && formRect.bottom <= window.innerHeight + 2 && " +
+                    "statusRect.bottom <= window.innerHeight + 2; })()");
+            assertEquals("Welcome state must center cleanly while the composer stays within the mobile viewport (actual=" + blankChatLayout + ")", "true", blankChatLayout);
+
             String tabConsistency = evaluate(webView,
                     "Array.from(document.querySelectorAll('.tab')).map(e => e.dataset.tab).join(',') === " +
                     "Array.from(document.querySelectorAll('section.tab-content')).map(e => e.id).join(',')");
