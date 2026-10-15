@@ -2,6 +2,7 @@ FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN groupadd --system omega && useradd --system --gid omega --home /app omega
 WORKDIR /app
+RUN mkdir -p /workspace && chown omega:omega /workspace && chmod 0700 /workspace
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY static ./static
@@ -10,5 +11,5 @@ COPY alembic.ini ./
 COPY scripts ./scripts
 RUN python -m compileall -q src scripts && pip install --no-cache-dir .
 USER omega
-EXPOSE 8000
+EXPOSE 8000 8080 8090
 CMD ["uvicorn", "omega.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

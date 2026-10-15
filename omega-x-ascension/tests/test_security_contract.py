@@ -3,7 +3,9 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
+from omega import sandbox_service
 from omega.main import app
 from omega.sandbox_service import SandboxRuntime
 from omega.tools.browser import BrowserTool
@@ -290,5 +292,81 @@ def test_android_file_save_preflight_allows_put_and_required_headers():
         allowed_headers = response.headers.get("access-control-allow-headers", "").lower()
         assert "authorization" in allowed_headers
         assert "content-type" in allowed_headers
+
+    asyncio.run(check())
+
+
+
+def test_sandbox_health_checks_workspace_writeability_and_shared_token(monkeypatch, tmp_path):
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 48)
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    monkeypatch.setattr(sandbox_service, "get_runtime", lambda: runtime)
+
+    result = asyncio.run(sandbox_service.health())
+
+    assert result["status"] == "ok"
+    assert result["file_tools"] is True
+    assert result["workspace_ready"] is True
+    assert result["credential_configured"] is True
+    assert result["command_execution"] is False
+    assert list(runtime.root.iterdir()) == []
+
+
+def test_sandbox_health_is_not_green_when_shared_token_is_missing(monkeypatch, tmp_path):
+    monkeypatch.delenv("OMEGA_SANDBOX_TOKEN", raising=False)
+    monkeypatch.setattr(
+        sandbox_service, "get_runtime", lambda: SandboxRuntime(tmp_path / "workspace")
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(sandbox_service.health())
+
+    assert exc.value.status_code == 503
+    assert "credential" in exc.value.detail
+
+
+def test_sandbox_health_fails_when_workspace_is_not_writable(monkeypatch, tmp_path):
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 48)
+    monkeypatch.setattr(
+        sandbox_service, "get_runtime", lambda: SandboxRuntime(tmp_path / "workspace")
+    )
+
+    def fail_write_probe(_root):
+        raise OSError("simulated read-only workspace")
+
+    monkeypatch.setattr(sandbox_service, "_check_workspace_writable", fail_write_probe)
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(sandbox_service.health())
+
+    assert exc.value.status_code == 503
+    assert "workspace" in exc.value.detail
+
+
+def test_sandbox_image_provisions_workspace_for_the_unprivileged_user():
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+    assert "mkdir -p /workspace" in dockerfile
+    assert "chown omega:omega /workspace" in dockerfile
+    assert "chmod 0700 /workspace" in dockerfile
+    assert dockerfile.index("chown omega:omega /workspace") < dockerfile.index("USER omega")
+    assert "EXPOSE 8000 8080 8090" in dockerfile
+
+
+def test_computer_health_is_false_when_sandbox_reports_unready():
+    async def check():
+        async def unavailable(request):
+            return httpx.Response(
+                503,
+                json={"detail": "sandbox workspace is not writable"},
+                request=request,
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(unavailable)) as client:
+            tool = ComputerTool(
+                client=client,
+                base_url="http://sandbox:8090",
+                token="s" * 48,
+                files_enabled=True,
+            )
+            assert await tool.health() is False
 
     asyncio.run(check())

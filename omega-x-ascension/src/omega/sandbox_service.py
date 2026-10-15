@@ -5,6 +5,8 @@ import ctypes
 import os
 import secrets
 import signal
+import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import UUID
 
@@ -15,8 +17,23 @@ MAX_OUTPUT_BYTES = 16_000
 MAX_FILE_BYTES = 100_000
 MAX_DIRECTORY_ENTRIES = 200
 WORKSPACE_ROOT = Path(os.environ.get("OMEGA_SANDBOX_WORKSPACE", "/workspace")).resolve()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Railway starts with "uvicorn module:app", which bypasses the __main__ block.
+    # Apply process hardening during ASGI startup for Railway and local Compose alike.
+    try:
+        ctypes.CDLL(None).prctl(4, 0, 0, 0, 0)  # PR_SET_DUMPABLE = 0
+    except Exception:
+        pass
+    yield
+
+
 app = FastAPI(
-    title="OMEGA isolated computer sandbox", docs_url=None, redoc_url=None, openapi_url=None
+    title="OMEGA isolated computer sandbox",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+    lifespan=lifespan,
 )
 
 
@@ -216,9 +233,37 @@ async def require_shared_token(
         raise HTTPException(status_code=401, detail="invalid sandbox service credential")
 
 
+def _check_workspace_writable(root: Path) -> None:
+    """Verify the runtime user can create and remove a file in its workspace root."""
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if not root.is_dir():
+        raise OSError("workspace root is not a directory")
+    with tempfile.NamedTemporaryFile(
+        prefix=".omega-health-",
+        dir=root,
+        delete=True,
+    ) as probe:
+        probe.write(b"ok")
+        probe.flush()
+
+
 @app.get("/health")
 async def health():
-    return {"status": "ok", "file_tools": True, "command_execution": False}
+    # A process-only 200 hid the broken /workspace permissions on Railway. Check the
+    # same filesystem and credential prerequisites required by real authenticated file calls.
+    if len(os.environ.get("OMEGA_SANDBOX_TOKEN", "")) < 32:
+        raise HTTPException(status_code=503, detail="sandbox service credential is not configured")
+    try:
+        _check_workspace_writable(get_runtime().root)
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="sandbox workspace is not writable") from exc
+    return {
+        "status": "ok",
+        "file_tools": True,
+        "command_execution": False,
+        "workspace_ready": True,
+        "credential_configured": True,
+    }
 
 
 @app.post("/execute")
@@ -272,8 +317,4 @@ if __name__ == "__main__":
 
     if len(os.environ.get("OMEGA_SANDBOX_TOKEN", "")) < 32:
         raise RuntimeError("OMEGA_SANDBOX_TOKEN must contain at least 32 characters")
-    try:
-        ctypes.CDLL(None).prctl(4, 0, 0, 0, 0)  # PR_SET_DUMPABLE = 4
-    except Exception:
-        pass
     uvicorn.run(app, host="0.0.0.0", port=8090, access_log=False)
