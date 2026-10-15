@@ -11,6 +11,9 @@
   let deviceRefreshToken = '';
   let sessionRefreshInFlight = null;
   let tokenExpiryTimer = null;
+  let refreshRetryTimer = null;
+  let refreshRetryDelayMs = 5000;
+  let tokenExpiresAt = 0;
   // Public API origin is a build-time endpoint, not a user credential or an editable setting.
   const apiBase = DEFAULT_API_BASE;
   let pollTimer = null;
@@ -54,15 +57,20 @@
     const signout = $('#session-signout');
     if (signout) signout.hidden = !connected;
     const enroll = $('#device-enrollment-open');
-    if (enroll) enroll.hidden = connected || !isNativeApp || !deviceSessionChecked;
+    // Do not offer re-enrollment while a saved refresh credential is being retried.
+    if (enroll) enroll.hidden = connected || !isNativeApp || !deviceSessionChecked || Boolean(deviceRefreshToken);
   }
 
   function clearSession(reason = '') {
     token = '';
-    sessionStorage.removeItem('omega-jwt');
+    tokenExpiresAt = 0;
+    try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}
     sessionStorage.removeItem('omega-runs');
     if (tokenExpiryTimer) clearTimeout(tokenExpiryTimer);
     tokenExpiryTimer = null;
+    if (refreshRetryTimer) clearTimeout(refreshRetryTimer);
+    refreshRetryTimer = null;
+    refreshRetryDelayMs = 5000;
     if (runPollTimer) clearInterval(runPollTimer);
     runPollTimer = null;
     setConnected(false);
@@ -71,26 +79,32 @@
   }
 
   function scheduleTokenExpiry(expiry) {
+    tokenExpiresAt = Number(expiry) || 0;
     if (tokenExpiryTimer) clearTimeout(tokenExpiryTimer);
-    if (!expiry) return;
-    const remaining = expiry - Date.now();
+    tokenExpiryTimer = null;
+    if (!tokenExpiresAt) return;
+    const remaining = tokenExpiresAt - Date.now();
     if (remaining <= 0) {
+      token = '';
+      try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}
+      setConnected(false);
       if (deviceRefreshToken) {
         refreshDeviceSession().catch((error) => failSecureSession(error));
       } else {
-        clearSession('Secure device session expired; owner-approved re-enrollment is required.');
+        clearSession('The access session expired and this device is not enrolled.');
       }
       return;
     }
-    // Refresh one minute before expiry while the secure device credential remains valid.
+    // Attempt a silent renewal one minute before expiry where possible.
     const delay = Math.max(1000, remaining - (deviceRefreshToken ? 60000 : 0));
     tokenExpiryTimer = setTimeout(() => {
+      tokenExpiryTimer = null;
       if (deviceRefreshToken) {
         refreshDeviceSession().catch((error) => failSecureSession(error));
-      } else if (Date.now() >= expiry) {
-        clearSession('Access token expired. Connect again with a fresh token.');
+      } else if (Date.now() >= tokenExpiresAt) {
+        clearSession('The access session expired. Enroll this device once to reconnect.');
       } else {
-        scheduleTokenExpiry(expiry);
+        scheduleTokenExpiry(tokenExpiresAt);
       }
     }, Math.min(delay, 2147483000));
   }
@@ -153,15 +167,21 @@
         body: JSON.stringify({ refresh_token: deviceRefreshToken }),
       });
       if (!response.ok) {
-        const body = await response.text();
-        throw new Error('Secure session refresh failed (' + response.status + '). ' + body.slice(0, 180));
+        // Preserve status, but never surface the server response body which may contain details.
+        const error = new Error('Secure session refresh failed with HTTP ' + response.status + '.');
+        error.status = response.status;
+        throw error;
       }
       const data = await response.json();
-      if (!data.access_token) throw new Error('Server returned no access token.');
+      if (!data.access_token) throw new Error('The server returned no access token.');
       token = String(data.access_token);
-      sessionStorage.removeItem('omega-jwt');
+      try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}
+      const expiry = Date.now() + Number(data.expires_in || 3600) * 1000;
       setConnected(true);
-      scheduleTokenExpiry(Date.now() + Number(data.expires_in || 3600) * 1000);
+      scheduleTokenExpiry(expiry);
+      if (refreshRetryTimer) clearTimeout(refreshRetryTimer);
+      refreshRetryTimer = null;
+      refreshRetryDelayMs = 5000;
       startPolling();
       addAgentLog('success', 'Secure device session refreshed.');
       return true;
@@ -173,12 +193,55 @@
     }
   }
 
+  function scheduleSessionRefreshRetry() {
+    if (!deviceRefreshToken || refreshRetryTimer) return;
+    const delay = refreshRetryDelayMs;
+    refreshRetryDelayMs = Math.min(refreshRetryDelayMs * 2, 60000);
+    refreshRetryTimer = setTimeout(() => {
+      refreshRetryTimer = null;
+      if (!deviceRefreshToken) return;
+      refreshDeviceSession().catch((error) => failSecureSession(error));
+    }, delay);
+  }
+
   function failSecureSession(error) {
+    const status = Number(error?.status || 0);
+    const permanentlyInvalid = [400, 401, 403, 410].includes(status);
+    if (deviceRefreshToken && !permanentlyInvalid) {
+      const hasUnexpiredAccessToken = Boolean(token && tokenExpiresAt > Date.now());
+      if (tokenExpiryTimer) clearTimeout(tokenExpiryTimer);
+      tokenExpiryTimer = null;
+      if (hasUnexpiredAccessToken) {
+        // Keep the current access token until its known expiry, while background retries run.
+        setConnected(true);
+        tokenExpiryTimer = setTimeout(() => {
+          tokenExpiryTimer = null;
+          if (tokenExpiresAt <= Date.now()) {
+            token = '';
+            tokenExpiresAt = 0;
+            try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}
+            setConnected(false);
+            setAssistantStatus('The access token expired while the service was unavailable. OMEGA is reconnecting securely.', 'warning');
+          }
+        }, Math.max(1000, tokenExpiresAt - Date.now()));
+      } else {
+        token = '';
+        try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}
+        setConnected(false);
+      }
+      setAssistantStatus('The cloud service could not refresh this session temporarily. The encrypted device credential is retained, and OMEGA will retry automatically.', 'warning');
+      addAgentLog('warning', 'Temporary session refresh failure; encrypted device credential retained for automatic retry.');
+      scheduleSessionRefreshRetry();
+      return;
+    }
+
     token = '';
+    tokenExpiresAt = 0;
     deviceRefreshToken = '';
     clearRefreshTokenOnDevice();
-    clearSession('Saved device session could not be renewed; owner-approved re-enrollment is required. ' + String(error?.message || error || '').slice(0, 160));
-    setAssistantStatus('This device session is no longer valid. Owner-approved re-enrollment is required.', 'warning');
+    clearSession('The secure device credential was rejected or revoked. Owner-authorized re-enrollment is required.');
+    setAssistantStatus('The saved device credential is invalid or revoked. Enroll this device once to reconnect.', 'warning');
+    addAgentLog('warning', 'The server rejected the stored device refresh credential; it was cleared from Android secure storage.');
   }
 
   // Local on-device model mode: talks directly to a llama.cpp OpenAI-compatible server.
@@ -474,15 +537,21 @@
       headers: { ...authHeaders(), ...(fetchOptions.headers || {}) },
     });
     if (res.status === 401 && token && deviceRefreshToken && !__afterRefreshRetry) {
+      const previousToken = token;
       try {
         await refreshDeviceSession();
       } catch (error) {
         failSecureSession(error);
       }
-      if (token) return api(path, { ...fetchOptions, __afterRefreshRetry: true });
+      // Retry this API call only if refresh produced a different access token.
+      if (token && token !== previousToken) {
+        return api(path, { ...fetchOptions, __afterRefreshRetry: true });
+      }
     }
     if (res.status === 401 && token) {
-      clearSession('The cloud service rejected this session; owner-approved re-enrollment is required.');
+      const error = new Error('The cloud service rejected the refreshed access token.');
+      error.status = 401;
+      failSecureSession(error);
     }
     if (!res.ok) {
       const body = await res.text();
