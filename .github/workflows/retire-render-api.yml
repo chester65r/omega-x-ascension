@@ -114,19 +114,21 @@ jobs:
           # Delete only after the canonical Railway production API is reachable and ready.
           # These checks prevent retirement during an unnoticed production outage.
           readonly RAILWAY_BASE_URL="https://omega-api-production-e4ed.up.railway.app"
-          for endpoint in live ready version; do
+          for endpoint in live ready; do
             curl --fail --silent --show-error --connect-timeout 8 --max-time 20 \
               --retry 3 --retry-delay 2 \
               "$RAILWAY_BASE_URL/health/$endpoint" \
               --output "$WORK_DIR/railway-$endpoint.json" || {
-                if [[ "$endpoint" == "version" ]]; then
-                  echo "::error::Railway health/version preflight failed at /health/$endpoint. Nothing was deleted."
-                else
-                  echo "::error::Railway health preflight failed at /health/$endpoint. Nothing was deleted."
-                fi
+                echo "::error::Railway health preflight failed at /health/$endpoint. Nothing was deleted."
                 exit 1
               }
           done
+          curl --fail --silent --show-error --connect-timeout 8 --max-time 20 \
+            --retry 3 --retry-delay 2 "$RAILWAY_BASE_URL/version" \
+            --output "$WORK_DIR/railway-version.json" || {
+              echo "::error::Railway API version preflight failed at /version. Nothing was deleted."
+              exit 1
+            }
           jq -e '.status == "ok"' "$WORK_DIR/railway-live.json" >/dev/null || {
             echo "::error::Railway liveness check did not report status=ok. Nothing was deleted."
             exit 1
