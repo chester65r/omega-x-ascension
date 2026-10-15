@@ -3,14 +3,22 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from omega import sandbox_service
+from omega.sandbox_service import SandboxRuntime
 
 
-def test_sandbox_health_reports_command_execution_disabled():
+def test_sandbox_health_reports_ready_workspace_and_disabled_execution(monkeypatch, tmp_path):
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 40)
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    monkeypatch.setattr(sandbox_service, "get_runtime", lambda: runtime)
+
     with TestClient(sandbox_service.app) as client:
         response = client.get("/health")
+
     assert response.status_code == 200
     assert response.json()["command_execution"] is False
     assert response.json()["file_tools"] is True
+    assert response.json()["workspace_ready"] is True
+    assert response.json()["credential_configured"] is True
 
 
 def test_sandbox_execute_fails_closed_even_with_valid_internal_token(monkeypatch):
