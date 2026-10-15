@@ -16,7 +16,7 @@ RUN mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools" \
     && rm /tmp/cmdline-tools.zip \
     && yes | sdkmanager --licenses >/dev/null 2>&1 || true
 
-RUN sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+RUN sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
 WORKDIR /repo
 COPY android ./android

@@ -40,7 +40,7 @@ jobs:
           packages: "platform-tools"
 
       - name: Install Android platform
-        run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build debug APK
         run: ./android/build-apk.sh
@@ -112,12 +112,12 @@ jobs:
           test -n "$APP_VERSION"
           APK="omega-x-ascension-$APP_VERSION-debug.apk"
           test -s "$APK"
-          BADGING="$( "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" )"
+          BADGING="$( "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" )"
           APP_CODE="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\1/p' android/app/build.gradle | head -n 1)"
           test -n "$APP_CODE"
           grep -F "versionCode='$APP_CODE' versionName='$APP_VERSION'" <<< "$BADGING"
-          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension.android15test'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.omega.ascension.android15test'"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
