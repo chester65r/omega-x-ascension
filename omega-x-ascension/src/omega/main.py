@@ -183,7 +183,15 @@ async def ready():
             await conn.execute(text("SELECT 1"))
         await svc.redis.ping()
         if (svc.computer.enabled or svc.computer.files_enabled) and not await svc.computer.health():
-            raise RuntimeError("sandbox_unavailable")
+            logger.error(
+                "Readiness check failed: authenticated sandbox probe failed; verify the private URL, "
+                "shared credential alignment, and workspace permissions."
+            )
+            return Response(
+                content='{"status":"not_ready","reason":"sandbox_unavailable"}',
+                status_code=503,
+                media_type="application/json",
+            )
         providers = await svc.router.status()
         healthy_models = sum(1 for provider in providers if provider["healthy"])
         if healthy_models == 0:

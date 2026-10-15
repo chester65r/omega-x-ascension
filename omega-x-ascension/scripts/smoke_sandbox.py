@@ -34,6 +34,19 @@ def main() -> None:
             health.json().get("command_execution") is False,
             "shell execution must remain disabled during sandbox smoke checks",
         )
+        matching_credential_health = client.get("/health", headers=headers)
+        require(
+            matching_credential_health.status_code == 200,
+            "authenticated sandbox health check failed; verify API/sandbox shared credential alignment: "
+            f"HTTP {matching_credential_health.status_code}, body={matching_credential_health.text[:240]}",
+        )
+        mismatched_credential_health = client.get(
+            "/health", headers={"X-OMEGA-SANDBOX-TOKEN": "x" * 64}
+        )
+        require(
+            mismatched_credential_health.status_code == 401,
+            "sandbox health route did not reject a mismatched internal credential",
+        )
 
         no_credential = client.get("/files", params={"workspace_id": tenant_a, "path": "."})
         require(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import ctypes
+import logging
 import os
 import secrets
 import signal
@@ -12,6 +13,8 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger("omega.sandbox")
 
 MAX_OUTPUT_BYTES = 16_000
 MAX_FILE_BYTES = 100_000
@@ -255,14 +258,20 @@ async def health(
     # API readiness supplies the shared credential so mismatched API/sandbox secrets cannot look healthy.
     expected = os.environ.get("OMEGA_SANDBOX_TOKEN", "")
     if len(expected) < 32:
+        logger.error("Sandbox health check failed: shared service credential is missing or too short.")
         raise HTTPException(status_code=503, detail="sandbox service credential is not configured")
     if supplied is not None and not secrets.compare_digest(supplied, expected):
+        logger.warning("Sandbox health check rejected a mismatched internal credential.")
         raise HTTPException(status_code=401, detail="invalid sandbox service credential")
     # A process-only 200 hid the broken /workspace permissions on Railway. Check the
     # same filesystem and credential prerequisites required by real authenticated file calls.
     try:
         _check_workspace_writable(get_runtime().root)
     except OSError as exc:
+        logger.error(
+            "Sandbox health check failed: workspace is not writable (error_type=%s).",
+            type(exc).__name__,
+        )
         raise HTTPException(status_code=503, detail="sandbox workspace is not writable") from exc
     return {
         "status": "ok",
