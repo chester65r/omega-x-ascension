@@ -80,6 +80,29 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Compute debug release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_VERSION="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\1/p' android/app/build.gradle | head -n 1)"
+          test -n "$APP_VERSION"
+          echo "DEBUG_RELEASE_TAG=debug-v${APP_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Publish installable debug APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.DEBUG_RELEASE_TAG }}
+          name: OMEGA-X Ascension ${{ env.DEBUG_RELEASE_TAG }} (debug APK)
+          body: |
+            Directly installable, debug-signed APK built from main.
+            - Package: com.omega.ascension.android15test (debug suffix is intentional)
+            - Signature and package identity verified with apksigner and aapt; sha256 checksum in the .sha256 file.
+            - Install: allow "install unknown apps" for your browser or file manager, then open the .apk on Android 8+.
+          prerelease: true
+          files: |
+            omega-x-ascension-*-debug.apk
+            omega-x-ascension-*-debug.apk.sha256
+
   signed-release:
     name: Build, test and publish signed release APK
     if: startsWith(github.ref, 'refs/tags/v')
