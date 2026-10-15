@@ -211,6 +211,9 @@ def test_dashboard_hides_manual_api_url_and_jwt_but_keeps_secure_device_enrollme
     assert "sessionStorage.setItem('omega-jwt'" not in js
     assert "localStorage.setItem('omega-api-base'" not in js
     assert "try { sessionStorage.removeItem('omega-jwt'); } catch (_) {}" in js
+    assert "function scheduleSessionRefreshRetry()" in js
+    assert "const permanentlyInvalid = [400, 401, 403, 410].includes(status);" in js
+    assert "encrypted device credential is retained" in js
     for stale_prompt in ("Connect with a signed JWT", "Save your API server URL", "Backend Connection"):
         assert stale_prompt not in js
 
