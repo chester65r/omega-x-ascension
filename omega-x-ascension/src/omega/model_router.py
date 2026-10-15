@@ -30,7 +30,8 @@ class ModelExecutionFailed(RuntimeError):
 
 
 class ModelRouter:
-    _MAX_PROVIDER_ATTEMPTS = 2
+    # Cover the six built-in provider integrations while bounding worst-case latency.
+    _MAX_PROVIDER_ATTEMPTS = 6
 
     def __init__(self, registry: ModelRegistry):
         self._registry = registry
@@ -82,8 +83,8 @@ class ModelRouter:
                 )
 
         # Authentication, billing, model/endpoint, and other permanent 4xx failures
-        # will not recover by requeueing the same task. Try every configured provider
-        # first, then allow a queue retry only if at least one failure was transient.
+        # will not recover by requeueing the same task. Exhaust the bounded provider
+        # attempt list first, then retry the queue only if a failure was transient.
         def is_retryable(exc: Exception) -> bool:
             if isinstance(exc, httpx.HTTPStatusError):
                 status = exc.response.status_code
