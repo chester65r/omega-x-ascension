@@ -140,7 +140,7 @@ jobs:
           removed="false"
           for attempt in 1 2 3 4 5 6; do
             check_status="$(api_request GET "$API_BASE/services/$TARGET_SERVICE_ID" "$WORK_DIR/post-delete-service.json")"
-            if [[ "$check_status" == "404" ]]; then
+            if [[ "$check_status" == "404" || "$check_status" == "410" ]]; then
               removed="true"
               break
             fi
