@@ -43,14 +43,14 @@
       </div>
       <div class="header-utilities">
       <details class="connection-details" id="connection-details">
-        <summary><span class="connection-title">BACKEND CONNECTION</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
+        <summary><span class="connection-title">DEVICE SESSION</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
         <div class="connection-panel" aria-label="Server connection">
           <label class="sr-only" for="api-base">API server URL</label>
           <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url">
           <button id="save-server-btn" class="btn btn-quiet" type="button">Save</button>
-          <label class="sr-only" for="jwt-token">JWT access token</label>
-          <input type="password" id="jwt-token" placeholder="JWT access token" autocomplete="off">
-          <button id="connect-btn" class="btn btn-primary" type="button">Connect</button>
+          <label class="sr-only" for="jwt-token">One-time setup access token</label>
+          <input type="password" id="jwt-token" placeholder="Paste access token once to enroll this device" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="connect-btn" class="btn btn-primary" type="button">Connect once</button>
           <button id="disconnect-btn" class="btn btn-quiet" type="button">Disconnect</button>
         </div>
       </details>
