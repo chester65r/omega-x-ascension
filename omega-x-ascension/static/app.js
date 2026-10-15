@@ -4,12 +4,13 @@
   const $$ = (s) => document.querySelectorAll(s);
   const DEFAULT_API_BASE = 'https://omega-api-production-e4ed.up.railway.app';
   const isNativeApp = Boolean(window.OmegaNative && typeof window.OmegaNative.postMessage === 'function');
-  let token = isNativeApp ? '' : (sessionStorage.getItem('omega-jwt') || '');
+  // Access JWTs are short-lived and memory-only; Android silently renews them using Keystore storage.
+  let token = '';
   let deviceRefreshToken = '';
   let sessionRefreshInFlight = null;
   let tokenExpiryTimer = null;
-  let apiBase = localStorage.getItem('omega-api-base') || DEFAULT_API_BASE;
-  try { localStorage.setItem('omega-api-base', apiBase); } catch (_) {}
+  // Public API origin is a build-time endpoint, not a user credential or an editable setting.
+  const apiBase = DEFAULT_API_BASE;
   let pollTimer = null;
   let runPollTimer = null;
   let browserHistory = [];
@@ -42,28 +43,12 @@
 
   function setConnected(connected) {
     const badge = $('#conn-status');
-    badge.innerHTML = '<span class="status-dot"></span> ' + (connected ? 'Connected' : 'Disconnected');
-    badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
-    // Once this device is enrolled, hide the URL and bearer token controls.
-    ['api-base', 'save-server-btn', 'jwt-token', 'connect-btn'].forEach((id) => {
-      const element = $('#' + id);
-      if (element) element.hidden = Boolean(connected);
-    });
-    const disconnect = $('#disconnect-btn');
-    if (disconnect) disconnect.hidden = !connected;
-  }
-
-  // This client-side expiry check is only a UX aid; the API remains the authority for JWT validity.
-  function readTokenExpiry(value) {
-    try {
-      const parts = value.split('.');
-      if (parts.length !== 3) return null;
-      const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const claims = JSON.parse(atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '=')));
-      return Number.isFinite(claims.exp) ? claims.exp * 1000 : null;
-    } catch (_) {
-      return null;
+    if (badge) {
+      badge.innerHTML = '<span class="status-dot"></span> ' + (connected ? 'Connected' : 'Offline');
+      badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
     }
+    const signout = $('#session-signout');
+    if (signout) signout.hidden = !connected;
   }
 
   function clearSession(reason = '') {
@@ -74,8 +59,6 @@
     tokenExpiryTimer = null;
     if (runPollTimer) clearInterval(runPollTimer);
     runPollTimer = null;
-    const tokenField = $('#jwt-token');
-    if (tokenField) tokenField.value = '';
     setConnected(false);
     if (reason) addAgentLog('info', reason);
     if (apiBase) startPolling();
@@ -89,7 +72,7 @@
       if (deviceRefreshToken) {
         refreshDeviceSession().catch((error) => failSecureSession(error));
       } else {
-        clearSession('Access token expired. Connect again with a fresh token.');
+        clearSession('Secure device session expired; owner-approved re-enrollment is required.');
       }
       return;
     }
@@ -106,20 +89,8 @@
     }, Math.min(delay, 2147483000));
   }
 
-  function normalizeApiBase(value) {
-    const parsed = new URL(value.trim());
-    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
-      throw new Error('Use a valid HTTP or HTTPS server URL without login details.');
-    }
-    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
-    if (parsed.protocol === 'http:' && !loopback) {
-      throw new Error('Remote API servers must use HTTPS. Plain HTTP is allowed only for localhost.');
-    }
-    return parsed.origin + parsed.pathname.replace(/\/+$/, '');
-  }
-
   async function apiFetch(path, options = {}) {
-    if (!apiBase) throw new Error('The API server URL is not configured.');
+    if (!apiBase) throw new Error('The cloud service endpoint is not configured in this build.');
     return fetch(apiBase + (path.startsWith('/') ? path : '/' + path), options);
   }
 
@@ -200,39 +171,9 @@
     token = '';
     deviceRefreshToken = '';
     clearRefreshTokenOnDevice();
-    clearSession('Saved device session could not be renewed. Connect once again. ' + String(error?.message || error || '').slice(0, 160));
-    setAssistantStatus('Your saved session is no longer valid. Reconnect once to secure this device again.', 'warning');
+    clearSession('Saved device session could not be renewed; owner-approved re-enrollment is required. ' + String(error?.message || error || '').slice(0, 160));
+    setAssistantStatus('This device session is no longer valid. Owner-approved re-enrollment is required.', 'warning');
   }
-
-  $('#api-base').value = apiBase;
-  $('#save-server-btn').addEventListener('click', () => {
-    try {
-      const nextApiBase = normalizeApiBase($('#api-base').value);
-      if (apiBase && apiBase !== nextApiBase) {
-        const oldRefreshToken = deviceRefreshToken;
-        if (oldRefreshToken) {
-          apiFetch('/v1/auth/revoke', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: oldRefreshToken }),
-          }).catch(() => {});
-        }
-        deviceRefreshToken = '';
-        clearRefreshTokenOnDevice();
-        token = '';
-        sessionStorage.removeItem('omega-jwt');
-        $('#jwt-token').value = '';
-        setConnected(false);
-        addAgentLog('info', 'API server URL changed; reconnect once using a token issued by the new server.');
-      }
-      apiBase = nextApiBase;
-      localStorage.setItem('omega-api-base', apiBase);
-      $('#api-base').value = apiBase;
-      startPolling();
-      if (token) loadRuns();
-      else setAssistantStatus('API URL saved. Connect with a signed JWT to use server agent workflows.', 'warning');
-    } catch (e) { alert(e.message || 'Enter a valid API server URL.'); }
-  });
 
   // Local on-device model mode: talks directly to a llama.cpp OpenAI-compatible server.
   let localAiBase = localStorage.getItem('omega-local-ai-base') || 'http://127.0.0.1:8080';
@@ -365,9 +306,9 @@
 
   renderLocalAiMessages();
 
-  $('#jwt-token').value = token;
+  // Signing out revokes the stored device refresh credential without exposing it in the UI.
   setConnected(false);
-  $('#disconnect-btn').addEventListener('click', async () => {
+  $('#session-signout').addEventListener('click', async () => {
     const refresh = deviceRefreshToken;
     if (refresh && apiBase) {
       try {
@@ -380,142 +321,9 @@
     }
     deviceRefreshToken = '';
     clearRefreshTokenOnDevice();
-    clearSession('Disconnected. The saved device session was revoked and removed.');
+    clearSession('Signed out. The secure device session was revoked and removed.');
   });
-  $('#connect-btn').addEventListener('click', async () => {
-    const candidate = $('#jwt-token').value.trim();
-    if (!candidate) {
-      clearSession('No setup key or access token supplied.');
-      alert('Enter the one-time setup key or a valid signed access token.');
-      return;
-    }
-    const candidateExpiry = readTokenExpiry(candidate);
-    if (candidateExpiry && candidateExpiry <= Date.now()) {
-      clearSession('The pasted access token has expired.');
-      alert('This access token has expired. Generate a new token and try again.');
-      return;
-    }
-    if (!apiBase) { alert('Save your API server URL first.'); return; }
-    const isSetupKey = candidate.split('.').length !== 3;
-    if (isSetupKey && !isNativeApp) {
-      alert('The one-time setup key is for enrolling the installed Android app. Use a signed JWT for browser-only access.');
-      return;
-    }
-    const button = $('#connect-btn');
-    button.disabled = true;
-    button.textContent = 'Securing…';
-    let bootstrapRefreshToken = '';
-    let setupKeyConsumed = false;
-    let refreshCredentialStored = false;
-    try {
-      if (isSetupKey) {
-        const bootstrapResponse = await apiFetch('/v1/auth/bootstrap', {
-          method: 'POST',
-          headers: { 'X-OMEGA-BOOTSTRAP-SECRET': candidate },
-          cache: 'no-store',
-        });
-        if (!bootstrapResponse.ok) {
-          const body = await bootstrapResponse.text();
-          throw new Error('Setup failed (' + bootstrapResponse.status + '). ' + body.slice(0, 180));
-        }
-        const bootstrapData = await bootstrapResponse.json();
-        if (!bootstrapData.access_token || !bootstrapData.refresh_token) {
-          throw new Error('The server returned an incomplete device session.');
-        }
-        // Bootstrap is one-use: persist the refresh credential before any other network request.
-        setupKeyConsumed = true;
-        token = String(bootstrapData.access_token);
-        bootstrapRefreshToken = String(bootstrapData.refresh_token);
-        refreshCredentialStored = await saveRefreshTokenForDevice(bootstrapRefreshToken);
-        $('#jwt-token').value = '';
-        if (!refreshCredentialStored) addAgentLog('warning', 'Android did not confirm secure storage yet; connection setup will retry it.');
-      } else {
-        token = candidate;
-      }
 
-      await api('/v1/runs?limit=1');
-      if (isNativeApp) {
-        let refreshToken = bootstrapRefreshToken;
-        if (!refreshToken) {
-          const enrollmentResponse = await api('/v1/auth/device', { method: 'POST' });
-          if (!enrollmentResponse.ok) {
-            const body = await enrollmentResponse.text();
-            throw new Error('Device enrollment failed (' + enrollmentResponse.status + '). ' + body.slice(0, 180));
-          }
-          const enrolled = await enrollmentResponse.json();
-          refreshToken = String(enrolled.refresh_token || '');
-        }
-        if (!refreshToken) throw new Error('The server did not issue a device session.');
-        if (!refreshCredentialStored) refreshCredentialStored = await saveRefreshTokenForDevice(refreshToken);
-        if (!refreshCredentialStored && bootstrapRefreshToken) {
-          // A normal device-session exchange gives the Keystore bridge another recovery path.
-          const enrollmentResponse = await api('/v1/auth/device', { method: 'POST' });
-          if (enrollmentResponse.ok) {
-            const enrolled = await enrollmentResponse.json();
-            const replacementToken = String(enrolled.refresh_token || '');
-            if (replacementToken && await saveRefreshTokenForDevice(replacementToken)) {
-              refreshToken = replacementToken;
-              refreshCredentialStored = true;
-            }
-          }
-        }
-        if (refreshCredentialStored) {
-          deviceRefreshToken = refreshToken;
-          $('#jwt-token').value = '';
-          sessionStorage.removeItem('omega-jwt');
-          setAssistantStatus('Connected. This device is saved securely and will reconnect automatically.', 'success');
-        } else {
-          deviceRefreshToken = '';
-          setAssistantStatus('Connected for this session only. Android did not confirm secure session storage; avoid closing the app until this is resolved.', 'warning');
-          addAgentLog('warning', 'API access works, but persistent Android secure-session storage was not confirmed.');
-        }
-      } else {
-        sessionStorage.setItem('omega-jwt', token);
-      }
-      setConnected(true);
-      scheduleTokenExpiry(readTokenExpiry(token) || candidateExpiry || (Date.now() + 3600000));
-      startPolling();
-      await loadRuns();
-      addAgentLog('success', isNativeApp && refreshCredentialStored
-        ? 'API verified; encrypted device session saved.'
-        : (isNativeApp ? 'API verified for this session; persistent device storage needs attention.' : 'API token verified for this page session.'));
-    } catch (error) {
-      // A final Keystore write can recover a delayed acknowledgement. Never erase a confirmed saved credential.
-      if (isNativeApp && !refreshCredentialStored && bootstrapRefreshToken) {
-        try { refreshCredentialStored = await saveRefreshTokenForDevice(bootstrapRefreshToken); }
-        catch (_) { refreshCredentialStored = false; }
-      }
-      if (isNativeApp && refreshCredentialStored && deviceRefreshToken) {
-        token = '';
-        sessionStorage.removeItem('omega-jwt');
-        clearSession();
-        const setupInput = $('#jwt-token');
-        const connectButton = $('#connect-btn');
-        if (setupInput) setupInput.hidden = true;
-        if (connectButton) connectButton.hidden = true;
-        const disconnect = $('#disconnect-btn');
-        if (disconnect) disconnect.hidden = false;
-        setAssistantStatus('Your device session is saved securely, but the server did not finish responding. Close and reopen OMEGA-X to retry automatically.', 'warning');
-        addAgentLog('warning', 'Connection verification failed after secure device enrollment; the saved refresh credential was retained for automatic recovery.');
-        alert('The device session was saved securely, but connection verification failed. Close and reopen OMEGA-X; it will retry using the saved session. ' + (error.message || ''));
-      } else {
-        if (isNativeApp) {
-          token = '';
-          deviceRefreshToken = '';
-          // If setup was consumed but storage was not confirmed, leave any uncertain device value untouched.
-          if (!setupKeyConsumed) clearRefreshTokenOnDevice();
-        }
-        clearSession();
-        const detail = setupKeyConsumed
-          ? ' The one-time setup key has been consumed. Android did not confirm a persistent session, so a new setup key may be required.'
-          : '';
-        alert('Connection failed. Verify the API URL, one-time setup key or access token, and runs:read scope. ' + (error.message || '') + detail);
-      }
-    } finally {
-      button.disabled = false;
-      button.textContent = 'Connect once';
-    }
-  });
   function authHeaders() {
     return token ? { Authorization: 'Bearer ' + token } : {};
   }
@@ -535,7 +343,7 @@
       if (token) return api(path, { ...fetchOptions, __afterRefreshRetry: true });
     }
     if (res.status === 401 && token) {
-      clearSession('The API rejected this access token. Reconnect with a valid token.');
+      clearSession('The cloud service rejected this session; owner-approved re-enrollment is required.');
     }
     if (!res.ok) {
       const body = await res.text();
@@ -654,7 +462,7 @@
       const lines = content.split('\n').filter((line) => line && !line.startsWith('#')).slice(0, 30);
       $('#metrics').textContent = lines.length ? lines.join('\n') : 'No metrics reported yet.';
     } catch {
-      $('#metrics').textContent = apiBase ? 'Metrics unavailable. Verify the server connection.' : 'Save your API server URL to view metrics.';
+      $('#metrics').textContent = apiBase ? 'Metrics unavailable. Verify the server connection.' : 'Metrics are unavailable until the cloud service responds.';
     }
   }
 
@@ -663,7 +471,7 @@
     if (!apiBase) {
       $('#health-live').textContent = 'Set URL';
       $('#health-ready').textContent = 'Set URL';
-      $('#models-list').innerHTML = '<div class="empty-state">Save your API server URL to inspect model status.</div>';
+      $('#models-list').innerHTML = '<div class="empty-state">The fixed cloud endpoint is not responding; check Logs for the latest status.</div>';
       $('#metrics').textContent = 'Waiting for server configuration.';
       return;
     }
@@ -683,7 +491,7 @@
   async function loadRuns() {
     const list = $('#runs-list');
     if (!token) {
-      list.innerHTML = '<div class="empty-state">Connect with a signed JWT to manage runs.</div>';
+      list.innerHTML = '<div class="empty-state">Waiting for the secure device session.</div>';
       return;
     }
     try {
@@ -1620,8 +1428,8 @@
     const requestedActions = selectedAssistantActions();
     if (!clean) return;
     if (!apiBase || !token) {
-      setAssistantStatus('Connect the API server first. Cloud agent tasks require a signed JWT with runs:write and a healthy configured model.', 'error');
-      addAgentLog('warning', 'Assistant task was not sent because the backend is not connected.');
+      setAssistantStatus('The secure cloud session is not ready yet. OMEGA reconnects automatically; check device enrollment and provider health.', 'error');
+      addAgentLog('warning', 'Assistant task was not sent because the secure cloud session is not ready.');
       return;
     }
     if (assistantRunTimer) window.clearTimeout(assistantRunTimer);
@@ -1681,11 +1489,6 @@
   $('#sidebar-toggle').addEventListener('click', () => setChatSidebarOpen(!document.body.classList.contains('sidebar-open')));
   $('#sidebar-close').addEventListener('click', closeChatSidebar);
   $('#sidebar-backdrop').addEventListener('click', closeChatSidebar);
-  $('#sidebar-connect').addEventListener('click', () => {
-    closeChatSidebar();
-    $('#connection-details').open = true;
-    $('#connection-details').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  });
   $$('.chat-sidebar .tab').forEach((tab) => tab.addEventListener('click', closeChatSidebar));
   const chatPrompt = $('#assistant-prompt');
   chatPrompt.addEventListener('input', () => {
@@ -1868,7 +1671,7 @@
     renderLocalLogs();
     const container = $('#server-audit-list');
     if (!token || !apiBase) {
-      renderLogList(container, [], 'Connect to the backend with a signed JWT carrying runs:read to load server audit records.');
+      renderLogList(container, [], 'Server audit records load automatically after secure device enrollment.');
       return;
     }
     try {
@@ -1982,15 +1785,15 @@
   }
   // The chat-first header intentionally omits the legacy dashboard clock.
 
-  if (window.matchMedia('(max-width: 720px)').matches && !apiBase && !token) {
-    const connectionDetails = $('#connection-details');
-    if (connectionDetails) connectionDetails.open = false;
-  }
   renderLocalLogs();
   $('#about-runtime-status').textContent = 'Runtime connectivity has not yet been verified.';
 
   function initializeNativeDeviceSession() {
-    if (!isNativeApp) return;
+    if (!isNativeApp) {
+      setConnected(false);
+      setAssistantStatus('Cloud tasks are enabled in the installed Android app after secure device enrollment. This browser view does not collect or store API credentials.', 'warning');
+      return;
+    }
     window.addEventListener('omega:native', (event) => {
       const detail = event.detail || {};
       if (detail.action !== 'stored-refresh-token') return;
@@ -1998,7 +1801,8 @@
       if (!savedToken) {
         deviceRefreshToken = '';
         setConnected(false);
-        setAssistantStatus('API server configured. Connect once with a valid access token to secure this device.', 'warning');
+        setAssistantStatus('No secure device session was found. Owner-approved device enrollment is required before cloud tasks can run.', 'warning');
+        addAgentLog('warning', 'Secure device session is not enrolled; no credentials were requested or stored in the app UI.');
         return;
       }
       deviceRefreshToken = savedToken;
