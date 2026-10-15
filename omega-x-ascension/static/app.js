@@ -1,10 +1,15 @@
 // OMEGA-X ASCENSION Dashboard
 (() => {
   const $ = (s) => document.querySelector(s);
-  const $$ = (s) => document.querySelectorAll(s);
-  let token = sessionStorage.getItem('omega-jwt') || '';
+  const $ = (s) => document.querySelectorAll(s);
+  const DEFAULT_API_BASE = 'https://omega-api-production-e4ed.up.railway.app';
+  const isNativeApp = Boolean(window.OmegaNative && typeof window.OmegaNative.postMessage === 'function');
+  let token = isNativeApp ? '' : (sessionStorage.getItem('omega-jwt') || '');
+  let deviceRefreshToken = '';
+  let sessionRefreshInFlight = null;
   let tokenExpiryTimer = null;
-  let apiBase = localStorage.getItem('omega-api-base') || '';
+  let apiBase = localStorage.getItem('omega-api-base') || DEFAULT_API_BASE;
+  try { localStorage.setItem('omega-api-base', apiBase); } catch (_) {}
   let pollTimer = null;
   let runPollTimer = null;
   let browserHistory = [];
@@ -39,6 +44,13 @@
     const badge = $('#conn-status');
     badge.innerHTML = '<span class="status-dot"></span> ' + (connected ? 'Connected' : 'Disconnected');
     badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
+    // Once this device is enrolled, hide the URL and bearer token controls.
+    ['api-base', 'save-server-btn', 'jwt-token', 'connect-btn'].forEach((id) => {
+      const element = $('#' + id);
+      if (element) element.hidden = Boolean(connected);
+    });
+    const disconnect = $('#disconnect-btn');
+    if (disconnect) disconnect.hidden = !connected;
   }
 
   // This client-side expiry check is only a UX aid; the API remains the authority for JWT validity.
@@ -74,16 +86,24 @@
     if (!expiry) return;
     const remaining = expiry - Date.now();
     if (remaining <= 0) {
-      clearSession('Access token expired. Connect again with a fresh token.');
+      if (deviceRefreshToken) {
+        refreshDeviceSession().catch((error) => failSecureSession(error));
+      } else {
+        clearSession('Access token expired. Connect again with a fresh token.');
+      }
       return;
     }
+    // Refresh one minute before expiry while the secure device credential remains valid.
+    const delay = Math.max(1000, remaining - (deviceRefreshToken ? 60000 : 0));
     tokenExpiryTimer = setTimeout(() => {
-      if (Date.now() >= expiry) {
+      if (deviceRefreshToken) {
+        refreshDeviceSession().catch((error) => failSecureSession(error));
+      } else if (Date.now() >= expiry) {
         clearSession('Access token expired. Connect again with a fresh token.');
       } else {
         scheduleTokenExpiry(expiry);
       }
-    }, Math.min(remaining, 2147483000));
+    }, Math.min(delay, 2147483000));
   }
 
   function normalizeApiBase(value) {
@@ -99,8 +119,80 @@
   }
 
   async function apiFetch(path, options = {}) {
-    if (!apiBase) throw new Error('Save your API server URL first.');
+    if (!apiBase) throw new Error('The API server URL is not configured.');
     return fetch(apiBase + (path.startsWith('/') ? path : '/' + path), options);
+  }
+
+  function waitForNativeReply(action, sendAction, payload = {}, timeoutMs = 5000) {
+    if (!isNativeApp) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      let finished = false;
+      let timer = null;
+      const finish = (result) => {
+        if (finished) return;
+        finished = true;
+        window.removeEventListener('omega:native', onReply);
+        if (timer) clearTimeout(timer);
+        resolve(result);
+      };
+      const onReply = (event) => {
+        const detail = event.detail || {};
+        if (detail.action === action) finish(detail.text === 'ok');
+      };
+      window.addEventListener('omega:native', onReply);
+      if (!nativeMessage(sendAction, payload)) {
+        finish(false);
+        return;
+      }
+      timer = setTimeout(() => finish(false), timeoutMs);
+    });
+  }
+
+  async function persistRefreshTokenForDevice(refreshToken) {
+    if (!isNativeApp) return false;
+    return waitForNativeReply('refresh-token-stored', 'storeRefreshToken', { token: refreshToken });
+  }
+
+  function clearRefreshTokenOnDevice() {
+    if (isNativeApp) nativeMessage('clearStoredRefreshToken');
+  }
+
+  async function refreshDeviceSession() {
+    if (!deviceRefreshToken) throw new Error('No saved device session is available.');
+    if (sessionRefreshInFlight) return sessionRefreshInFlight;
+    sessionRefreshInFlight = (async () => {
+      const response = await apiFetch('/v1/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: deviceRefreshToken }),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error('Secure session refresh failed (' + response.status + '). ' + body.slice(0, 180));
+      }
+      const data = await response.json();
+      if (!data.access_token) throw new Error('Server returned no access token.');
+      token = String(data.access_token);
+      sessionStorage.removeItem('omega-jwt');
+      setConnected(true);
+      scheduleTokenExpiry(Date.now() + Number(data.expires_in || 3600) * 1000);
+      startPolling();
+      addAgentLog('success', 'Secure device session refreshed.');
+      return true;
+    })();
+    try {
+      return await sessionRefreshInFlight;
+    } finally {
+      sessionRefreshInFlight = null;
+    }
+  }
+
+  function failSecureSession(error) {
+    token = '';
+    deviceRefreshToken = '';
+    clearRefreshTokenOnDevice();
+    clearSession('Saved device session could not be renewed. Connect once again. ' + String(error?.message || error || '').slice(0, 160));
+    setAssistantStatus('Your saved session is no longer valid. Reconnect once to secure this device again.', 'warning');
   }
 
   $('#api-base').value = apiBase;
@@ -108,11 +200,21 @@
     try {
       const nextApiBase = normalizeApiBase($('#api-base').value);
       if (apiBase && apiBase !== nextApiBase) {
+        const oldRefreshToken = deviceRefreshToken;
+        if (oldRefreshToken) {
+          apiFetch('/v1/auth/revoke', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: oldRefreshToken }),
+          }).catch(() => {});
+        }
+        deviceRefreshToken = '';
+        clearRefreshTokenOnDevice();
         token = '';
         sessionStorage.removeItem('omega-jwt');
         $('#jwt-token').value = '';
         setConnected(false);
-        addAgentLog('info', 'API server URL changed; reconnect with a token issued by the new server.');
+        addAgentLog('info', 'API server URL changed; reconnect once using a token issued by the new server.');
       }
       apiBase = nextApiBase;
       localStorage.setItem('omega-api-base', apiBase);
@@ -256,8 +358,20 @@
 
   $('#jwt-token').value = token;
   setConnected(false);
-  $('#disconnect-btn').addEventListener('click', () => {
-    clearSession('Disconnected. The access token was removed from this browser session.');
+  $('#disconnect-btn').addEventListener('click', async () => {
+    const refresh = deviceRefreshToken;
+    if (refresh && apiBase) {
+      try {
+        await apiFetch('/v1/auth/revoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refresh }),
+        });
+      } catch (_) {}
+    }
+    deviceRefreshToken = '';
+    clearRefreshTokenOnDevice();
+    clearSession('Disconnected. The saved device session was revoked and removed.');
   });
   $('#connect-btn').addEventListener('click', async () => {
     const candidate = $('#jwt-token').value.trim();
@@ -278,22 +392,39 @@
     }
     const button = $('#connect-btn');
     button.disabled = true;
-    button.textContent = 'Checking…';
+    button.textContent = 'Securing…';
     token = candidate;
-    sessionStorage.setItem('omega-jwt', token);
     try {
       await api('/v1/runs?limit=1');
+      if (isNativeApp) {
+        const enrollmentResponse = await api('/v1/auth/device', { method: 'POST' });
+        const enrolled = await enrollmentResponse.json();
+        if (!enrolled.refresh_token) throw new Error('The server did not issue a device session.');
+        const stored = await persistRefreshTokenForDevice(String(enrolled.refresh_token));
+        if (!stored) throw new Error('Android secure storage did not confirm saving the device session.');
+        deviceRefreshToken = String(enrolled.refresh_token);
+        $('#jwt-token').value = '';
+        sessionStorage.removeItem('omega-jwt');
+        setAssistantStatus('Connected. This device is saved securely and will reconnect automatically.', 'success');
+      } else {
+        sessionStorage.setItem('omega-jwt', token);
+      }
       setConnected(true);
-      scheduleTokenExpiry(candidateExpiry);
+      scheduleTokenExpiry(candidateExpiry || (Date.now() + 3600000));
       startPolling();
       await loadRuns();
-      addAgentLog('success', 'API token verified successfully.');
+      addAgentLog('success', isNativeApp ? 'API verified; encrypted device session saved.' : 'API token verified for this page session.');
     } catch (error) {
+      if (isNativeApp) {
+        token = '';
+        deviceRefreshToken = '';
+        clearRefreshTokenOnDevice();
+      }
       clearSession();
       alert('Connection failed. Verify the API URL, token validity, and runs:read scope. ' + (error.message || ''));
     } finally {
       button.disabled = false;
-      button.textContent = 'Connect';
+      button.textContent = 'Connect once';
     }
   });
 
@@ -302,7 +433,19 @@
   }
 
   async function api(path, opts = {}) {
-    const res = await apiFetch(path, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
+    const { __afterRefreshRetry = false, ...fetchOptions } = opts;
+    let res = await apiFetch(path, {
+      ...fetchOptions,
+      headers: { ...authHeaders(), ...(fetchOptions.headers || {}) },
+    });
+    if (res.status === 401 && token && deviceRefreshToken && !__afterRefreshRetry) {
+      try {
+        await refreshDeviceSession();
+        return api(path, { ...fetchOptions, __afterRefreshRetry: true });
+      } catch (error) {
+        failSecureSession(error);
+      }
+    }
     if (res.status === 401 && token) {
       clearSession('The API rejected this access token. Reconnect with a valid token.');
     }
