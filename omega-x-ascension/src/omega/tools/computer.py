@@ -84,7 +84,11 @@ class ComputerTool:
         if self._client is None or len(self._token) < 32:
             return False
         try:
-            response = await self._client.get(self._base_url + "/health", timeout=3)
+            response = await self._client.get(
+                self._base_url + "/health",
+                headers={"X-OMEGA-SANDBOX-TOKEN": self._token},
+                timeout=3,
+            )
             return response.is_success
         except httpx.HTTPError:
             return False

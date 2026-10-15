@@ -302,7 +302,7 @@ def test_sandbox_health_checks_workspace_writeability_and_shared_token(monkeypat
     runtime = SandboxRuntime(tmp_path / "workspace")
     monkeypatch.setattr(sandbox_service, "get_runtime", lambda: runtime)
 
-    result = asyncio.run(sandbox_service.health())
+    result = asyncio.run(sandbox_service.health(supplied=None))
 
     assert result["status"] == "ok"
     assert result["file_tools"] is True
@@ -319,7 +319,7 @@ def test_sandbox_health_is_not_green_when_shared_token_is_missing(monkeypatch, t
     )
 
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(sandbox_service.health())
+        asyncio.run(sandbox_service.health(supplied=None))
 
     assert exc.value.status_code == 503
     assert "credential" in exc.value.detail
@@ -336,7 +336,7 @@ def test_sandbox_health_fails_when_workspace_is_not_writable(monkeypatch, tmp_pa
 
     monkeypatch.setattr(sandbox_service, "_check_workspace_writable", fail_write_probe)
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(sandbox_service.health())
+        asyncio.run(sandbox_service.health(supplied=None))
 
     assert exc.value.status_code == 503
     assert "workspace" in exc.value.detail
@@ -370,3 +370,46 @@ def test_computer_health_is_false_when_sandbox_reports_unready():
             assert await tool.health() is False
 
     asyncio.run(check())
+
+
+def test_computer_health_probe_sends_the_internal_sandbox_credential():
+    async def check():
+        token = "s" * 48
+
+        async def handler(request):
+            assert request.url.path == "/health"
+            assert request.headers.get("X-OMEGA-SANDBOX-TOKEN") == token
+            return httpx.Response(
+                200,
+                json={
+                    "status": "ok",
+                    "file_tools": True,
+                    "command_execution": False,
+                    "workspace_ready": True,
+                    "credential_configured": True,
+                },
+                request=request,
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            tool = ComputerTool(
+                client=client,
+                base_url="http://sandbox:8090",
+                token=token,
+                files_enabled=True,
+            )
+            assert await tool.health() is True
+
+    asyncio.run(check())
+
+
+def test_sandbox_health_rejects_a_mismatched_internal_credential(monkeypatch, tmp_path):
+    monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "s" * 48)
+    runtime = SandboxRuntime(tmp_path / "workspace")
+    monkeypatch.setattr(sandbox_service, "get_runtime", lambda: runtime)
+
+    from fastapi.testclient import TestClient
+    with TestClient(sandbox_service.app) as client:
+        response = client.get("/health", headers={"X-OMEGA-SANDBOX-TOKEN": "x" * 48})
+
+    assert response.status_code == 401

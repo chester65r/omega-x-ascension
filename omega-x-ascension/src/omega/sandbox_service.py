@@ -248,11 +248,18 @@ def _check_workspace_writable(root: Path) -> None:
 
 
 @app.get("/health")
-async def health():
+async def health(
+    supplied: str | None = Header(default=None, alias="X-OMEGA-SANDBOX-TOKEN"),
+):
+    # Railway's own health probe omits credentials; allow it to verify process/workspace readiness.
+    # API readiness supplies the shared credential so mismatched API/sandbox secrets cannot look healthy.
+    expected = os.environ.get("OMEGA_SANDBOX_TOKEN", "")
+    if len(expected) < 32:
+        raise HTTPException(status_code=503, detail="sandbox service credential is not configured")
+    if supplied is not None and not secrets.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="invalid sandbox service credential")
     # A process-only 200 hid the broken /workspace permissions on Railway. Check the
     # same filesystem and credential prerequisites required by real authenticated file calls.
-    if len(os.environ.get("OMEGA_SANDBOX_TOKEN", "")) < 32:
-        raise HTTPException(status_code=503, detail="sandbox service credential is not configured")
     try:
         _check_workspace_writable(get_runtime().root)
     except OSError as exc:

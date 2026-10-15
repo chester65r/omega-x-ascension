@@ -44,7 +44,12 @@ fi
 ./gradlew assembleDebug --no-daemon --stacktrace
 
 APK_PATH="$SCRIPT_DIR/app/build/outputs/apk/debug/app-debug.apk"
-OUTPUT_PATH="$PROJECT_ROOT/omega-x-ascension-0.8.1-debug.apk"
+APP_VERSION="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\1/p' "$SCRIPT_DIR/app/build.gradle" | head -n 1)"
+if [[ -z "$APP_VERSION" ]]; then
+  echo "Could not read Android versionName from app/build.gradle" >&2
+  exit 1
+fi
+OUTPUT_PATH="$PROJECT_ROOT/omega-x-ascension-$APP_VERSION-debug.apk"
 if [[ ! -s "$APK_PATH" ]]; then
   echo "APK build completed without an APK at $APK_PATH" >&2
   exit 1
