@@ -177,6 +177,38 @@ public class DashboardSmokeTest {
                     "if (!document.getElementById('tools').classList.contains('active') || !panel.classList.contains('tool-panel') || !group.open) return false; " +
                     "} return true; })()");
             assertEquals("Every tool group must be reachable from the visible Tools page (actual=" + allToolGroupsWork + ")", "true", allToolGroupsWork);
+
+            String manualCloudCredentialsRemoved = evaluate(webView,
+                    "document.getElementById('api-base') === null && " +
+                    "document.getElementById('jwt-token') === null && " +
+                    "document.getElementById('connect-btn') === null && " +
+                    "document.getElementById('save-server-btn') === null && " +
+                    "document.getElementById('connection-details') === null && " +
+                    "document.getElementById('sidebar-connect') === null");
+            assertEquals("Installed app must not expose manual API URL or JWT controls (actual=" + manualCloudCredentialsRemoved + ")", "true", manualCloudCredentialsRemoved);
+
+            String enrollmentReady = "false";
+            for (int attempt = 0; attempt < 40; attempt++) {
+                enrollmentReady = evaluate(webView,
+                        "document.getElementById('device-enrollment-open') !== null && " +
+                        "document.getElementById('device-enrollment-open').hidden === false");
+                if ("true".equals(enrollmentReady)) break;
+                Thread.sleep(250);
+            }
+            assertEquals("A fresh native installation must offer one-time secure enrollment (actual=" + enrollmentReady + ")", "true", enrollmentReady);
+
+            String enrollmentDialogWorks = evaluate(webView,
+                    "document.getElementById('device-enrollment-open').click();" +
+                    "!document.getElementById('device-enrollment-backdrop').hidden && " +
+                    "document.getElementById('device-enrollment-key').type === 'password' && " +
+                    "document.getElementById('device-enrollment-submit') !== null");
+            assertEquals("First-time enrollment must use a masked one-time key, not API URL or JWT fields (actual=" + enrollmentDialogWorks + ")", "true", enrollmentDialogWorks);
+
+            evaluate(webView, "document.getElementById('device-enrollment-cancel').click(); true");
+            String enrollmentClosed = evaluate(webView,
+                    "document.getElementById('device-enrollment-backdrop').hidden && " +
+                    "document.getElementById('device-enrollment-key').value === ''");
+            assertEquals("Closing enrollment must clear the transient setup key field (actual=" + enrollmentClosed + ")", "true", enrollmentClosed);
         }
     }
 
