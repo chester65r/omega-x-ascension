@@ -156,7 +156,7 @@ public class DashboardSmokeTest {
                     "const names = ['overview', 'runs', 'browser', 'local-ai', 'agents', 'logs', 'about']; " +
                     "for (const name of names) { " +
                     "const panel = document.getElementById(name); const group = document.getElementById('tool-' + name); " +
-                    "if (!panel || !group) return false; group.querySelector('summary').click(); " +
+                    "if (!panel || !group) return false; if (!group.open) group.querySelector('summary').click(); " +
                     "if (!document.getElementById('tools').classList.contains('active') || !panel.classList.contains('tool-panel') || !group.open) return false; " +
                     "} return true; })()");
             assertEquals("Every tool group must be reachable from the visible Tools page (actual=" + allToolGroupsWork + ")", "true", allToolGroupsWork);
