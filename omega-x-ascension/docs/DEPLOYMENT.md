@@ -111,3 +111,8 @@ Before using **Actions → Android Release → Run workflow** or pushing a `v*` 
 - `ANDROID_KEY_PASSWORD`: key password.
 
 Never commit the keystore or these values. The workflow deliberately fails closed when a secret is missing, never falls back to the debug key for a release, and does not print signing material. The signing identity must be backed up securely: replacing it later prevents in-place updates of the installed application. An emulator test cannot replace a final installation check on the target physical device.
+
+
+## Free-first model provider configuration
+
+When the OpenRouter adapter is explicitly enabled with a server-side API key, the default model is `openrouter/free`, which routes requests to eligible free models. Free availability and request quotas are controlled by OpenRouter and can change; the selected model can also vary between requests. Do not assume that every optional provider is free: DeepSeek and Groq API calls may be metered. Leave optional provider keys unset until their current free allowance, pricing, and any trial expiry have been checked. Never commit provider keys or include them in the Android APK.

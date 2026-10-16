@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     # Optional additional OpenAI-compatible providers. Keep keys in Railway Variables.
     # OpenRouter exposes a changing model catalog; override the model ID when needed.
     openrouter_api_key: SecretStr | None = None
-    openrouter_model: str = "google/gemini-3.8-flash"
+    openrouter_model: str = "openrouter/free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_priority: int = Field(default=90, ge=0, le=100)
     openrouter_timeout_seconds: float = Field(default=180, gt=0, le=600)
