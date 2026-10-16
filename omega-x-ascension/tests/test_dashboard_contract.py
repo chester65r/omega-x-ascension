@@ -251,7 +251,7 @@ def test_android_api_and_session_are_internal_and_navigation_is_simplified():
     html = Path("static/index.html").read_text(encoding="utf-8")
     js = Path("static/app.js").read_text(encoding="utf-8")
     css = Path("static/style.css").read_text(encoding="utf-8")
-    assert "let apiBase = isNativeApp ? DEFAULT_API_BASE" in js
+    assert "const apiBase = DEFAULT_API_BASE;" in js
     assert "initializeNativeDeviceSession();" in js
     assert "'/v1/auth/refresh'" in js
     assert "storeRefreshToken" in js
