@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/" -o "$RUNNER_TEMP/home.html"
           grep -qi '<title>OMEGA-X ASCENSION</title>' "$RUNNER_TEMP/home.html"
-          grep -q 'DEVICE SESSION' "$RUNNER_TEMP/home.html"
+          grep -q 'What can I help with?' "$RUNNER_TEMP/home.html"
           for asset in /static/app.js /static/style.css /static/manifest.json /static/favicon.png; do
             curl --fail --silent --show-error --retry 2 "$OMEGA_BASE_URL$asset" -o /dev/null
           done
