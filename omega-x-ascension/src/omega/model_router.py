@@ -30,8 +30,6 @@ class ModelExecutionFailed(RuntimeError):
 
 
 class ModelRouter:
-    _MAX_PROVIDER_ATTEMPTS = 2
-
     def __init__(self, registry: ModelRegistry):
         self._registry = registry
 
@@ -60,14 +58,15 @@ class ModelRouter:
         return candidates[0]
 
     async def complete(self, capability: Capability, *, system: str, prompt: str) -> str:
-        """Try healthy providers in priority order; never return an empty completion."""
+        """Try every healthy configured provider in priority order; never return empty output."""
         candidates = await self._eligible(capability)
         if not candidates:
             raise NoEligibleModel(f"no healthy model configured for capability={capability}")
 
-        attempted = candidates[: self._MAX_PROVIDER_ATTEMPTS]
+        # Do not hard-limit fallback to two providers: a configured third provider may
+        # be the only one with available quota. Continue in priority order until success.
         failures: list[Exception] = []
-        for candidate in attempted:
+        for candidate in candidates:
             try:
                 output = await candidate.gateway.complete(system=system, prompt=prompt)
                 if not isinstance(output, str) or not output.strip():
@@ -75,15 +74,19 @@ class ModelRouter:
                 return output
             except Exception as exc:
                 failures.append(exc)
+                # Log only the provider name, exception class, and numeric HTTP status.
+                # Never log provider response bodies, request URLs, or credentials.
+                http_status = (
+                    exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+                )
                 logger.warning(
-                    "model provider attempt failed; provider=%s error_type=%s",
+                    "model provider attempt failed; provider=%s error_type=%s http_status=%s",
                     candidate.gateway.name,
                     type(exc).__name__,
+                    http_status,
                 )
 
-        # Authentication, billing, model/endpoint, and other permanent 4xx failures
-        # will not recover by requeueing the same task. Try every configured provider
-        # first, then allow a queue retry only if at least one failure was transient.
+        # Retry the queued run only if at least one provider failure looks transient.
         def is_retryable(exc: Exception) -> bool:
             if isinstance(exc, httpx.HTTPStatusError):
                 status = exc.response.status_code
@@ -92,7 +95,7 @@ class ModelRouter:
 
         retryable = any(is_retryable(exc) for exc in failures)
         raise ModelExecutionFailed(
-            f"all {len(attempted)} attempted model providers failed to complete the request",
+            f"all {len(candidates)} attempted model providers failed to complete the request",
             retryable=retryable,
         ) from failures[-1]
 
