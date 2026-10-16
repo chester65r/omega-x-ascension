@@ -1351,3 +1351,36 @@ body.native-app #connection-details:not([open]) .connection-panel{display:none}
 }
 @media(max-width:390px){.app-shell{padding-inline:8px}.assistant-quick-actions{gap:6px}.quick-action{padding:7px}.quick-action-copy small{font-size:9px}.assistant-controls select{max-width:92px}.tool-accordion-copy small{display:block}}
 @media(prefers-reduced-motion:reduce){.tab-content,.assistant-message,.tool-accordion,.quick-action{animation:none!important;transition:none!important}}
+
+
+/* Minimal cloud-session indicator: no API URL or token form is exposed in the UI. */
+.session-status-wrap { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+.session-status-wrap .connection-title { white-space: nowrap; }
+.session-status-wrap .status-badge { cursor: default; }
+.session-status-wrap #session-signout { min-height: 32px; padding: 6px 12px; font-size: 10px; }
+@media (max-width: 720px) {
+  .session-status-wrap { gap: 6px; }
+  .session-status-wrap .connection-title { display: none; }
+  .session-status-wrap .status-badge { padding: 6px 8px; font-size: 9px; }
+  .session-status-wrap #session-signout { min-height: 30px; padding: 4px 9px; font-size: 10px; }
+}
+
+
+/* Owner-approved, one-time device enrollment. Everyday sessions never show this form. */
+.enrollment-backdrop { position:fixed; inset:0; z-index:140; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(2,7,12,.78); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+.enrollment-backdrop[hidden] { display:none!important; }
+.enrollment-dialog { width:min(100%,480px); max-height:min(84vh,700px); overflow:auto; padding:22px; border:1px solid rgba(120,202,255,.32); border-radius:20px; background:linear-gradient(155deg,#112431,#071018 72%); box-shadow:0 30px 100px rgba(0,0,0,.58),0 0 42px rgba(40,139,190,.12); }
+.enrollment-dialog .command-palette-heading { padding:0 0 14px; }
+.enrollment-dialog .command-palette-heading h2 { color:#f0f8fd; font-size:22px; }
+.enrollment-description { margin:0 0 18px; color:#9db4c3; font-size:12px; line-height:1.75; }
+.enrollment-dialog label { display:block; margin:10px 0 7px; color:#dbe8f0; font-size:11px; font-weight:650; }
+.enrollment-dialog input { width:100%; min-height:44px; padding:11px 13px; border:1px solid rgba(132,165,187,.28); border-radius:11px; color:var(--text); background:rgba(4,10,16,.88); }
+.enrollment-dialog input:focus { border-color:rgba(120,202,255,.7); box-shadow:0 0 0 3px rgba(84,164,214,.1); outline:none; }
+.enrollment-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:15px; }
+.enrollment-dialog #device-enrollment-status { margin-top:12px; line-height:1.6; }
+@media(max-width:520px) {
+  .enrollment-backdrop { align-items:flex-end; padding:0; }
+  .enrollment-dialog { width:100%; max-height:88vh; padding:20px 16px calc(20px + env(safe-area-inset-bottom)); border-radius:22px 22px 0 0; border-bottom:0; }
+  .enrollment-actions { display:grid; grid-template-columns:1fr 1fr; }
+  .enrollment-actions .btn { width:100%; }
+}

@@ -82,3 +82,55 @@ def test_blank_openai_key_does_not_create_a_fake_provider():
             assert build_gateways(settings, client) == []
 
     asyncio.run(check())
+
+
+
+def test_optional_openrouter_deepseek_and_groq_gateways_use_only_server_side_secrets():
+    async def check():
+        settings = make_settings(
+            openrouter_api_key=SecretStr("or-test-key"),
+            openrouter_model="openrouter/free",
+            openrouter_base_url="https://openrouter.ai/api/v1",
+            openrouter_priority=90,
+            deepseek_api_key=SecretStr("ds-test-key"),
+            deepseek_model="deepseek-flash",
+            deepseek_base_url="https://api.deepseek.com",
+            deepseek_priority=85,
+            groq_api_key=SecretStr("gq-test-key"),
+            groq_model="qwen/qwen3.8-27b",
+            groq_base_url="https://api.groq.com/openai/v1",
+            groq_priority=80,
+        )
+        async with httpx.AsyncClient() as client:
+            gateways = build_gateways(settings, client)
+
+        assert [gateway.name for gateway in gateways] == ["openrouter", "deepseek", "groq"]
+        assert [gateway._config.base_url for gateway in gateways] == [
+            "https://openrouter.ai/api/v1",
+            "https://api.deepseek.com",
+            "https://api.groq.com/openai/v1",
+        ]
+        assert [gateway._config.model for gateway in gateways] == [
+            "openrouter/free",
+            "deepseek-flash",
+            "qwen/qwen3.8-27b",
+        ]
+        assert [gateway.priority for gateway in gateways] == [90, 85, 80]
+        assert [gateway._config.api_key.get_secret_value() for gateway in gateways] == [
+            "or-test-key", "ds-test-key", "gq-test-key"
+        ]
+
+    asyncio.run(check())
+
+
+def test_blank_optional_provider_keys_do_not_create_fallback_gateways():
+    async def check():
+        settings = make_settings(
+            openrouter_api_key=SecretStr(" "),
+            deepseek_api_key=SecretStr(""),
+            groq_api_key=None,
+        )
+        async with httpx.AsyncClient() as client:
+            assert build_gateways(settings, client) == []
+
+    asyncio.run(check())
