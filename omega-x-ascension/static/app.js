@@ -8,7 +8,7 @@
   let deviceRefreshToken = '';
   let sessionRefreshInFlight = null;
   let tokenExpiryTimer = null;
-  let apiBase = localStorage.getItem('omega-api-base') || DEFAULT_API_BASE;
+  let apiBase = isNativeApp ? DEFAULT_API_BASE : (localStorage.getItem('omega-api-base') || DEFAULT_API_BASE);
   try { localStorage.setItem('omega-api-base', apiBase); } catch (_) {}
   let pollTimer = null;
   let runPollTimer = null;
@@ -40,17 +40,28 @@
   } catch (_) { chatConversations = []; }
 
 
+  document.body.classList.toggle('native-app', isNativeApp);
+
   function setConnected(connected) {
     const badge = $('#conn-status');
-    badge.innerHTML = '<span class="status-dot"></span> ' + (connected ? 'Connected' : 'Disconnected');
+    const label = connected ? 'Connected' : (isNativeApp ? 'Activation needed' : 'Disconnected');
+    badge.innerHTML = '<span class="status-dot"></span> ' + label;
     badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
-    // Once this device is enrolled, hide the URL and bearer token controls.
-    ['api-base', 'save-server-btn', 'jwt-token', 'connect-btn'].forEach((id) => {
+    const hideServerControls = Boolean(connected) || isNativeApp;
+    ['api-base', 'save-server-btn'].forEach((id) => {
+      const element = $('#' + id);
+      if (element) element.hidden = hideServerControls;
+    });
+    ['jwt-token', 'connect-btn'].forEach((id) => {
       const element = $('#' + id);
       if (element) element.hidden = Boolean(connected);
     });
+    const activationLabel = $('label[for="jwt-token"]');
+    if (activationLabel) activationLabel.hidden = Boolean(connected);
     const disconnect = $('#disconnect-btn');
     if (disconnect) disconnect.hidden = !connected;
+    const activate = $('#connect-btn');
+    if (activate && !activate.disabled) activate.textContent = isNativeApp ? 'Activate device' : 'Connect';
   }
 
   // This client-side expiry check is only a UX aid; the API remains the authority for JWT validity.
@@ -206,6 +217,12 @@
 
   $('#api-base').value = apiBase;
   $('#save-server-btn').addEventListener('click', () => {
+    if (isNativeApp) {
+      apiBase = DEFAULT_API_BASE;
+      $('#api-base').value = apiBase;
+      setAssistantStatus('The production API endpoint is managed automatically.', 'success');
+      return;
+    }
     try {
       const nextApiBase = normalizeApiBase($('#api-base').value);
       if (apiBase && apiBase !== nextApiBase) {
@@ -385,8 +402,8 @@
   $('#connect-btn').addEventListener('click', async () => {
     const candidate = $('#jwt-token').value.trim();
     if (!candidate) {
-      clearSession('No setup key or access token supplied.');
-      alert('Enter the one-time setup key or a valid signed access token.');
+      clearSession('No device activation key supplied.');
+      alert(isNativeApp ? 'Enter the one-time device activation key for this new install.' : 'Enter a valid signed access token.');
       return;
     }
     const candidateExpiry = readTokenExpiry(candidate);
@@ -513,7 +530,7 @@
       }
     } finally {
       button.disabled = false;
-      button.textContent = 'Connect once';
+      button.textContent = isNativeApp ? 'Activate device' : 'Connect';
     }
   });
   function authHeaders() {
@@ -2017,7 +2034,9 @@
       if (!savedToken) {
         deviceRefreshToken = '';
         setConnected(false);
-        setAssistantStatus('API server configured. Connect once with a valid access token to secure this device.', 'warning');
+        setAssistantStatus('First-time setup only: activate this device with the one-time owner key. The API URL and JWT are managed automatically.', 'warning');
+        const activationPanel = $('#connection-details');
+        if (activationPanel) activationPanel.open = true;
         return;
       }
       deviceRefreshToken = savedToken;

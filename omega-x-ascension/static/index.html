@@ -23,15 +23,15 @@
       <button id="command-trigger" class="sidebar-search" type="button" aria-haspopup="dialog" aria-controls="command-palette-backdrop"><span class="sidebar-action-icon" aria-hidden="true">⌕</span><span>Search chats &amp; actions</span><kbd>Ctrl K</kbd></button>
       <nav class="tabs" aria-label="Main navigation">
       <button class="tab active" data-tab="assistant" aria-current="page"><span class="nav-icon" aria-hidden="true">✳</span><span>Assistant</span></button>
-      <button class="tab" data-tab="tools"><span class="nav-icon" aria-hidden="true">⌘</span><span>Tools</span></button>
+      <button class="tab" data-tab="tools"><span class="nav-icon" aria-hidden="true">⌘</span><span>Workspace</span></button>
       </nav>
       <div class="sidebar-history-heading">Recent chats <span>On this device</span></div>
       <div id="chat-history" class="chat-history" aria-label="Recent conversations">
         <p class="chat-history-empty">Your recent chats will appear here.</p>
       </div>
       <div class="sidebar-footer">
-        <button id="sidebar-connect" class="sidebar-footer-action" type="button"><span aria-hidden="true">⇄</span><span>Connect to server</span></button>
-        <button class="sidebar-footer-action" data-go-tab="about" type="button"><span aria-hidden="true">⚙</span><span>Settings &amp; tools</span></button>
+        <button id="sidebar-connect" class="sidebar-footer-action" type="button"><span aria-hidden="true">⇄</span><span>Secure session</span></button>
+        <button class="sidebar-footer-action" data-go-tab="about" type="button"><span aria-hidden="true">⚙</span><span>Settings &amp; device</span></button>
         <div class="sidebar-user-row"><span class="sidebar-user-avatar">Ω</span><span><strong>OMEGA-X</strong><small>Personal assistant</small></span></div>
       </div>
     </aside>
@@ -39,19 +39,19 @@
     <header class="topbar chat-topbar">
       <div class="chat-topbar-left">
         <button id="sidebar-toggle" class="sidebar-icon-button topbar-menu-button" type="button" aria-label="Open sidebar" aria-controls="chat-sidebar">☰</button>
-        <div class="chat-model-label"><strong>OMEGA-X</strong><span class="model-divider">›</span><span class="chat-mode-name">Agent</span><span class="model-chevron" aria-hidden="true">⌄</span></div>
+        <div class="chat-model-label"><strong>OMEGA-X</strong><span class="model-divider">›</span><span class="chat-mode-name">Assistant</span><span class="model-chevron" aria-hidden="true">⌄</span></div>
       </div>
       <div class="header-utilities">
       <details class="connection-details" id="connection-details">
-        <summary><span class="connection-title">DEVICE SESSION</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
+        <summary><span class="connection-title">SECURE DEVICE</span><span id="conn-status" class="status-badge disconnected"><span class="status-dot"></span> Disconnected</span></summary>
         <div class="connection-panel" aria-label="Server connection">
-          <label class="sr-only" for="api-base">API server URL</label>
-          <input type="url" id="api-base" placeholder="API server URL (https://...)" autocomplete="url">
-          <button id="save-server-btn" class="btn btn-quiet" type="button">Save</button>
-          <label class="sr-only" for="jwt-token">One-time setup key or access token</label>
-          <input type="password" id="jwt-token" placeholder="Enter setup key or signed JWT once" autocomplete="off" autocapitalize="off" spellcheck="false">
-          <button id="connect-btn" class="btn btn-primary" type="button">Connect once</button>
-          <button id="disconnect-btn" class="btn btn-quiet" type="button">Disconnect</button>
+          <label class="sr-only" for="api-base" hidden>API endpoint (managed by OMEGA-X)</label>
+          <input type="url" id="api-base" placeholder="Managed API endpoint" autocomplete="url" readonly hidden>
+          <button id="save-server-btn" class="btn btn-quiet" type="button" hidden>Save endpoint</button>
+          <label class="sr-only" for="jwt-token" hidden>One-time device activation key</label>
+          <input type="password" id="jwt-token" placeholder="One-time device activation key" autocomplete="off" autocapitalize="off" spellcheck="false" hidden>
+          <button id="connect-btn" class="btn btn-primary" type="button" hidden>Activate device</button>
+          <button id="disconnect-btn" class="btn btn-quiet" type="button" hidden>Sign out this device</button>
         </div>
       </details>
       </div>
@@ -70,7 +70,7 @@
                 <p class="page-subtitle">Ask OMEGA anything, or choose a place to start.</p>
               </div>
             </div>
-          <div id="assistant-backend-notice" class="assistant-notice" role="status">Connect once to activate cloud tasks. OMEGA uses your configured model provider and enabled tools; responses are never simulated.</div>
+          <div id="assistant-backend-notice" class="assistant-notice" role="status">Cloud access is secured on this device. After first-time activation, OMEGA renews access automatically; responses are never simulated.</div>
           <div class="assistant-quick-actions" aria-label="Suggested tasks">
             <button class="quick-action" type="button" data-assistant-prompt="Research the topic and summarize the most useful findings with source links."><span class="quick-action-icon" aria-hidden="true">⌕</span><span class="quick-action-copy"><strong>Research</strong><small>Explore a topic</small></span></button>
             <button class="quick-action" type="button" data-assistant-prompt="Create a practical plan with clear steps, priorities, and measurable outcomes."><span class="quick-action-icon" aria-hidden="true">☷</span><span class="quick-action-copy"><strong>Plan</strong><small>Turn an idea into steps</small></span></button>
@@ -134,13 +134,13 @@
       <div class="page-heading tools-page-heading">
         <div>
           <p class="eyebrow">TOOLS & WORKSPACE</p>
-          <h2 id="tools-title">Everything in one place</h2>
-          <p class="page-subtitle">Open a tool when you need it. Your workspace, browser, tasks, diagnostics and settings stay together here.</p>
+          <h2 id="tools-title">Your workspace</h2>
+          <p class="page-subtitle">Browse the web, manage workspace files, review activity, or adjust device settings.</p>
         </div>
-        <span class="section-chip">TOOLS HUB</span>
+        <span class="section-chip">WORKSPACE</span>
       </div>
       <div class="tools-accordion-list">
-      <details class="tool-accordion" id="tool-overview" open>
+      <details class="tool-accordion" id="tool-overview">
         <summary>
           <span class="tool-accordion-icon" aria-hidden="true">⌁</span>
           <span class="tool-accordion-copy"><strong>System status</strong><small>Health checks, model providers and live metrics</small></span>
@@ -238,7 +238,7 @@
       <details class="tool-accordion" id="tool-browser">
         <summary>
           <span class="tool-accordion-icon" aria-hidden="true">◎</span>
-          <span class="tool-accordion-copy"><strong>Browser & web research</strong><small>Search pages, preview sources and run cited research</small></span>
+          <span class="tool-accordion-copy"><strong>Browser</strong><small>Open pages or run source-cited research</small></span>
           <span class="tool-accordion-chevron" aria-hidden="true"></span>
         </summary>
         <div class="tool-accordion-body">
@@ -291,7 +291,7 @@
       <details class="tool-accordion" id="tool-agents">
         <summary>
           <span class="tool-accordion-icon" aria-hidden="true">⌘</span>
-          <span class="tool-accordion-copy"><strong>Workspace & computer</strong><small>Inspect agent roles, workspace files and computer capabilities</small></span>
+          <span class="tool-accordion-copy"><strong>Workspace files</strong><small>Browse and edit files in your isolated workspace</small></span>
           <span class="tool-accordion-chevron" aria-hidden="true"></span>
         </summary>
         <div class="tool-accordion-body">
@@ -344,7 +344,7 @@
       <details class="tool-accordion" id="tool-logs">
         <summary>
           <span class="tool-accordion-icon" aria-hidden="true">≋</span>
-          <span class="tool-accordion-copy"><strong>Activity logs</strong><small>Review local diagnostics and tenant audit events</small></span>
+          <span class="tool-accordion-copy"><strong>Activity</strong><small>Review local diagnostics and server audit events</small></span>
           <span class="tool-accordion-chevron" aria-hidden="true"></span>
         </summary>
         <div class="tool-accordion-body">
@@ -365,7 +365,7 @@
       <details class="tool-accordion" id="tool-about">
         <summary>
           <span class="tool-accordion-icon" aria-hidden="true">ⓘ</span>
-          <span class="tool-accordion-copy"><strong>About & device</strong><small>Version details, device information and project links</small></span>
+          <span class="tool-accordion-copy"><strong>Settings &amp; device</strong><small>Connection status, app details and device options</small></span>
           <span class="tool-accordion-chevron" aria-hidden="true"></span>
         </summary>
         <div class="tool-accordion-body">
@@ -373,10 +373,10 @@
                   <div class="page-heading"><div><p class="eyebrow">APP INFORMATION</p><h2 id="about-title">About OMEGA-X</h2><p class="page-subtitle">A mobile control surface for real model-backed workflows and on-device chat.</p></div><span class="section-chip">VERSION 0.8.3</span></div>
                   <div class="about-hero card">
                     <div class="about-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-                    <div><p class="eyebrow">OMEGA-X ASCENSION</p><h3>Useful automation. Verifiable status.</h3><p>The app does not pretend that cloud tasks work without a backend and an available model provider. Local AI is a separate llama.cpp server running on this device.</p></div>
+                    <div><p class="eyebrow">OMEGA-X ASCENSION</p><h3>Useful automation. Verifiable status.</h3><p>A private assistant with a built-in secure API, automatic token renewal, browser research, and an isolated workspace.</p></div>
                   </div>
                   <div class="about-grid">
-                    <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.8.3</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Requires backend URL, signed JWT, database, queue, and healthy model endpoint</dd><dt>Local AI</dt><dd>Requires llama.cpp server on 127.0.0.1:8080, started separately</dd></dl></div>
+                    <div class="card"><p class="eyebrow">APP DETAILS</p><dl class="about-details"><dt>Version</dt><dd id="about-version">0.8.3</dd><dt>Android package</dt><dd><code>com.omega.ascension</code></dd><dt>Interface</dt><dd>Native Android WebView with local bundled dashboard</dd><dt>Cloud agent</dt><dd>Uses the built-in secure API endpoint. Device access renews automatically after first-time activation.</dd></dl></div>
                     <div class="card"><p class="eyebrow">PHONE FEATURES</p><h3>Device integrations</h3><ul class="about-feature-list"><li>Native Android share sheet</li><li>System speech dictation with permission prompt</li><li>Text-to-speech through Android TTS</li><li>Short haptic feedback for task completion</li><li>Exportable diagnostics and audit logs</li></ul><p id="device-info" class="form-hint">Device details are shown only when the secure Android WebView messaging feature is available.</p><button id="about-device-refresh" class="btn btn-quiet" type="button">Read device info</button></div>
                   </div>
                   <div class="card about-links"><p class="eyebrow">PROJECT</p><h3>Source and checks</h3><p>Review the source code, release workflow, and automated tests in the public repository.</p><p><a href="https://github.com/chester65r/omega-x-ascension" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a></p><p><a href="https://github.com/chester65r/omega-x-ascension/actions" target="_blank" rel="noopener noreferrer">Builds and automated tests ↗</a></p><p id="about-runtime-status" class="form-hint">Runtime status has not been verified on this device yet.</p></div>
@@ -393,21 +393,18 @@
         <label class="sr-only" for="command-search">Search commands</label>
         <div class="command-search-wrap"><span aria-hidden="true">⌕</span><input id="command-search" type="search" autocomplete="off" placeholder="Search screens and actions…" /></div>
         <div class="command-list" id="command-list">
-          <button type="button" class="command-item" data-command-item data-command-tab="overview"><span class="command-item-icon">⌂</span><span class="command-item-copy"><strong>Overview</strong><small>Live API, model and system health</small></span><kbd>1</kbd></button>
-          <button type="button" class="command-item" data-command-item data-command-tab="assistant"><span class="command-item-icon">✳</span><span class="command-item-copy"><strong>Personal assistant</strong><small>Send a real task to the workflow API</small></span><kbd>2</kbd></button>
-          <button type="button" class="command-item" data-command-item data-command-tab="runs"><span class="command-item-icon">↗</span><span class="command-item-copy"><strong>Runs</strong><small>Create a workflow and inspect results</small></span><kbd>3</kbd></button>
+          <button type="button" class="command-item" data-command-item data-command-tab="assistant"><span class="command-item-icon">✳</span><span class="command-item-copy"><strong>Assistant</strong><small>Ask for help or start a task</small></span><kbd>2</kbd></button>
           <button type="button" class="command-item" data-command-item data-command-tab="browser"><span class="command-item-icon">◎</span><span class="command-item-copy"><strong>Browser</strong><small>Search or preview a page</small></span><kbd>4</kbd></button>
-          <button type="button" class="command-item" data-command-item data-command-tab="local-ai"><span class="command-item-icon">◉</span><span class="command-item-copy"><strong>Local AI</strong><small>Connect to the on-device model server</small></span><kbd>5</kbd></button>
-          <button type="button" class="command-item" data-command-item data-command-tab="agents"><span class="command-item-icon">⌘</span><span class="command-item-copy"><strong>Workspace &amp; tools</strong><small>Inspect workflow roles and tools</small></span><kbd>6</kbd></button>
-          <button type="button" class="command-item" data-command-item data-command-tab="logs"><span class="command-item-icon">≋</span><span class="command-item-copy"><strong>Logs</strong><small>Review local and tenant audit events</small></span><kbd>7</kbd></button>
-          <button type="button" class="command-item" data-command-item data-command-tab="about"><span class="command-item-icon">ⓘ</span><span class="command-item-copy"><strong>About &amp; device</strong><small>Version, Android features and project links</small></span><kbd>8</kbd></button>
+          <button type="button" class="command-item" data-command-item data-command-tab="agents"><span class="command-item-icon">⌘</span><span class="command-item-copy"><strong>Workspace</strong><small>Browse the web and manage files</small></span><kbd>6</kbd></button>
+          <button type="button" class="command-item" data-command-item data-command-tab="logs"><span class="command-item-icon">≋</span><span class="command-item-copy"><strong>Activity</strong><small>Review recent events and audit records</small></span><kbd>7</kbd></button>
+          <button type="button" class="command-item" data-command-item data-command-tab="about"><span class="command-item-icon">ⓘ</span><span class="command-item-copy"><strong>Settings</strong><small>Device details and app information</small></span><kbd>8</kbd></button>
           <button type="button" class="command-item command-item-action" data-command-item data-command-action="refresh"><span class="command-item-icon">↻</span><span class="command-item-copy"><strong>Refresh system checks</strong><small>Poll health and reload connected data</small></span><kbd>R</kbd></button>
         </div>
         <div class="command-empty" id="command-empty" hidden>No matching action. Try “browser”, “logs” or “refresh”.</div>
         <div class="command-palette-footer"><span><i class="status-dot"></i> Commands run inside this app</span><span><kbd>Esc</kbd> Close</span></div>
       </section>
     </div>
-    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Agent control interface <b>•</b> v0.8.3</span></footer>
+    <footer class="app-footer"><span>OMEGA-X ASCENSION</span><span>Private assistant <b>•</b> secure cloud session</span></footer>
   </div>
   <script src="/static/app.js"></script>
   <script>

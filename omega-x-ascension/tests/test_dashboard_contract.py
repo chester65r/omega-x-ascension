@@ -199,7 +199,7 @@ def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment
     assert "saveRefreshTokenForDevice(bootstrapRefreshToken)" in js
     assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index("await api('/v1/runs?limit=1')")
     assert "getStoredRefreshToken" in js
-    assert "Enter setup key or signed JWT once" in html
+    assert "One-time device activation key" in html
 
 
 
@@ -221,3 +221,20 @@ def test_android_bootstrap_stores_the_refresh_credential_before_network_verifica
     assert save_credential < network_probe
     assert "Close and reopen OMEGA-X to retry automatically" in handler[recovery_path:]
     assert "the saved refresh credential was retained" in handler[recovery_path:]
+
+
+def test_android_api_and_session_are_internal_and_navigation_is_simplified():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    css = Path("static/style.css").read_text(encoding="utf-8")
+    assert "let apiBase = isNativeApp ? DEFAULT_API_BASE" in js
+    assert "initializeNativeDeviceSession();" in js
+    assert "'/v1/auth/refresh'" in js
+    assert "storeRefreshToken" in js
+    assert 'placeholder="One-time device activation key"' in html
+    assert "signed JWT once" not in html
+    assert '<span>Workspace</span>' in html
+    assert "Cloud access is secured on this device" in html
+    assert "#tool-overview,#tool-runs,#tool-local-ai{display:none!important}" in css
+    assert "body.native-app #api-base" in css
+    assert "body.native-app #save-server-btn" in css
