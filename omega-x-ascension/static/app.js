@@ -666,7 +666,7 @@
 
   async function loadMetrics() {
     if (!apiBase) {
-      $('#metrics').textContent = 'Save your API server URL to view metrics.';
+      $('#metrics').textContent = 'Cloud metrics are unavailable in this view.';
       return;
     }
     try {
