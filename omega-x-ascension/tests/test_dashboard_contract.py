@@ -262,3 +262,19 @@ def test_android_api_and_session_are_internal_and_navigation_is_simplified():
     assert "#tool-overview,#tool-runs,#tool-local-ai{display:none!important}" in css
     assert "body.native-app #api-base" in css
     assert "body.native-app #save-server-btn" in css
+
+
+def test_service_worker_cache_version_matches_application_version():
+    service_worker = Path("static/sw.js").read_text(encoding="utf-8")
+    project = Path("pyproject.toml").read_text(encoding="utf-8")
+    android = Path("../android/app/build.gradle").read_text(encoding="utf-8")
+
+    project_version = re.search(r'(?m)^version\s*=\s*"([^"]+)"', project)
+    cache_version = re.search(r'const CACHE_NAME\s*=\s*"omega-x-v([^"]+)"', service_worker)
+    android_version = re.search(r'(?m)^\s*versionName\s+"([^"]+)"', android)
+
+    assert project_version, "Python project version must be declared"
+    assert cache_version, "Service-worker cache version must be declared"
+    assert android_version, "Android app version must be declared"
+    assert cache_version.group(1) == project_version.group(1)
+    assert android_version.group(1) == project_version.group(1)
