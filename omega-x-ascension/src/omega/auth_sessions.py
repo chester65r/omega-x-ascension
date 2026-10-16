@@ -226,6 +226,7 @@ async def create_device_session(
 @router.post("/auth/refresh")
 async def refresh_device_session(body: RefreshRequest, request: Request):
     """Mint a short-lived access token from a device-only credential held in Android Keystore."""
+    cfg = get_settings()
     claims = _decode_refresh_token(body.refresh_token)
     await _assert_not_revoked(request, claims)
     scope_string = str(claims.get("access_scope", "")).strip()
