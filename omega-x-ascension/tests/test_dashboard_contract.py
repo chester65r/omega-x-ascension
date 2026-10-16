@@ -258,7 +258,7 @@ def test_android_api_and_session_are_internal_and_navigation_is_simplified():
     assert 'placeholder="One-time device activation key"' in html
     assert "signed JWT once" not in html
     assert '<span>Workspace</span>' in html
-    assert "Cloud access is secured on this device" in html
+    assert "Cloud tasks reconnect automatically after this device has been securely enrolled" in html
     assert "#tool-overview,#tool-runs,#tool-local-ai{display:none!important}" in css
     assert "body.native-app #api-base" in css
     assert "body.native-app #save-server-btn" in css
