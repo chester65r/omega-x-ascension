@@ -35,6 +35,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str = Field(min_length=60, max_length=4096)
 
 
+class RefreshRotationCommitRequest(BaseModel):
+    previous_refresh_token: str = Field(min_length=60, max_length=4096)
+    refresh_token: str = Field(min_length=60, max_length=4096)
+
+
 def _encode_access_token(subject: str, tenant_id: UUID, scopes: frozenset[str]) -> str:
     cfg = get_settings()
     now = datetime.now(UTC)
@@ -221,6 +226,7 @@ async def create_device_session(
 @router.post("/auth/refresh")
 async def refresh_device_session(body: RefreshRequest, request: Request):
     """Mint a short-lived access token from a device-only credential held in Android Keystore."""
+    cfg = get_settings()
     claims = _decode_refresh_token(body.refresh_token)
     await _assert_not_revoked(request, claims)
     scope_string = str(claims.get("access_scope", "")).strip()
@@ -235,12 +241,64 @@ async def refresh_device_session(body: RefreshRequest, request: Request):
     access_token = _encode_access_token(
         str(claims["sub"]), UUID(str(claims["tenant_id"])), scopes
     )
+
+    # Rotate the device credential with a sliding 30-day lifetime. The previous
+    # token stays usable until Android confirms the replacement was saved.
+    now = datetime.now(UTC)
+    issued_at = int(now.timestamp())
+    refresh_expiry = int((now + timedelta(seconds=DEVICE_REFRESH_LIFETIME_SECONDS)).timestamp())
+    scope_string = " ".join(sorted(scopes))
+    rotated_claims = {
+        "sub": str(claims["sub"]),
+        "tenant_id": str(claims["tenant_id"]),
+        "scope": "device:refresh",
+        "access_scope": scope_string,
+        "iss": cfg.jwt_issuer,
+        "aud": cfg.jwt_audience,
+        "iat": issued_at,
+        "exp": refresh_expiry,
+        "jti": uuid4().hex,
+        "parent_jti": str(claims["jti"]),
+        "token_use": "device_refresh",
+    }
+    rotated_refresh_token = jwt.encode(
+        rotated_claims, cfg.jwt_secret.get_secret_value(), algorithm=cfg.jwt_algorithm
+    )
     return {
         "token_type": "Bearer",
         "access_token": access_token,
         "expires_in": ACCESS_TOKEN_LIFETIME_SECONDS,
-        "refresh_expires_at": int(claims["exp"]),
+        "refresh_token": rotated_refresh_token,
+        "refresh_expires_at": refresh_expiry,
     }
+
+
+@router.post("/auth/refresh/commit")
+async def commit_device_session_rotation(body: RefreshRotationCommitRequest, request: Request):
+    """Revoke the previous refresh credential only after its replacement is stored."""
+    previous = _decode_refresh_token(body.previous_refresh_token)
+    replacement = _decode_refresh_token(body.refresh_token)
+
+    if (
+        replacement.get("parent_jti") != str(previous.get("jti", ""))
+        or replacement.get("jti") == previous.get("jti")
+        or replacement.get("sub") != previous.get("sub")
+        or replacement.get("tenant_id") != previous.get("tenant_id")
+        or replacement.get("access_scope") != previous.get("access_scope")
+    ):
+        raise HTTPException(status_code=401, detail="invalid device session rotation")
+
+    await _assert_not_revoked(request, replacement)
+    ttl = int(previous["exp"]) - int(time.time())
+    if ttl > 0:
+        redis = request.app.state.services.redis
+        try:
+            await redis.set(REFRESH_REVOKED_PREFIX + str(previous["jti"]), "1", ex=ttl)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503, detail="session service temporarily unavailable"
+            ) from exc
+    return {"committed": True}
 
 
 @router.post("/auth/revoke")

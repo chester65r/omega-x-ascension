@@ -8,6 +8,7 @@
   let deviceRefreshToken = '';
   let sessionRefreshInFlight = null;
   let tokenExpiryTimer = null;
+  let sessionRetryTimer = null;
   let apiBase = isNativeApp ? DEFAULT_API_BASE : (localStorage.getItem('omega-api-base') || DEFAULT_API_BASE);
   try { localStorage.setItem('omega-api-base', apiBase); } catch (_) {}
   let pollTimer = null;
@@ -188,12 +189,50 @@
       });
       if (!response.ok) {
         const body = await response.text();
-        throw new Error('Secure session refresh failed (' + response.status + '). ' + body.slice(0, 180));
+        const error = new Error('Secure session refresh failed (' + response.status + '). ' + body.slice(0, 180));
+        error.status = response.status;
+        throw error;
       }
       const data = await response.json();
       if (!data.access_token) throw new Error('Server returned no access token.');
+
+      // Refresh credentials rotate with a sliding lifetime. Keep the previous token
+      // valid until Android confirms that the replacement is encrypted and persisted.
+      const previousRefreshToken = deviceRefreshToken;
+      if (data.refresh_token) {
+        let replacementSaved = false;
+        try {
+          replacementSaved = await saveRefreshTokenForDevice(String(data.refresh_token));
+        } catch (_) {
+          replacementSaved = false;
+        }
+        if (replacementSaved) {
+          try {
+            const commitResponse = await apiFetch('/v1/auth/refresh/commit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                previous_refresh_token: previousRefreshToken,
+                refresh_token: String(data.refresh_token),
+              }),
+            });
+            if (!commitResponse.ok) {
+              addAgentLog('warning', 'The refreshed session was saved, but the old credential could not yet be retired.');
+            }
+          } catch (_) {
+            addAgentLog('warning', 'The refreshed session was saved; old-session cleanup will retry on a later refresh.');
+          }
+        } else {
+          addAgentLog('warning', 'The refreshed session could not be saved yet; the previous encrypted session was kept.');
+        }
+      }
+
       token = String(data.access_token);
       sessionStorage.removeItem('omega-jwt');
+      if (sessionRetryTimer) {
+        clearTimeout(sessionRetryTimer);
+        sessionRetryTimer = null;
+      }
       setConnected(true);
       scheduleTokenExpiry(Date.now() + Number(data.expires_in || 3600) * 1000);
       startPolling();
@@ -208,11 +247,36 @@
   }
 
   function failSecureSession(error) {
+    const message = String(error?.message || error || '');
+    const statusMatch = message.match(/\((\d{3})\)/);
+    const status = Number(error?.status || (statusMatch && statusMatch[1]) || 0);
+    const permanentlyRejected = [401, 403, 410].includes(status)
+      || /invalid or expired device session|device session was signed out|device session contains invalid scopes/i.test(message);
+
+    if (!permanentlyRejected) {
+      // A timeout, offline phone, rate limit, or server outage is not proof that the
+      // saved credential is invalid. Never erase the encrypted credential for these.
+      token = '';
+      sessionStorage.removeItem('omega-jwt');
+      setConnected(false);
+      setAssistantStatus('The API could not renew the session right now. Your encrypted device session was kept; OMEGA-X will retry automatically.', 'warning');
+      addAgentLog('warning', 'Temporary session-refresh failure; saved device credential preserved.');
+      if (!sessionRetryTimer) {
+        sessionRetryTimer = setTimeout(() => {
+          sessionRetryTimer = null;
+          if (!token && deviceRefreshToken) {
+            refreshDeviceSession().catch(failSecureSession);
+          }
+        }, 30000);
+      }
+      return;
+    }
+
     token = '';
     deviceRefreshToken = '';
     clearRefreshTokenOnDevice();
-    clearSession('Saved device session could not be renewed. Connect once again. ' + String(error?.message || error || '').slice(0, 160));
-    setAssistantStatus('Your saved session is no longer valid. Reconnect once to secure this device again.', 'warning');
+    clearSession('Saved device session was rejected. Activate this device once again only if its session was revoked or expired. ' + message.slice(0, 120));
+    setAssistantStatus('The saved device session has expired or was revoked. Reactivate this device to create a new secure session.', 'warning');
   }
 
   $('#api-base').value = apiBase;
