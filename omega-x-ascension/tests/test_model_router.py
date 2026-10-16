@@ -62,18 +62,44 @@ def test_model_router_rejects_empty_completion_and_tries_fallback():
     asyncio.run(check())
 
 
+def test_model_router_tries_third_provider_when_first_two_fail():
+    async def check():
+        primary = FakeGateway("primary", 100, error=_status_error(429))
+        secondary = FakeGateway("secondary", 80, error=_status_error(503))
+        tertiary = FakeGateway("tertiary", 50, result="tertiary response")
+        router = ModelRouter(FakeRegistry([tertiary, secondary, primary]))
+
+        result = await router.complete("planning", system="s", prompt="p")
+
+        assert result == "tertiary response"
+        assert primary.calls == 1
+        assert secondary.calls == 1
+        assert tertiary.calls == 1
+
+    asyncio.run(check())
+
+
 def test_model_router_reports_safe_failure_when_all_providers_fail():
     async def check():
         router = ModelRouter(
-            FakeRegistry([
-                FakeGateway("primary", 100, error=TimeoutError("secret-bearing provider error")),
-                FakeGateway("fallback", 50, error=ConnectionError("unavailable")),
-            ])
+            FakeRegistry(
+                [
+                    FakeGateway(
+                        "primary",
+                        100,
+                        error=TimeoutError("secret-bearing provider error"),
+                    ),
+                    FakeGateway("fallback", 50, error=ConnectionError("unavailable")),
+                ]
+            )
         )
-        with pytest.raises(ModelExecutionFailed, match="all 2 attempted model providers failed"):
+        with pytest.raises(
+            ModelExecutionFailed, match="all 2 attempted model providers failed"
+        ):
             await router.complete("planning", system="s", prompt="p")
 
     asyncio.run(check())
+
 
 def _status_error(status: int) -> httpx.HTTPStatusError:
     request = httpx.Request("POST", "https://provider.example/v1/chat/completions")
