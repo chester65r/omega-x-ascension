@@ -9,5 +9,8 @@
       "source": "/:path*",
       "destination": "https://omega-api-production-e4ed.up.railway.app/:path*"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }
