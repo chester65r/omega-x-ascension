@@ -225,6 +225,21 @@ async def model_health():
     }
 
 
+@app.get("/health/tools")
+async def tool_health():
+    """Expose non-sensitive tool policy state so clients can explain availability."""
+    svc = app.state.services
+    return {
+        "browser": {"available": svc.browser is not None},
+        "computer_files": {"enabled": bool(svc.computer.files_enabled)},
+        "computer_execution": {
+            "enabled": bool(svc.computer.enabled),
+            "requires_explicit_scope_and_approval": True,
+        },
+        "remote_mcp": {"enabled": bool(svc.remote_mcp and svc.remote_mcp.enabled)},
+    }
+
+
 @app.get("/version")
 async def version_info():
     return {

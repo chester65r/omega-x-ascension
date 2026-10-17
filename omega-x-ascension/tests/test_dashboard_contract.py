@@ -105,6 +105,15 @@ def test_model_health_ui_uses_real_provider_status_endpoint():
     assert "await gateway.healthy()" in router
 
 
+def test_tool_health_ui_explains_policy_limited_features():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    main = Path("src/omega/main.py").read_text(encoding="utf-8")
+    assert "apiFetch('/health/tools')" in js
+    assert "terminal disabled by server policy" in js
+    assert '@app.get("/health/tools")' in main
+    assert "requires_explicit_scope_and_approval" in main
+
+
 def test_native_browser_is_available_without_cloud_backend():
     html = Path("static/index.html").read_text(encoding="utf-8")
     js = Path("static/app.js").read_text(encoding="utf-8")
