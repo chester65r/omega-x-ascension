@@ -40,7 +40,10 @@ def provision_roles() -> None:
                 )
             )
             cur.execute("SELECT current_database()")
-            database_name = cur.fetchone()[0]
+            database_row = cur.fetchone()
+            if database_row is None:
+                raise RuntimeError("unable to determine current database")
+            database_name = database_row[0]
             cur.execute(
                 sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
                     sql.Identifier(database_name), sql.Identifier(role)
