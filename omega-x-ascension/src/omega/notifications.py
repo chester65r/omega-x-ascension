@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from html import escape
 from typing import Any
+
 import httpx
 from pydantic import SecretStr
 

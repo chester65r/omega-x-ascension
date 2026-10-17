@@ -8,8 +8,8 @@ from uuid import UUID, uuid4
 
 import jwt
 from fastapi import APIRouter, Header, HTTPException, Request, Security, status
-from pydantic import BaseModel, Field
 from jwt import InvalidTokenError
+from pydantic import BaseModel, Field
 
 from omega.auth import Principal, current_principal
 from omega.config import get_settings

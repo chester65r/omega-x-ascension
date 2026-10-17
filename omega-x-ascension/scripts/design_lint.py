@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Designly art-direction preflight adapted from Designly (CC BY 4.0)."""
 from __future__ import annotations
+
 import argparse
 import json
 import re

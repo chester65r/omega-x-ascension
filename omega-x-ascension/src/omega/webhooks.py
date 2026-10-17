@@ -5,22 +5,20 @@ import hmac
 import json
 import logging
 from html import escape
-from typing import Any
-from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, Security, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Security, status
 from pydantic import BaseModel, Field, SecretStr
 
 from omega.auth import Principal, current_principal
 from omega.config import Capability, get_settings
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
-from omega.rate_limit import enforce_rate_limit
 from omega.notifications import (
     notify_approval_requested,
     notify_run_status_change,
     send_slack_notification,
     send_telegram_notification,
 )
+from omega.rate_limit import enforce_rate_limit
 
 logger = logging.getLogger("omega.webhooks")
 router = APIRouter()
@@ -86,6 +84,7 @@ async def github_webhook(
 ):
     cfg = get_settings()
 
+    body_bytes = await read_bounded_body(request)
     if not verify_github_signature(body_bytes, x_hub_signature_256, cfg.github_webhook_secret):
         logger.warning("Invalid GitHub webhook signature received")
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
@@ -109,6 +108,28 @@ async def github_webhook(
         if not first_delivery:
             return {"status": "duplicate", "delivery_id": x_github_delivery}
 
+    try:
+        return await _handle_github_event(body_bytes, x_github_event, svc, cfg)
+    except Exception:
+        # If processing failed, release the replay marker so a GitHub retry with
+        # the same delivery ID is processed again instead of being dropped as a
+        # "duplicate".
+        if x_github_delivery:
+            redis = getattr(svc, "redis", None)
+            if redis is not None:
+                try:
+                    await redis.delete(f"omega:webhook:github:{x_github_delivery}")
+                except Exception:  # pragma: no cover - best-effort cleanup
+                    logger.exception("Failed to release the webhook replay marker")
+        raise
+
+
+async def _handle_github_event(
+    body_bytes: bytes,
+    x_github_event: str,
+    svc,
+    cfg,
+) -> dict:
     if x_github_event == "ping":
         return {"status": "pong", "message": "OMEGA-X Ascension GitHub webhook endpoint ready"}
 
@@ -159,7 +180,7 @@ async def github_webhook(
 
         # Notify via Slack / Telegram
         if cfg.notifications_enabled:
-            if ApprovalPolicy.is_approval_required(run.requested_actions):
+            if ApprovalPolicy().requires_approval(set(run.requested_actions)):
                 await notify_approval_requested(
                     run,
                     slack_webhook_url=cfg.slack_webhook_url,

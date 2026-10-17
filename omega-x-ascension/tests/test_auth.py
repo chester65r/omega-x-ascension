@@ -6,8 +6,8 @@ import pytest
 from fastapi import HTTPException
 from pydantic import SecretStr
 
-from omega.auth import Principal, TokenVerifier
 from omega.api import require_requested_action_scopes
+from omega.auth import Principal, TokenVerifier
 
 
 class Config:

@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from omega import __version__
-from omega.auth import Principal, current_principal
+from omega.auth import Principal, current_principal, require_requested_action_scopes
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
 from omega.model_router import NoEligibleModel
 from omega.rate_limit import enforce_rate_limit
@@ -160,6 +160,12 @@ async def handle_mcp(
     # or actor in MCP arguments; both come solely from the verified bearer token.
     if tool_name == "omega_create_run":
         principal.require({"runs:write"})
+        # MCP run creation must enforce the same computer-capability scopes as REST.
+        arguments = params.get("arguments")
+        if isinstance(arguments, dict):
+            actions = arguments.get("requested_actions", [])
+            if isinstance(actions, list):
+                require_requested_action_scopes(actions, principal)
     elif tool_name == "omega_approve_run":
         principal.require({"runs:approve"})
     else:
