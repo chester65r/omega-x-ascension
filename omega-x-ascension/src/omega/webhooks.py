@@ -108,13 +108,20 @@ async def github_webhook(
         if not first_delivery:
             return {"status": "duplicate", "delivery_id": x_github_delivery}
 
+    durable = False
+
+    def mark_durable() -> None:
+        nonlocal durable
+        durable = True
+
     try:
-        return await _handle_github_event(body_bytes, x_github_event, svc, cfg)
+        return await _handle_github_event(body_bytes, x_github_event, svc, cfg, mark_durable)
     except Exception:
-        # If processing failed, release the replay marker so a GitHub retry with
-        # the same delivery ID is processed again instead of being dropped as a
-        # "duplicate".
-        if x_github_delivery:
+        # Release the replay marker only when no durable work was recorded, so a
+        # GitHub retry with the same delivery ID is reprocessed. Once a run has
+        # been created, a later failure (for example a notification) must not
+        # turn the retry into a duplicate run.
+        if x_github_delivery and not durable:
             redis = getattr(svc, "redis", None)
             if redis is not None:
                 try:
@@ -129,6 +136,7 @@ async def _handle_github_event(
     x_github_event: str,
     svc,
     cfg,
+    mark_durable,
 ) -> dict:
     if x_github_event == "ping":
         return {"status": "pong", "message": "OMEGA-X Ascension GitHub webhook endpoint ready"}
@@ -176,6 +184,7 @@ async def _handle_github_event(
         )
 
         await svc.repo.create_run(run, run.created_by, is_enqueued=True)
+        mark_durable()
         logger.info("Triaged GitHub issue #%s into run %s", issue_num, run.id)
 
         # Notify via Slack / Telegram
@@ -237,6 +246,7 @@ async def _handle_github_event(
         )
 
         await svc.repo.create_run(run, run.created_by, is_enqueued=True)
+        mark_durable()
         logger.info("Triaged GitHub PR #%s into review run %s", pr_num, run.id)
 
         if cfg.notifications_enabled:
