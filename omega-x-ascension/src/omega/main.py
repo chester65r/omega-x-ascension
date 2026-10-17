@@ -132,7 +132,7 @@ async def observability_and_security_headers(request: Request, call_next):
             # its own CSP sandbox still applies there. All other routes deny framing.
             response.headers["X-Frame-Options"] = "SAMEORIGIN" if route_name.endswith("/browser/proxy") else "DENY"
             response.headers["Referrer-Policy"] = "no-referrer"
-            response.headers["Permissions-Policy"] = "camera=(), geolocation=()"
+            response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
             forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
             if request.url.scheme == "https" or forwarded_proto == "https":
                 response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
