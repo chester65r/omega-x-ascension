@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Security
 from pydantic import BaseModel, Field
 
 from omega.auth import Principal, current_principal
-from omega.config import get_settings
 from omega.rate_limit import enforce_rate_limit
 
 router = APIRouter(tags=["external-mcp"])
@@ -90,7 +89,7 @@ class RemoteMCPClient:
     def enabled(self) -> bool:
         return bool(self.url)
 
-    def new_session(self) -> "RemoteMCPClient":
+    def new_session(self) -> RemoteMCPClient:
         """Create an isolated MCP protocol session while reusing the HTTP pool."""
         return RemoteMCPClient(self.url, self.token, self.timeout_seconds, self.http)
 

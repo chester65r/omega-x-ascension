@@ -24,12 +24,13 @@ from omega.adapters.database import SqlRunRepository, build_engine
 from omega.adapters.models import StaticRegistry, build_gateways
 from omega.api import router
 from omega.auth_sessions import router as auth_sessions_router
-from omega.mcp import router as mcp_router
-from omega.remote_mcp import RemoteMCPClient, router as remote_mcp_router
-from omega.webhooks import router as webhooks_router
 from omega.config import get_settings
+from omega.mcp import router as mcp_router
 from omega.model_router import ModelRouter
+from omega.remote_mcp import RemoteMCPClient
+from omega.remote_mcp import router as remote_mcp_router
 from omega.tools import BrowserTool, ComputerTool
+from omega.webhooks import router as webhooks_router
 
 
 @dataclass

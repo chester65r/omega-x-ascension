@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from omega.auth import Principal, current_principal
+from omega.auth import Principal, current_principal, require_requested_action_scopes
 from omega.config import Capability, get_settings
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
 from omega.model_router import NoEligibleModel
@@ -15,6 +16,15 @@ from omega.notifications import notify_approval_requested
 from omega.rate_limit import enforce_rate_limit
 
 router = APIRouter()
+logger = logging.getLogger("omega.api")
+
+
+def _log_task_exception(task: asyncio.Task) -> None:
+    if not task.cancelled() and task.exception() is not None:
+        logger.error(
+            "background notification task failed: %s",
+            type(task.exception()).__name__,
+        )
 
 
 class RunCreate(BaseModel):
@@ -34,19 +44,6 @@ class RunView(BaseModel):
 
 def services(request: Request):
     return request.app.state.services
-
-
-def require_requested_action_scopes(actions: list[str], principal: Principal) -> None:
-    """Require explicit token scopes for each requested computer capability."""
-    normalized = {str(action).strip().casefold() for action in actions}
-    if "execute_code" in normalized:
-        principal.require({"computer:execute"})
-    if "use_workspace_files" in normalized:
-        principal.require({"computer:read"})
-    if "write_workspace_files" in normalized:
-        if "use_workspace_files" not in normalized:
-            raise HTTPException(400, "write_workspace_files requires use_workspace_files")
-        principal.require({"computer:write", "runs:approve"})
 
 
 def view(run: WorkflowRun) -> RunView:
@@ -99,7 +96,7 @@ async def create_run(
     if run.status == RunStatus.WAITING_APPROVAL:
         cfg = get_settings()
         if cfg.notifications_enabled:
-            asyncio.create_task(
+            task = asyncio.create_task(
                 notify_approval_requested(
                     run,
                     slack_webhook_url=cfg.slack_webhook_url,
@@ -108,6 +105,7 @@ async def create_run(
                     client=svc.http,
                 )
             )
+            task.add_done_callback(_log_task_exception)
 
     return view(run)
 

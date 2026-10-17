@@ -8,7 +8,6 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from omega.config import ProviderConfig, Settings
 from omega.ports import ModelGateway
 
-
 _ALL_CAPABILITIES = frozenset(
     {
         "reasoning",

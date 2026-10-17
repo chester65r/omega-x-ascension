@@ -226,3 +226,58 @@ def test_mcp_scope_is_enforced(monkeypatch):
         assert response.status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+def test_mcp_create_run_enforces_computer_action_scopes(monkeypatch):
+    """MCP run creation must require the same computer scopes as the REST API."""
+    tenant = uuid4()
+    # Full run permissions, but no computer:execute / computer:read / computer:write.
+    token = make_token(tenant, "runs:read runs:write runs:approve")
+    services = FakeServices()
+    prior_services = getattr(app.state, "services", None)
+    app.state.services = services
+    app.dependency_overrides[get_settings] = lambda: TestSettings()
+    client = TestClient(app)
+    try:
+        def create_with_actions(actions, request_id):
+            return client.post(
+                "/mcp",
+                headers={"Authorization": f"Bearer {token}"},
+                json={
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "omega_create_run",
+                        "arguments": {
+                            "goal": "Scoped capability request",
+                            "task_type": "coding",
+                            "requested_actions": actions,
+                        },
+                    },
+                },
+            )
+
+        executed = create_with_actions(["execute_code"], 1)
+        assert executed.status_code == 403
+        assert "computer:execute" in executed.json()["detail"]
+        assert not services.repo.runs
+
+        read_files = create_with_actions(["use_workspace_files"], 2)
+        assert read_files.status_code == 403
+        assert "computer:read" in read_files.json()["detail"]
+        assert not services.repo.runs
+
+        malformed = create_with_actions(["write_workspace_files"], 3)
+        assert malformed.status_code == 400
+        assert "use_workspace_files" in malformed.json()["detail"]
+        assert not services.repo.runs
+    finally:
+        app.dependency_overrides.clear()
+        if prior_services is None:
+            try:
+                del app.state.services
+            except AttributeError:
+                pass
+        else:
+            app.state.services = prior_services
