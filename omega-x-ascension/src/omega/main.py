@@ -236,7 +236,11 @@ async def tool_health():
             "enabled": bool(svc.computer.enabled),
             "requires_explicit_scope_and_approval": True,
         },
-        "remote_mcp": {"enabled": bool(svc.remote_mcp and svc.remote_mcp.enabled)},
+        "remote_mcp": {
+            "enabled": bool(
+                getattr(getattr(app.state, "remote_mcp", None), "enabled", False)
+            )
+        },
     }
 
 
