@@ -140,7 +140,9 @@ def test_one_time_bootstrap_issues_scoped_access_and_refresh_tokens(monkeypatch)
     assert access_claims["token_use"] == "access"
     assert "runs:read" in access_claims["scope"].split()
     assert "runs:write" in access_claims["scope"].split()
-    assert "computer:execute" not in access_claims["scope"].split()
+    assert "computer:read" in access_claims["scope"].split()
+    assert "computer:write" in access_claims["scope"].split()
+    assert "computer:execute" in access_claims["scope"].split()
 
     refresh_claims = jwt.decode(
         data["refresh_token"],
@@ -230,4 +232,3 @@ def test_refresh_rotates_device_credential_and_commit_revokes_previous(monkeypat
     assert client.post(
         "/v1/auth/refresh", json={"refresh_token": replacement_token}
     ).status_code == 200
-

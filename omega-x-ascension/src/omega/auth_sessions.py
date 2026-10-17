@@ -28,6 +28,7 @@ BOOTSTRAP_TENANT_ID = UUID("00000000-0000-0000-0000-000000000001")
 BOOTSTRAP_SUBJECT = "omega-primary-device"
 BOOTSTRAP_SCOPES = frozenset({
     "runs:read", "runs:write", "runs:approve", "computer:read", "computer:write",
+    "computer:execute",
 })
 
 
