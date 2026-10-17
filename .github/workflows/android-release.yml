@@ -2,6 +2,17 @@ name: Android APK Build and Release
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_production:
+        description: "Build and publish the signed production APK (requires ANDROID_RELEASE_SIGNING_BUNDLE secret)"
+        required: false
+        type: boolean
+        default: false
+      release_tag:
+        description: "Production release tag"
+        required: false
+        type: string
+        default: "v0.8.5"
   push:
     branches: [main]
     paths:
@@ -21,7 +32,7 @@ concurrency:
 jobs:
   debug-apk:
     name: Build installable debug APK
-    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    if: (github.event_name == 'workflow_dispatch' && !inputs.publish_production) || (github.ref == 'refs/heads/main' && github.event_name == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -105,14 +116,11 @@ jobs:
 
   signed-release:
     name: Build, test and publish signed release APK
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_production)
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_RELEASE_SIGNING_BUNDLE: ${{ secrets.ANDROID_RELEASE_SIGNING_BUNDLE }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -133,19 +141,38 @@ jobs:
 
       - name: Validate and materialize private release signing key
         shell: bash
+        env:
+          ANDROID_RELEASE_SIGNING_BUNDLE: ${{ secrets.ANDROID_RELEASE_SIGNING_BUNDLE }}
         run: |
           set -euo pipefail
-          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [[ -z "${!name:-}" ]]; then
-              echo "Required repository secret is missing: $name" >&2
-              exit 1
-            fi
-          done
+          if [[ -z "${ANDROID_RELEASE_SIGNING_BUNDLE:-}" ]]; then
+            echo "Required repository secret is missing: ANDROID_RELEASE_SIGNING_BUNDLE" >&2
+            exit 1
+          fi
           mkdir -p "$RUNNER_TEMP/omega-signing"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/omega-signing/release.jks"
-          chmod 600 "$RUNNER_TEMP/omega-signing/release.jks"
+          printf '%s' "$ANDROID_RELEASE_SIGNING_BUNDLE" | base64 --decode > "$RUNNER_TEMP/omega-signing/bundle.json"
+          chmod 600 "$RUNNER_TEMP/omega-signing/bundle.json"
+          python3 - "$RUNNER_TEMP/omega-signing/bundle.json" "$RUNNER_TEMP/omega-signing/release.jks" "$GITHUB_ENV" <<'PY'
+          import base64, json, os, sys
+          bundle_path, keystore_path, env_path = sys.argv[1:]
+          with open(bundle_path, encoding="utf-8") as handle:
+              bundle = json.load(handle)
+          required = ("keystoreBase64", "storePassword", "keyAlias", "keyPassword")
+          if any(not isinstance(bundle.get(key), str) or not bundle[key] for key in required):
+              raise SystemExit("Signing bundle is incomplete.")
+          with open(keystore_path, "wb") as handle:
+              handle.write(base64.b64decode(bundle["keystoreBase64"], validate=True))
+          if os.path.getsize(keystore_path) < 1000:
+              raise SystemExit("Signing keystore is invalid or empty.")
+          with open(env_path, "a", encoding="utf-8") as handle:
+              handle.write(f"ANDROID_KEYSTORE_FILE={keystore_path}\n")
+              handle.write(f"ANDROID_KEYSTORE_PASSWORD={bundle['storePassword']}\n")
+              handle.write(f"ANDROID_KEY_ALIAS={bundle['keyAlias']}\n")
+              handle.write(f"ANDROID_KEY_PASSWORD={bundle['keyPassword']}\n")
+          os.chmod(keystore_path, 0o600)
+          PY
+          rm -f "$RUNNER_TEMP/omega-signing/bundle.json"
           test -s "$RUNNER_TEMP/omega-signing/release.jks"
-          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/omega-signing/release.jks" >> "$GITHUB_ENV"
 
       - name: Prepare bundled dashboard assets
         run: ./android/build-apk.sh
@@ -183,6 +210,7 @@ jobs:
       - name: Publish signed APK as a GitHub Release asset
         uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_production && inputs.release_tag || github.ref_name }}
           files: |
             android/app/build/outputs/apk/release/app-release.apk
             android/app/build/outputs/apk/release/app-release.apk.sha256
