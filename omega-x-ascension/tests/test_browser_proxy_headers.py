@@ -19,7 +19,9 @@ def test_browser_proxy_response_is_sandboxed_and_not_cached():
     async def check():
         services = SimpleNamespace(browser=FakeBrowser(), redis=FakeRedis())
         principal = SimpleNamespace(tenant_id=uuid4(), user_id="test-user")
-        response = await browser_proxy(url="https://public.example/", principal=principal, svc=services)
+        response = await browser_proxy(
+            url="https://public.example/", principal=principal, svc=services
+        )
 
         assert response.headers["content-security-policy"] == "sandbox allow-scripts allow-forms"
         assert response.headers["x-content-type-options"] == "nosniff"

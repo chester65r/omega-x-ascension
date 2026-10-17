@@ -29,9 +29,7 @@ def test_gemini_gateway_sends_key_in_header_and_parses_response():
         return httpx.Response(
             200,
             json={
-                "candidates": [
-                    {"content": {"parts": [{"text": "Gemini "}, {"text": "works."}]}}
-                ]
+                "candidates": [{"content": {"parts": [{"text": "Gemini "}, {"text": "works."}]}}]
             },
         )
 
@@ -65,9 +63,9 @@ def test_gemini_gateway_health_uses_model_endpoint_and_key_header():
 
 def test_build_gateways_adds_gemini_only_when_secret_is_configured():
     async def check():
-        async with httpx.AsyncClient(transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, json={})
-        )) as client:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json={}))
+        ) as client:
             configured = Settings.model_construct(
                 model_providers=[],
                 gemini_api_key=SecretStr("configured-test-key"),

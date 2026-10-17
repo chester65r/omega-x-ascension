@@ -115,7 +115,6 @@ def test_device_refresh_token_cannot_authorize_normal_api_calls(monkeypatch):
         raise AssertionError("device refresh tokens must never authorize regular API endpoints")
 
 
-
 def test_one_time_bootstrap_issues_scoped_access_and_refresh_tokens(monkeypatch):
     client, _app = make_client(monkeypatch)
 
@@ -159,7 +158,6 @@ def test_one_time_bootstrap_issues_scoped_access_and_refresh_tokens(monkeypatch)
     assert reused.status_code == 410
 
 
-
 def test_invalid_bootstrap_secret_does_not_consume_the_valid_setup_key(monkeypatch):
     client, _app = make_client(monkeypatch)
 
@@ -180,6 +178,7 @@ def test_invalid_bootstrap_secret_does_not_consume_the_valid_setup_key(monkeypat
         headers={"X-OMEGA-BOOTSTRAP-SECRET": Config.token_bootstrap_secret.get_secret_value()},
     )
     assert replay.status_code == 410
+
 
 def test_refresh_rotates_device_credential_and_commit_revokes_previous(monkeypatch):
     client, _app = make_client(monkeypatch)
@@ -211,9 +210,9 @@ def test_refresh_rotates_device_credential_and_commit_revokes_previous(monkeypat
     assert replacement_claims["exp"] >= previous_claims["exp"]
 
     # The old credential remains usable until the client confirms secure storage.
-    assert client.post(
-        "/v1/auth/refresh", json={"refresh_token": previous_token}
-    ).status_code == 200
+    assert (
+        client.post("/v1/auth/refresh", json={"refresh_token": previous_token}).status_code == 200
+    )
 
     committed = client.post(
         "/v1/auth/refresh/commit",
@@ -224,10 +223,10 @@ def test_refresh_rotates_device_credential_and_commit_revokes_previous(monkeypat
     )
     assert committed.status_code == 200
     assert committed.json() == {"committed": True}
-    assert client.post(
-        "/v1/auth/refresh", json={"refresh_token": previous_token}
-    ).status_code == 401
-    assert client.post(
-        "/v1/auth/refresh", json={"refresh_token": replacement_token}
-    ).status_code == 200
-
+    assert (
+        client.post("/v1/auth/refresh", json={"refresh_token": previous_token}).status_code == 401
+    )
+    assert (
+        client.post("/v1/auth/refresh", json={"refresh_token": replacement_token}).status_code
+        == 200
+    )

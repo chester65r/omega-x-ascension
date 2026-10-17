@@ -121,9 +121,7 @@ def test_workspace_file_access_requires_read_scope_and_edits_require_write_plus_
         tenant_id=tenant,
         scopes=frozenset({"runs:write", "runs:approve", "computer:read", "computer:write"}),
     )
-    require_requested_action_scopes(
-        ["use_workspace_files", "write_workspace_files"], writer
-    )
+    require_requested_action_scopes(["use_workspace_files", "write_workspace_files"], writer)
 
 
 def test_workspace_write_action_must_include_workspace_read_action():

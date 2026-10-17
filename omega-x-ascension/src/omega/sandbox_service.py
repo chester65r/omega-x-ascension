@@ -20,6 +20,8 @@ MAX_OUTPUT_BYTES = 16_000
 MAX_FILE_BYTES = 100_000
 MAX_DIRECTORY_ENTRIES = 200
 WORKSPACE_ROOT = Path(os.environ.get("OMEGA_SANDBOX_WORKSPACE", "/workspace")).resolve()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Railway starts with "uvicorn module:app", which bypasses the __main__ block.
@@ -258,7 +260,9 @@ async def health(
     # API readiness supplies the shared credential so mismatched API/sandbox secrets cannot look healthy.
     expected = os.environ.get("OMEGA_SANDBOX_TOKEN", "")
     if len(expected) < 32:
-        logger.error("Sandbox health check failed: shared service credential is missing or too short.")
+        logger.error(
+            "Sandbox health check failed: shared service credential is missing or too short."
+        )
         raise HTTPException(status_code=503, detail="sandbox service credential is not configured")
     if supplied is not None and not secrets.compare_digest(supplied, expected):
         logger.warning("Sandbox health check rejected a mismatched internal credential.")

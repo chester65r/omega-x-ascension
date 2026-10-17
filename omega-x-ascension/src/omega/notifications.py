@@ -22,7 +22,8 @@ def _escape_slack(value: Any) -> Any:
         if value.get("type") == "plain_text":
             return value
         return {
-            key: item if key in {"url", "image_url"} and isinstance(item, str)
+            key: item
+            if key in {"url", "image_url"} and isinstance(item, str)
             else _escape_slack(item)
             for key, item in value.items()
         }
@@ -134,7 +135,11 @@ async def notify_approval_requested(
         },
         {
             "type": "section",
-            "text": {"type": "plain_text", "text": f"Gated Actions Requiring Approval:\n{actions_str}", "emoji": True},
+            "text": {
+                "type": "plain_text",
+                "text": f"Gated Actions Requiring Approval:\n{actions_str}",
+                "emoji": True,
+            },
         },
         {
             "type": "actions",
@@ -159,7 +164,7 @@ async def notify_approval_requested(
         f"<b>Task Type:</b> <code>{run.task_type}</code>\n"
         f"<b>Actions:</b> <code>{safe_actions_html}</code>\n\n"
         f"<b>Goal:</b>\n{safe_goal_html}\n\n"
-        f"<a href=\"{safe_dashboard_url}\">Review in Mission Control</a>"
+        f'<a href="{safe_dashboard_url}">Review in Mission Control</a>'
     )
 
     if slack_webhook_url:
@@ -186,7 +191,7 @@ async def notify_run_status_change(
 ) -> dict[str, bool]:
     results = {"slack": False, "telegram": False}
     emoji = "✅" if status == RunStatus.SUCCEEDED else "❌" if status == RunStatus.FAILED else "ℹ️"
-    
+
     text = (
         f"{emoji} *OMEGA-X Run {status.value.upper()}*\n"
         f"*ID:* `{run.id}`\n"

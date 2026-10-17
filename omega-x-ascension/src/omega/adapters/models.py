@@ -110,9 +110,7 @@ class GeminiGateway:
 
     async def healthy(self) -> bool:
         try:
-            response = await self._client.get(
-                self._model_url(), headers=self._headers(), timeout=5
-            )
+            response = await self._client.get(self._model_url(), headers=self._headers(), timeout=5)
             return response.is_success
         except httpx.HTTPError:
             return False

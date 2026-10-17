@@ -189,7 +189,6 @@ def test_chat_interface_has_sidebar_local_history_and_safe_markdown():
     assert ".chat-sidebar" in css
 
 
-
 def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment():
     js = Path("static/app.js").read_text(encoding="utf-8")
     html = Path("static/index.html").read_text(encoding="utf-8")
@@ -197,17 +196,17 @@ def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment
     assert "'X-OMEGA-BOOTSTRAP-SECRET': candidate" in js
     assert "bootstrapRefreshToken = String(bootstrapData.refresh_token)" in js
     assert "saveRefreshTokenForDevice(bootstrapRefreshToken)" in js
-    assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index("await api('/v1/runs?limit=1')")
+    assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index(
+        "await api('/v1/runs?limit=1')"
+    )
     assert "getStoredRefreshToken" in js
     assert "One-time device activation key" in html
-
 
 
 def test_dashboard_initially_exposes_the_assistant_tab_before_javascript_runs():
     html = Path("static/index.html").read_text(encoding="utf-8")
     assert '<button class="tab active" data-tab="assistant"' in html
     assert '<section id="assistant" class="tab-content active"' in html
-
 
 
 def test_android_bootstrap_stores_the_refresh_credential_before_network_verification():
@@ -217,7 +216,9 @@ def test_android_bootstrap_stores_the_refresh_credential_before_network_verifica
     handler = js[handler_start:handler_end]
     save_credential = handler.index("saveRefreshTokenForDevice(bootstrapRefreshToken)")
     network_probe = handler.index("await api('/v1/runs?limit=1')")
-    recovery_path = handler.index("if (isNativeApp && refreshCredentialStored && deviceRefreshToken)")
+    recovery_path = handler.index(
+        "if (isNativeApp && refreshCredentialStored && deviceRefreshToken)"
+    )
     assert save_credential < network_probe
     assert "Close and reopen OMEGA-X to retry automatically" in handler[recovery_path:]
     assert "the saved refresh credential was retained" in handler[recovery_path:]
@@ -233,7 +234,7 @@ def test_android_api_and_session_are_internal_and_navigation_is_simplified():
     assert "storeRefreshToken" in js
     assert 'placeholder="One-time device activation key"' in html
     assert "signed JWT once" not in html
-    assert '<span>Workspace</span>' in html
+    assert "<span>Workspace</span>" in html
     assert "Cloud access is secured on this device" in html
     assert "#tool-overview,#tool-runs,#tool-local-ai{display:none!important}" in css
     assert "body.native-app #api-base" in css

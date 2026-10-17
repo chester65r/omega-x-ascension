@@ -48,9 +48,7 @@ def test_sandbox_health_fails_clearly_when_shared_credential_is_missing(
     assert "shared service credential is missing or too short" in caplog.text
 
 
-def test_sandbox_health_fails_clearly_when_workspace_is_not_writable(
-    monkeypatch, tmp_path, caplog
-):
+def test_sandbox_health_fails_clearly_when_workspace_is_not_writable(monkeypatch, tmp_path, caplog):
     monkeypatch.setenv("OMEGA_SANDBOX_TOKEN", "c" * 64)
     monkeypatch.setattr(sandbox_service, "runtime", SandboxRuntime(tmp_path / "workspace"))
 

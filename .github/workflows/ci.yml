@@ -32,6 +32,12 @@ jobs:
 
       - name: Compile Python sources
         run: python -m compileall -q src scripts tests
+      - name: Run Ruff lint and format checks
+        run: |
+          ruff check src scripts tests
+          ruff format --check src scripts tests
+      - name: Run mypy type checks
+        run: mypy src
       - name: Validate dashboard JavaScript syntax
         run: node --check static/app.js
 

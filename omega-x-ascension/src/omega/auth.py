@@ -22,7 +22,9 @@ def require_requested_action_scopes(actions: list[str], principal: Principal) ->
         principal.require({"computer:read"})
     if "write_workspace_files" in normalized:
         if "use_workspace_files" not in normalized:
-            raise HTTPException(status_code=400, detail="write_workspace_files requires use_workspace_files")
+            raise HTTPException(
+                status_code=400, detail="write_workspace_files requires use_workspace_files"
+            )
         principal.require({"computer:write", "runs:approve"})
 
 
