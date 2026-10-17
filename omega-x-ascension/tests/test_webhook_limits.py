@@ -229,6 +229,53 @@ def test_github_webhook_releases_replay_marker_on_failure(monkeypatch):
     asyncio.run(check())
 
 
+def test_github_webhook_keeps_marker_after_durable_creation(monkeypatch):
+    """A failure after the run is durably created must not allow a duplicate run."""
+    settings = _webhook_settings(notifications_enabled=True)
+    monkeypatch.setattr("omega.webhooks.get_settings", lambda: settings)
+    payload = json.dumps(
+        {"action": "opened", "issue": {"number": 13, "title": "Notify fails", "body": "x"}}
+    ).encode()
+    headers = _signed_headers(payload)
+    delivery_id = str(uuid.uuid4())
+    calls = {"notify": 0}
+
+    async def flaky_notify(run, status, **kwargs):
+        calls["notify"] += 1
+        if calls["notify"] == 1:
+            raise RuntimeError("notification transport failed")
+
+    monkeypatch.setattr("omega.webhooks.notify_run_status_change", flaky_notify)
+    monkeypatch.setattr("omega.webhooks.notify_approval_requested", flaky_notify)
+    svc = FakeServices(redis=FakeRedis())
+
+    async def check():
+        # The run is created, then the notification fails: the request errors, but
+        # the delivery stays acknowledged.
+        with pytest.raises(RuntimeError):
+            await github_webhook(
+                FakeRequest([payload], headers),
+                x_github_event="issues",
+                x_hub_signature_256=headers["x-hub-signature-256"],
+                x_github_delivery=delivery_id,
+                svc=svc,
+            )
+        assert len(svc.repo.created) == 1
+
+        # GitHub retries with the same delivery ID: it is a duplicate, not a new run.
+        result = await github_webhook(
+            FakeRequest([payload], headers),
+            x_github_event="issues",
+            x_hub_signature_256=headers["x-hub-signature-256"],
+            x_github_delivery=delivery_id,
+            svc=svc,
+        )
+        assert result["status"] == "duplicate"
+        assert len(svc.repo.created) == 1
+
+    asyncio.run(check())
+
+
 def test_github_webhook_asgi_rejects_unsigned_and_accepts_signed(monkeypatch):
     """HTTP-level regression: the mounted route must return 401/202, never 500."""
     import httpx
