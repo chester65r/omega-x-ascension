@@ -2,6 +2,17 @@ name: Android APK Build and Release
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_production:
+        description: "Build and publish the signed production APK (requires ANDROID_RELEASE_SIGNING_BUNDLE secret)"
+        required: false
+        type: boolean
+        default: false
+      release_tag:
+        description: "Production release tag"
+        required: false
+        type: string
+        default: "v0.8.5"
   push:
     branches: [main]
     paths:
@@ -21,7 +32,7 @@ concurrency:
 jobs:
   debug-apk:
     name: Build installable debug APK
-    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    if: (github.event_name == 'workflow_dispatch' && !inputs.publish_production) || (github.ref == 'refs/heads/main' && github.event_name == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -105,7 +116,7 @@ jobs:
 
   signed-release:
     name: Build, test and publish signed release APK
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_production)
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
@@ -199,6 +210,7 @@ jobs:
       - name: Publish signed APK as a GitHub Release asset
         uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_production && inputs.release_tag || github.ref_name }}
           files: |
             android/app/build/outputs/apk/release/app-release.apk
             android/app/build/outputs/apk/release/app-release.apk.sha256
