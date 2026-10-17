@@ -154,10 +154,10 @@ jobs:
           if os.path.getsize(keystore_path) < 1000:
               raise SystemExit("Signing keystore is invalid or empty.")
           with open(env_path, "a", encoding="utf-8") as handle:
-              handle.write(f"ANDROID_KEYSTORE_FILE={keystore_path}\\n")
-              handle.write(f"ANDROID_KEYSTORE_PASSWORD={bundle['storePassword']}\\n")
-              handle.write(f"ANDROID_KEY_ALIAS={bundle['keyAlias']}\\n")
-              handle.write(f"ANDROID_KEY_PASSWORD={bundle['keyPassword']}\\n")
+              handle.write(f"ANDROID_KEYSTORE_FILE={keystore_path}\n")
+              handle.write(f"ANDROID_KEYSTORE_PASSWORD={bundle['storePassword']}\n")
+              handle.write(f"ANDROID_KEY_ALIAS={bundle['keyAlias']}\n")
+              handle.write(f"ANDROID_KEY_PASSWORD={bundle['keyPassword']}\n")
           os.chmod(keystore_path, 0o600)
           PY
           rm -f "$RUNNER_TEMP/omega-signing/bundle.json"
