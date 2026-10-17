@@ -186,7 +186,7 @@ class CoreWorkflow:
                 "If the goal contains a URL, search for complementary context rather than simply repeating the URL. Return only the query text.",
                 f"GOAL (user request):\n{goal}\nPLAN:\n{plan}",
             )
-            next_query = " ".join(initial_query.split()).strip()[:300]
+            next_query: str | None = " ".join(initial_query.split()).strip()[:300]
             for search_index in range(self._MAX_BROWSER_SEARCHES):
                 if not next_query or pages_attempted >= self._MAX_BROWSER_PAGES:
                     break

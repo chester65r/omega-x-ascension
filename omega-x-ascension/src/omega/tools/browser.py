@@ -46,7 +46,11 @@ class BrowserTool:
         except socket.gaierror as exc:
             raise ValueError("URL host could not be resolved") from exc
 
-        addresses = {info[4][0].split("%", 1)[0] for info in infos}
+        addresses: set[str] = set()
+        for info in infos:
+            sockaddr = info[4]
+            if isinstance(sockaddr, tuple) and sockaddr and isinstance(sockaddr[0], str):
+                addresses.add(sockaddr[0].split("%", 1)[0])
         if not addresses:
             raise ValueError("URL host could not be resolved")
 

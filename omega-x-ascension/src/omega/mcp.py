@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Security
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from omega import __version__
 from omega.auth import Principal, current_principal, require_requested_action_scopes
+from omega.config import Capability
 from omega.domain import ApprovalPolicy, RunStatus, WorkflowRun
 from omega.model_router import NoEligibleModel
 from omega.rate_limit import enforce_rate_limit
@@ -262,7 +263,7 @@ async def handle_mcp(
 
             run = WorkflowRun(
                 goal=goal.strip(),
-                task_type=task_type,
+                task_type=cast(Capability, task_type),
                 tenant_id=principal.tenant_id,
                 created_by=principal.user_id,
                 requested_actions=actions,

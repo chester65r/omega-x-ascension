@@ -116,7 +116,7 @@ async def notify_approval_requested(
 
     # Slack message
     slack_text = f"🚨 *OMEGA-X Approval Required* for Run `{run.id}`\n*Goal:* {run.goal[:200]}\n*Actions:* `{actions_str}`"
-    slack_blocks = [
+    slack_blocks: list[dict[str, Any]] = [
         {
             "type": "header",
             "text": {"type": "plain_text", "text": "🚨 OMEGA-X Approval Required", "emoji": True},

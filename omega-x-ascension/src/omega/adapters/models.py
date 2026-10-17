@@ -5,10 +5,10 @@ from urllib.parse import quote
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from omega.config import ProviderConfig, Settings
+from omega.config import Capability, ProviderConfig, Settings
 from omega.ports import ModelGateway
 
-_ALL_CAPABILITIES = frozenset(
+_ALL_CAPABILITIES: frozenset[Capability] = frozenset(
     {
         "reasoning",
         "coding",
@@ -48,7 +48,7 @@ class OpenAICompatibleGateway:
         reraise=True,
     )
     async def complete(self, *, system: str, prompt: str) -> str:
-        payload = {
+        payload: dict[str, object] = {
             "model": self._config.model,
             "messages": [
                 {"role": "system", "content": system},
