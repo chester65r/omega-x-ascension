@@ -86,6 +86,16 @@ jobs:
           status="$(curl --silent --show-error -o "$RUNNER_TEMP/auth.body" -w '%{http_code}' "$OMEGA_BASE_URL/v1/runs")"
           test "$status" = "401"
 
+          # A deliberately invalid key verifies that the live service has a bootstrap secret configured.
+          # It cannot consume the real one-time key; a configured secret must reject this request with 401.
+          status="$(curl --silent --show-error -X POST -H 'X-OMEGA-BOOTSTRAP-SECRET: omega-smoke-invalid-key-do-not-use' -o "$RUNNER_TEMP/bootstrap.body" -w '%{http_code}' "$OMEGA_BASE_URL/v1/auth/bootstrap")"
+          if [[ "$status" != "401" ]]; then
+            echo "Device bootstrap configuration check failed: expected HTTP 401 for an invalid key, got $status." >&2
+            cat "$RUNNER_TEMP/bootstrap.body" >&2 || true
+            exit 1
+          fi
+          echo "Device bootstrap rejects invalid keys without consuming the one-time setup key."
+
           status="$(curl --silent --show-error -o "$RUNNER_TEMP/metrics.body" -w '%{http_code}' "$OMEGA_BASE_URL/metrics")"
           if [[ "$status" != "404" && "$status" != "401" ]]; then
             echo "Metrics endpoint must be hidden or require a bearer token; got HTTP $status." >&2
