@@ -1,0 +1,27 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run:
+          name: Install OMEGA-X test dependencies
+          no_output_timeout: 20m
+          command: |
+            cd omega-x-ascension
+            python -m pip install --upgrade pip
+            python -m pip install -e ".[dev]"
+      - run:
+          name: Compile and test the backend and dashboard contracts
+          no_output_timeout: 20m
+          command: |
+            cd omega-x-ascension
+            python -m compileall -q src scripts tests
+            pytest -q
+
+workflows:
+  validate:
+    jobs:
+      - test
