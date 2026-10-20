@@ -27,6 +27,7 @@ def _log_task_exception(task: asyncio.Task) -> None:
         )
 
 
+# Keep chat and API validation aligned: non-empty greetings such as 'Hi' are valid goals.
 class RunCreate(BaseModel):
     goal: str = Field(min_length=1, max_length=20000)
     task_type: Capability
