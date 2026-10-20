@@ -2,6 +2,11 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
+from omega.api import RunCreate
+
 
 class DashboardParser(HTMLParser):
     def __init__(self):
@@ -86,6 +91,20 @@ def test_local_ai_android_mixed_content_is_restricted_to_loopback():
     assert "MIXED_CONTENT_COMPATIBILITY_MODE" in main_activity
     assert 'cleartextTrafficPermitted="false"' in network_config
     assert "127.0.0.1" in network_config and "localhost" in network_config
+
+
+def test_run_create_accepts_short_greetings_but_rejects_blank_goals():
+    run = RunCreate(goal=" Hi ", task_type="reasoning")
+    assert run.goal == "Hi"
+
+    with pytest.raises(ValidationError):
+        RunCreate(goal="   ", task_type="reasoning")
+
+
+def test_chat_does_not_reject_non_empty_prompts_shorter_than_three_characters():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    assert "if (clean.length < 3)" not in js
+    assert "at least 3 characters to start an agent task" not in js
 
 
 def test_personal_assistant_does_not_fake_backend_responses():

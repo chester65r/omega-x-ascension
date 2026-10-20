@@ -1731,14 +1731,7 @@
     const clean = String(prompt || '').trim();
     const requestedActions = selectedAssistantActions();
     if (!clean) return;
-    // Match the API's Pydantic constraint locally so tiny inputs never create a doomed run.
-    if (clean.length < 3) {
-      setAssistantStatus('Please enter at least 3 characters to start an agent task.', 'warning');
-      addAgentLog('warning', 'Agent task was not sent: the goal must contain at least 3 characters.');
-      const promptField = $('#assistant-prompt');
-      if (promptField) promptField.focus();
-      return;
-    }
+    // The API trims input and accepts every non-empty goal, including greetings like "Hi".
     if (!apiBase || !token) {
       setAssistantStatus('Connect the API server first. Cloud agent tasks require a signed JWT with runs:write and a healthy configured model.', 'error');
       addAgentLog('warning', 'Assistant task was not sent because the backend is not connected.');

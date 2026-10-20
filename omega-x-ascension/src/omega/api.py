@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Security, status
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from omega.auth import Principal, current_principal, require_requested_action_scopes
 from omega.config import Capability, get_settings
@@ -28,9 +28,17 @@ def _log_task_exception(task: asyncio.Task) -> None:
 
 
 class RunCreate(BaseModel):
-    goal: str = Field(min_length=3, max_length=20000)
+    goal: str = Field(min_length=1, max_length=20000)
     task_type: Capability
     requested_actions: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("goal")
+    @classmethod
+    def normalize_goal(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("goal must not be blank")
+        return normalized
 
 
 class RunView(BaseModel):
