@@ -170,26 +170,26 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
     """Build gateways identically for API and worker processes; never invent a fallback model."""
     gateways: list[ModelGateway] = []
 
-    # One key, one endpoint, one model router. Once OpenRouter is configured, do not
-    # silently keep using legacy Google/OpenAI/Hugging Face credentials.
-    openrouter_token = config.openrouter_api_key
-    if openrouter_token is not None and openrouter_token.get_secret_value().strip():
-        model = config.openrouter_model.strip()
+    # One eligible hosted-inference API is used for all cloud model calls.
+    # This prevents failures in old provider credentials from silently masking the primary provider.
+    hf_token = config.hf_inference_token
+    if hf_token is not None and hf_token.get_secret_value().strip():
+        model = config.hf_inference_model.strip()
         if not model:
-            raise ValueError("OMEGA_OPENROUTER_MODEL must not be empty")
+            raise ValueError("OMEGA_HF_INFERENCE_MODEL must not be empty")
         provider = ProviderConfig(
-            name="openrouter-free-router" if model == "openrouter/free" else f"openrouter-{model}",
-            base_url=config.openrouter_base_url.rstrip("/"),
-            api_key=openrouter_token,
+            name="huggingface-inference-primary",
+            base_url=config.hf_inference_base_url.rstrip("/"),
+            api_key=hf_token,
             model=model,
             capabilities=_ALL_CAPABILITIES,
-            priority=config.openrouter_priority,
-            timeout_seconds=config.openrouter_timeout_seconds,
+            priority=config.hf_inference_priority,
+            timeout_seconds=90,
         )
         return [OpenAICompatibleGateway(provider, client)]
 
-    # Before the new OpenRouter key is set, keep legacy providers available so this
-    # source update alone does not interrupt the currently deployed application.
+    # Before a primary inference token is configured, keep legacy gateway settings available
+    # for recovery. Once Hugging Face is configured, the gateways above are exclusive.
     # When configured, Gemini is the first provider at the default priority. Raise or
     # lower OMEGA_GEMINI_PRIORITY to choose another provider without changing code.
     gemini_token = config.gemini_api_key
@@ -219,19 +219,6 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
                 capabilities=_ALL_CAPABILITIES,
                 priority=config.openai_priority,
                 timeout_seconds=config.openai_timeout_seconds,
-            )
-        )
-    hf_token = config.hf_inference_token
-    if hf_token is not None and hf_token.get_secret_value().strip():
-        providers.append(
-            ProviderConfig(
-                name="huggingface-inference",
-                base_url=config.hf_inference_base_url.rstrip("/"),
-                api_key=hf_token,
-                model=config.hf_inference_model,
-                capabilities=_ALL_CAPABILITIES,
-                priority=config.hf_inference_priority,
-                timeout_seconds=90,
             )
         )
     gateways.extend(OpenAICompatibleGateway(provider, client) for provider in providers)

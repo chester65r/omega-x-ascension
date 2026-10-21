@@ -52,14 +52,7 @@ class Settings(BaseSettings):
     # One-time setup key; it is never embedded in the Android APK.
     token_bootstrap_secret: SecretStr | None = None
     model_providers: list[ProviderConfig] = Field(default_factory=list)
-    # Single-provider cutover: when configured, OpenRouter replaces all legacy model providers.
-    # Keep this key only in the deployment secret store; never put it in the Android APK.
-    openrouter_api_key: SecretStr | None = None
-    openrouter_model: str = "openrouter/free"
-    openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    openrouter_priority: int = Field(default=100, ge=0, le=100)
-    openrouter_timeout_seconds: float = Field(default=180, gt=0, le=600)
-    # Legacy providers remain available only until the OpenRouter key is configured.
+    # Primary hosted-inference gateway. When its token is configured, it is used exclusively.
     # Optional OpenAI reasoning-model gateway; set the API key only in a deployment secret store.
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-6.1-sol"
@@ -68,9 +61,9 @@ class Settings(BaseSettings):
     openai_timeout_seconds: float = Field(default=180, gt=0, le=600)
     # Optional hosted inference: set a narrowly scoped Hugging Face token in the secret store.
     hf_inference_token: SecretStr | None = None
-    hf_inference_model: str = "Qwen/Qwen3-4B:featherless-ai"
+    hf_inference_model: str = "Qwen/Qwen2.5-1.5B-Instruct:cheapest"
     hf_inference_base_url: str = "https://router.huggingface.co/v1"
-    hf_inference_priority: int = Field(default=80, ge=0, le=100)
+    hf_inference_priority: int = Field(default=100, ge=0, le=100)
     # Optional first-choice Gemini gateway. Store the API key only in the deployment secret store.
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.8-flash"
