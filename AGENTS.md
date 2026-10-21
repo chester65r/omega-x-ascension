@@ -3,14 +3,14 @@
 ## Architecture
 - Source backend: `omega-x-ascension/` — FastAPI API, PostgreSQL/pgvector persistence, Redis-backed durable workflow queue, LangGraph worker, static dashboard assets, and separate sandbox client.
 - Android wrapper: `android/` — WebView-based dashboard, standalone browser activity, local-model mode, and APK build/signing workflows.
-- Production API and worker run on Railway. Vercel is a static gateway that forwards the dashboard, API, and asset paths to the Railway service; it is not a second backend runtime.
+- The intended replacement deployment is Render, defined in the root `render.yaml`: API, PostgreSQL, Key Value, and a separate sandbox service. As of 2026-10-21 the existing Render API service's builds succeed but startup fails because the service has not received the Blueprint's database/queue environment references. Do not switch the Android API URL or remove the previous Railway endpoint until the Blueprint is synced and live inference, authenticated workflows, and sandbox checks pass. The Android dashboard still defaults to the Railway endpoint as a rollback path.
 - The API and worker use separate database roles and tenant-scoped PostgreSQL row-level security. Workflow jobs use an atomic lease/claim function to support recovery after worker restarts.
 
 ## Secrets and environment configuration
 - `omega-x-ascension/.env.example` is a template, not a production configuration. Generate a private local `.env` and do not commit it.
 - Never store passwords, JWT signing keys, provider tokens, webhook secrets, or signing keystores in source control, APK assets, dashboard JavaScript, or chat.
 - Historical commits may contain legacy local-development configuration files. Removing them from the current tree does not remove Git history. Do not reuse their values; rotate any value that was reused for a live service.
-- Production secrets belong in Railway Variables or GitHub Actions secrets, scoped to the service/workflow that requires them. Do not copy production credentials between providers merely to duplicate the backend.
+- For the Render target, provider tokens and service secrets belong in Render's service environment and must never be committed. GitHub Actions secrets are reserved for release signing and workflows. Keep the old host only as a temporary rollback until Render passes verification; do not copy production credentials between providers just to duplicate the backend.
 - Model configuration is server-side. A healthy provider health check does not prove successful inference; verify a real, low-risk generation before reporting live AI as validated.
 
 ## Health and verification
