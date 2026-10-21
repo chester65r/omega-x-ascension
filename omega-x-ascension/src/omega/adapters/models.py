@@ -167,11 +167,28 @@ class StaticRegistry:
 
 
 def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGateway]:
-    """Build gateways identically for API and worker processes; never invent a fallback model."""
+    """Build configured gateways in priority order, with Gemini first on equal priorities."""
     gateways: list[ModelGateway] = []
 
-    # OpenRouter is the preferred shared gateway when its server-side key is configured.
-    # It provides one OpenAI-compatible endpoint for multiple model families.
+    # Gemini is intentionally appended first, so it wins equal-priority ties.
+    # It uses the existing Gemini Developer API project; no GCP hosting resources are needed.
+    gemini_token = config.gemini_api_key
+    if gemini_token is not None and gemini_token.get_secret_value().strip():
+        model = config.gemini_model.strip()
+        if not model:
+            raise ValueError("OMEGA_GEMINI_MODEL must not be empty")
+        gateways.append(
+            GeminiGateway(
+                api_key=gemini_token.get_secret_value(),
+                model=model,
+                base_url=config.gemini_base_url,
+                priority=config.gemini_priority,
+                timeout_seconds=config.gemini_timeout_seconds,
+                client=client,
+            )
+        )
+
+    # Keep explicitly configured OpenRouter and Hugging Face gateways as ordered fallbacks.
     openrouter_token = config.openrouter_api_key
     if openrouter_token is not None and openrouter_token.get_secret_value().strip():
         model = config.openrouter_model.strip()
@@ -186,10 +203,8 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
             priority=config.openrouter_priority,
             timeout_seconds=120,
         )
-        return [OpenAICompatibleGateway(provider, client)]
+        gateways.append(OpenAICompatibleGateway(provider, client))
 
-    # One eligible hosted-inference API is used for all cloud model calls when OpenRouter is absent.
-    # This prevents failures in old provider credentials from silently masking the primary provider.
     hf_token = config.hf_inference_token
     if hf_token is not None and hf_token.get_secret_value().strip():
         model = config.hf_inference_model.strip()
@@ -204,28 +219,18 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
             priority=config.hf_inference_priority,
             timeout_seconds=90,
         )
-        return [OpenAICompatibleGateway(provider, client)]
+        gateways.append(OpenAICompatibleGateway(provider, client))
 
-    # Before a primary inference token is configured, keep legacy gateway settings available
-    # for recovery. Once Hugging Face is configured, the gateways above are exclusive.
-    # When configured, Gemini is the first provider at the default priority. Raise or
-    # lower OMEGA_GEMINI_PRIORITY to choose another provider without changing code.
-    gemini_token = config.gemini_api_key
-    if gemini_token is not None and gemini_token.get_secret_value().strip():
-        gateways.append(
-            GeminiGateway(
-                api_key=gemini_token.get_secret_value(),
-                model=config.gemini_model,
-                base_url=config.gemini_base_url,
-                priority=config.gemini_priority,
-                timeout_seconds=config.gemini_timeout_seconds,
-                client=client,
-            )
-        )
-
+    # Custom providers are explicitly supplied by the deployment configuration.
     providers = list(config.model_providers)
     openai_token = config.openai_api_key
-    if openai_token is not None and openai_token.get_secret_value().strip():
+    # Do not make accidental billable OpenAI calls when a free-tier provider reaches quota.
+    # Paid fallback must be explicitly enabled in Railway with OMEGA_ENABLE_PAID_MODEL_FALLBACK=true.
+    if (
+        config.enable_paid_model_fallback
+        and openai_token is not None
+        and openai_token.get_secret_value().strip()
+    ):
         providers.append(
             ProviderConfig(
                 name="openai-gpt-6-astra"
