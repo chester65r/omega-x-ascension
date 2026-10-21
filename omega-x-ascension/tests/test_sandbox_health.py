@@ -10,7 +10,7 @@ from omega.sandbox_service import SandboxRuntime
 from omega.tools.computer import ComputerTool
 
 
-def test_sandbox_health_accepts_no_header_for_railway_but_validates_optional_header(
+def test_sandbox_health_accepts_no_header_for_render_but_validates_optional_header(
     monkeypatch, tmp_path
 ):
     token = "a" * 64
