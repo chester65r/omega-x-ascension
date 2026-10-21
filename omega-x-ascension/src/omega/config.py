@@ -52,7 +52,12 @@ class Settings(BaseSettings):
     # One-time setup key; it is never embedded in the Android APK.
     token_bootstrap_secret: SecretStr | None = None
     model_providers: list[ProviderConfig] = Field(default_factory=list)
-    # Primary hosted-inference gateway. When its token is configured, it is used exclusively.
+    # OpenRouter gateway. When its token is configured, it takes precedence over other model gateways.
+    openrouter_api_key: SecretStr | None = None
+    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_priority: int = Field(default=100, ge=0, le=100)
+    # Primary hosted-inference gateway. Used when OpenRouter is not configured.
     # Optional OpenAI reasoning-model gateway; set the API key only in a deployment secret store.
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-6.1-sol"
