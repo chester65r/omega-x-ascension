@@ -44,12 +44,15 @@ services:
       - key: OMEGA_TOKEN_BOOTSTRAP_SECRET
         generateValue: true
       - key: OMEGA_SANDBOX_TOKEN
-        generateValue: true
+        fromService:
+          name: omega-x-ascension-sandbox
+          type: web
+          envVarKey: OMEGA_SANDBOX_TOKEN
       - key: OMEGA_SANDBOX_HOST
         fromService:
           name: omega-x-ascension-sandbox
           type: web
-          envVarKey: OMEGA_SANDBOX_PUBLIC_HOST
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
       - key: OMEGA_EMBEDDED_WORKER
         value: "true"
       - key: OMEGA_ENABLE_COMPUTER_EXECUTION
@@ -97,15 +100,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: OMEGA_SANDBOX_TOKEN
-        fromService:
-          name: omega-x-ascension-api
-          type: web
-          envVarKey: OMEGA_SANDBOX_TOKEN
-      - key: OMEGA_SANDBOX_PUBLIC_HOST
-        fromService:
-          name: omega-x-ascension-sandbox
-          type: web
-          envVarKey: RENDER_EXTERNAL_HOSTNAME
+        generateValue: true
       - key: OMEGA_SANDBOX_WORKSPACE
         value: /tmp/omega-workspaces
 
