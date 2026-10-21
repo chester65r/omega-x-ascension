@@ -116,8 +116,8 @@ gcloud secrets create "$SECRET_NAME" --project="$PROJECT_ID" --replication-polic
 gcloud iam service-accounts create "$SA_NAME" --project="$PROJECT_ID" --display-name="OMEGA-X runtime"
 gcloud secrets add-iam-policy-binding "$SECRET_NAME" --project="$PROJECT_ID" --member="serviceAccount:${SA_EMAIL}" --role="roles/secretmanager.secretAccessor"
 
-gcloud compute firewall-rules create "$WEB_RULE" --project="$PROJECT_ID" --network=default --direction=INGRESS --action=ALLOW --rules=tcp:80,tcp:443 --source-ranges=0.0.0.0/0 --target-tags=omega-x-gcp
-gcloud compute firewall-rules create "$IAP_RULE" --project="$PROJECT_ID" --network=default --direction=INGRESS --action=ALLOW --rules=tcp:22 --source-ranges=35.235.240.0/20 --target-tags=omega-x-gcp
+gcloud compute firewall-rules create "$WEB_RULE" --project="$PROJECT_ID" --network=default --direction=INGRESS --action=ALLOW --allow=tcp:80,tcp:443 --source-ranges=0.0.0.0/0 --target-tags=omega-x-gcp
+gcloud compute firewall-rules create "$IAP_RULE" --project="$PROJECT_ID" --network=default --direction=INGRESS --action=ALLOW --allow=tcp:22 --source-ranges=35.235.240.0/20 --target-tags=omega-x-gcp
 
 gcloud compute addresses create "$ADDRESS_NAME" --project="$PROJECT_ID" --region="$REGION" --network-tier=PREMIUM
 STATIC_IP="$(gcloud compute addresses describe "$ADDRESS_NAME" --project="$PROJECT_ID" --region="$REGION" --format='value(address)')"
