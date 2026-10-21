@@ -14,6 +14,13 @@ jobs:
             python -m pip install --upgrade pip
             python -m pip install -e ".[dev]"
       - run:
+          name: Validate Google Cloud deployment shell scripts
+          command: |
+            cd omega-x-ascension
+            for script in deploy/gcp/*.sh; do
+              bash -n "$script"
+            done
+      - run:
           name: Compile and test the backend and dashboard contracts
           no_output_timeout: 20m
           command: |
