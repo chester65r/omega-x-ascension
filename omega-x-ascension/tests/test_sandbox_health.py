@@ -10,7 +10,7 @@ from omega.sandbox_service import SandboxRuntime
 from omega.tools.computer import ComputerTool
 
 
-def test_sandbox_health_accepts_no_header_for_railway_but_validates_optional_header(
+def test_sandbox_health_accepts_no_header_for_render_but_validates_optional_header(
     monkeypatch, tmp_path
 ):
     token = "a" * 64
@@ -18,10 +18,10 @@ def test_sandbox_health_accepts_no_header_for_railway_but_validates_optional_hea
     monkeypatch.setattr(sandbox_service, "runtime", SandboxRuntime(tmp_path / "workspace"))
     client = TestClient(sandbox_service.app)
 
-    railway_health = client.get("/health")
-    assert railway_health.status_code == 200
-    assert railway_health.json()["workspace_ready"] is True
-    assert railway_health.json()["command_execution"] is False
+    render_health = client.get("/health")
+    assert render_health.status_code == 200
+    assert render_health.json()["workspace_ready"] is True
+    assert render_health.json()["command_execution"] is False
 
     rejected = client.get(
         "/health",
