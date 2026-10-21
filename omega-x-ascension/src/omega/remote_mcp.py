@@ -186,7 +186,7 @@ class RemoteMCPClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "omega-x-ascension", "version": "0.8.5"},
+                "clientInfo": {"name": "omega-x-ascension", "version": "0.8.6"},
             },
             initialize_request=True,
         )
