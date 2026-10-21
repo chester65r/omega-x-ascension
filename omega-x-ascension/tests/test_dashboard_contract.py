@@ -1,4 +1,5 @@
 import re
+import tomllib
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -266,3 +267,34 @@ def test_android_api_and_session_are_internal_and_navigation_is_simplified():
     assert "#tool-overview,#tool-runs,#tool-local-ai{display:none!important}" in css
     assert "body.native-app #api-base" in css
     assert "body.native-app #save-server-btn" in css
+
+
+
+def test_release_version_is_consistent_across_android_api_and_dashboard():
+    app_root = Path(__file__).resolve().parents[1]
+    repo_root = app_root.parent
+    version = tomllib.loads(
+        (app_root / "pyproject.toml").read_text(encoding="utf-8")
+    )["project"]["version"]
+
+    assert version == "0.8.5"
+    package_version = (app_root / "src/omega/__init__.py").read_text(encoding="utf-8")
+    html = (app_root / "static/index.html").read_text(encoding="utf-8")
+    js = (app_root / "static/app.js").read_text(encoding="utf-8")
+    css = (app_root / "static/style.css").read_text(encoding="utf-8")
+    service_worker = (app_root / "static/sw.js").read_text(encoding="utf-8")
+    model_adapter = (app_root / "src/omega/adapters/models.py").read_text(encoding="utf-8")
+    remote_mcp = (app_root / "src/omega/remote_mcp.py").read_text(encoding="utf-8")
+    android_gradle = (repo_root / "android/app/build.gradle").read_text(encoding="utf-8")
+    android_dockerfile = (repo_root / "android/Dockerfile").read_text(encoding="utf-8")
+
+    assert f'__version__ = "{version}"' in package_version
+    assert f'<span class="section-chip">VERSION {version}</span>' in html
+    assert f'<dd id="about-version">{version}</dd>' in html
+    assert f"version: '{version}'," in js
+    assert f"OMEGA-X {version}" in css
+    assert f'const CACHE_NAME = "omega-x-v{version}";' in service_worker
+    assert f"omega-x-ascension/{version}" in model_adapter
+    assert f'"version": "{version}"' in remote_mcp
+    assert f'versionName "{version}"' in android_gradle
+    assert f"omega-x-ascension-{version}-debug.apk" in android_dockerfile

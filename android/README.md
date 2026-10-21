@@ -10,7 +10,7 @@ From the repository root, with Java 17 and Android SDK platform/build-tools 34 i
 ./android/build-apk.sh
 ```
 
-The installable, debug-signed APK is written to `omega-x-ascension-<versionName>-debug.apk` (currently 0.8.3). The CI workflow builds it and validates the signing block and package ID before publishing a temporary workflow artifact. It is a debug build, not a Play Store release.
+The installable, debug-signed APK is written to `omega-x-ascension-<versionName>-debug.apk` (currently 0.8.5). The CI workflow builds it and validates the signing block and package ID before publishing a temporary workflow artifact. It is a debug build, not a Play Store release.
 
 For Docker, build from the repository root and export the APK:
 
