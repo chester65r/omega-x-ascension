@@ -171,7 +171,7 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
     gateways: list[ModelGateway] = []
 
     # Gemini is intentionally appended first, so it wins equal-priority ties.
-    # It uses the existing Gemini Developer API project; no GCP hosting resources are needed.
+    # The Gemini Developer API provider is independent of the application hosting platform.
     gemini_token = config.gemini_api_key
     if gemini_token is not None and gemini_token.get_secret_value().strip():
         model = config.gemini_model.strip()
@@ -225,7 +225,7 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
     providers = list(config.model_providers)
     openai_token = config.openai_api_key
     # Do not make accidental billable OpenAI calls when a free-tier provider reaches quota.
-    # Paid fallback must be explicitly enabled in Railway with OMEGA_ENABLE_PAID_MODEL_FALLBACK=true.
+    # Paid fallback must be explicitly enabled in server configuration with OMEGA_ENABLE_PAID_MODEL_FALLBACK=true.
     if (
         config.enable_paid_model_fallback
         and openai_token is not None
