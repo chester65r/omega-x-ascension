@@ -3,7 +3,7 @@ from __future__ import annotations
 from urllib.parse import quote
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from omega.config import Capability, ProviderConfig, Settings
 from omega.ports import ModelGateway
@@ -19,6 +19,19 @@ _ALL_CAPABILITIES: frozenset[Capability] = frozenset(
         "research",
     }
 )
+
+
+_TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 409, 425, 429})
+
+
+def _retryable_provider_error(exc: Exception) -> bool:
+    """Retry transport faults and transient HTTP statuses, never auth/quota failures."""
+    if isinstance(exc, httpx.TransportError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        return status in _TRANSIENT_HTTP_STATUS_CODES or 500 <= status <= 599
+    return False
 
 
 class OpenAICompatibleGateway:
@@ -44,7 +57,7 @@ class OpenAICompatibleGateway:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=1, max=8),
-        retry=retry_if_exception_type(httpx.TransportError),
+        retry=retry_if_exception(_retryable_provider_error),
         reraise=True,
     )
     async def complete(self, *, system: str, prompt: str) -> str:
