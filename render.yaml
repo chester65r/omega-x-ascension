@@ -66,6 +66,22 @@ services:
         value: https://generativelanguage.googleapis.com/v1beta
       - key: OMEGA_GEMINI_PRIORITY
         value: "100"
+      - key: OMEGA_OPENROUTER_API_KEY
+        sync: false
+      - key: OMEGA_OPENROUTER_MODEL
+        value: meta-llama/llama-3.3-70b-instruct:free
+      - key: OMEGA_OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: OMEGA_OPENROUTER_PRIORITY
+        value: "100"
+      - key: OMEGA_HF_INFERENCE_TOKEN
+        sync: false
+      - key: OMEGA_HF_INFERENCE_MODEL
+        value: Qwen/Qwen2.5-1.5B-Instruct:cheapest
+      - key: OMEGA_HF_INFERENCE_BASE_URL
+        value: https://router.huggingface.co/v1
+      - key: OMEGA_HF_INFERENCE_PRIORITY
+        value: "100"
 
   - type: web
     name: omega-x-ascension-sandbox
