@@ -3,14 +3,14 @@
 ## Architecture
 - Source backend: `omega-x-ascension/` — FastAPI API, PostgreSQL/pgvector persistence, Redis-backed durable workflow queue, LangGraph worker, static dashboard assets, and separate sandbox client.
 - Android wrapper: `android/` — WebView-based dashboard, standalone browser activity, local-model mode, and APK build/signing workflows.
-- Production API and worker run on Railway. Vercel is a static gateway that forwards the dashboard, API, and asset paths to the Railway service; it is not a second backend runtime.
+- Production API runs on Render. Render-hosted PostgreSQL and Key Value provide persistent state and queue connectivity, and the computer sandbox is a separate service. Vercel is optional and is not a backend runtime.
 - The API and worker use separate database roles and tenant-scoped PostgreSQL row-level security. Workflow jobs use an atomic lease/claim function to support recovery after worker restarts.
 
 ## Secrets and environment configuration
 - `omega-x-ascension/.env.example` is a template, not a production configuration. Generate a private local `.env` and do not commit it.
 - Never store passwords, JWT signing keys, provider tokens, webhook secrets, or signing keystores in source control, APK assets, dashboard JavaScript, or chat.
 - Historical commits may contain legacy local-development configuration files. Removing them from the current tree does not remove Git history. Do not reuse their values; rotate any value that was reused for a live service.
-- Production secrets belong in Railway Variables or GitHub Actions secrets, scoped to the service/workflow that requires them. Do not copy production credentials between providers merely to duplicate the backend.
+- Production secrets belong in Render service environment variables or GitHub Actions secrets, scoped to the service/workflow that requires them. Do not copy production credentials between providers merely to duplicate the backend.
 - Model configuration is server-side. A healthy provider health check does not prove successful inference; verify a real, low-risk generation before reporting live AI as validated.
 
 ## Health and verification
@@ -54,4 +54,4 @@ python -m pip install -e ".[dev]"
 python -m compileall -q src scripts tests
 pytest -q
 ```
-For local container testing, use `omega-x-ascension/docker-compose.yml` and its documented integration overlay; inspect `omega-x-ascension/docs/DEPLOYMENT.md` for setup and live-validation steps. The local-model profile is optional and separate from the Railway production provider.
+For local container testing, use `omega-x-ascension/docker-compose.yml` and its documented integration overlay; inspect `omega-x-ascension/docs/DEPLOYMENT.md` for setup and live-validation steps. The local-model profile is optional and separate from the Render production provider.
