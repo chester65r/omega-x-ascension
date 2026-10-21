@@ -277,7 +277,7 @@ def test_release_version_is_consistent_across_android_api_and_dashboard():
         (app_root / "pyproject.toml").read_text(encoding="utf-8")
     )["project"]["version"]
 
-    assert version == "0.8.5"
+    assert version == "0.8.6"
     package_version = (app_root / "src/omega/__init__.py").read_text(encoding="utf-8")
     html = (app_root / "static/index.html").read_text(encoding="utf-8")
     js = (app_root / "static/app.js").read_text(encoding="utf-8")
