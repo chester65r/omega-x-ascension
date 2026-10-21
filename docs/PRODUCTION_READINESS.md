@@ -17,9 +17,9 @@ This document distinguishes code/CI verification from actions that require owner
 
 The API and worker share the same provider registry. Gemini support uses Google's direct `generateContent` REST endpoint and keeps the key in the `x-goog-api-key` request header; the key is never embedded in the Android APK or URL.
 
-In Railway, add these variables to the **Omega API** service and the **worker** service (if the worker runs separately):
+In Render, add these variables to the **OMEGA-X API** service and the worker service only if it runs separately:
 
-- `OMEGA_GEMINI_API_KEY`: a Gemini API key created in Google AI Studio. Keep it in Railway Variables; never commit it or paste it into chat.
+- `OMEGA_GEMINI_API_KEY`: a Gemini API key created in Google AI Studio. Keep it in Render environment variables; never commit it or paste it into chat.
 - `OMEGA_GEMINI_MODEL`: optional; defaults to `gemini-3.8-flash`.
 - `OMEGA_GEMINI_PRIORITY`: optional; defaults to `100`. Higher priority providers are tried first. The default makes Gemini a first-choice provider when configured; lower this value to use it as a fallback.
 - `OMEGA_GEMINI_TIMEOUT_SECONDS`: optional; defaults to `180`.
@@ -28,7 +28,7 @@ After setting the secret, deploy the API and worker, check the provider status e
 
 ## GitHub webhook secret — owner action required
 
-The API intentionally rejects unsigned GitHub webhook requests. Configure one unique random value as `OMEGA_GITHUB_WEBHOOK_SECRET` in the Railway **API service** and use exactly the same value in the repository's GitHub webhook configuration. The available connected actions can deploy source and manage Railway variables, but cannot update the secret field on the GitHub repository webhook. Do not put the secret in source control or chat. After configuring both ends, use GitHub's “Redeliver” function on a test `ping` delivery and confirm a successful response in protected logs.
+The API intentionally rejects unsigned GitHub webhook requests. Configure one unique random value as `OMEGA_GITHUB_WEBHOOK_SECRET` in the Render **API service** and use exactly the same value in the repository's GitHub webhook configuration. The available connected actions can deploy source and manage Railway variables, but cannot update the secret field on the GitHub repository webhook. Do not put the secret in source control or chat. After configuring both ends, use GitHub's “Redeliver” function on a test `ping` delivery and confirm a successful response in protected logs.
 
 ## Real production model inference — run only when approved
 
@@ -39,7 +39,7 @@ cd omega-x-ascension
 OMEGA_SMOKE_CONFIRM_REAL_INFERENCE=YES python scripts/production_model_smoke.py
 ```
 
-The script needs `OMEGA_JWT_SECRET`, `OMEGA_JWT_ISSUER`, `OMEGA_JWT_AUDIENCE`, and `OMEGA_JWT_ALGORITHM` in that trusted environment. It submits one low-risk planning task, waits up to 150 seconds, and reports only pass/fail, the run ID, and output length. It may consume hosted inference quota. Never paste the signing secret or resulting JWT into chat or logs. If run from outside Railway, also set `OMEGA_API_BASE_URL` to the intended production API URL.
+The script needs `OMEGA_JWT_SECRET`, `OMEGA_JWT_ISSUER`, `OMEGA_JWT_AUDIENCE`, and `OMEGA_JWT_ALGORITHM` in that trusted environment. It submits one low-risk planning task, waits up to 150 seconds, and reports only pass/fail, the run ID, and output length. It may consume hosted inference quota. Never paste the signing secret or resulting JWT into chat or logs. If run from outside Render, also set `OMEGA_API_BASE_URL` to the intended production API URL.
 
 ## Rate-limit tuning
 
@@ -49,7 +49,7 @@ The initial limits are conservative defaults, not a billing quota or a substitut
 
 - Keep `OMEGA_ENV=production` in the production API service.
 - Without a configured `OMEGA_METRICS_TOKEN`, `/metrics` is hidden in production (404).
-- If a Prometheus scraper is configured, create a unique token in Railway Variables as `OMEGA_METRICS_TOKEN` and configure the scraper to send `Authorization: Bearer <token>`. Do not reuse JWT, database, or model-provider secrets.
+- If a Prometheus scraper is configured, create a unique token in Render environment variables as `OMEGA_METRICS_TOKEN` and configure the scraper to send `Authorization: Bearer <token>`. Do not reuse JWT, database, or model-provider secrets.
 - Request logs record request ID, method, route template, status, and duration; they intentionally do not record request bodies, authorization headers, or query strings.
 - Watch 5xx rates, 4xx/429 rates, p95/p99 latency, queue backlog, worker failures, model provider failures, Redis connectivity, and database connection saturation.
 
