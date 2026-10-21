@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "https://omega-x-ascension-api-a0sh.onrender.com/"
+      "destination": "https://omega-api-production-e4ed.up.railway.app/"
     },
     {
       "source": "/:path*",
-      "destination": "https://omega-x-ascension-api-a0sh.onrender.com/:path*"
+      "destination": "https://omega-api-production-e4ed.up.railway.app/:path*"
     }
   ],
   "git": {
