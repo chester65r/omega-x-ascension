@@ -298,3 +298,18 @@ def test_release_version_is_consistent_across_android_api_and_dashboard():
     assert f'"version": "{version}"' in remote_mcp
     assert f'versionName "{version}"' in android_gradle
     assert f"omega-x-ascension-{version}-debug.apk" in android_dockerfile
+
+def test_application_and_legacy_rewrite_use_render_only():
+    from pathlib import Path
+    import json
+
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    rewrite = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
+
+    render_url = "https://omega-x-ascension-api-a0sh.onrender.com"
+    assert f"const DEFAULT_API_BASE = '{render_url}';" in js
+    assert "railway.app" not in js.lower()
+
+    destinations = [rule["destination"] for rule in rewrite["rewrites"]]
+    assert all(render_url in destination for destination in destinations)
+    assert all("railway.app" not in destination.lower() for destination in destinations)
