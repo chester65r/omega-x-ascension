@@ -34,11 +34,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/" -o "$RUNNER_TEMP/home.html"
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/" -o "$RUNNER_TEMP/home.html"
           grep -qi '<title>OMEGA-X ASCENSION</title>' "$RUNNER_TEMP/home.html"
           grep -q 'What can I help with?' "$RUNNER_TEMP/home.html"
           for asset in /static/app.js /static/style.css /static/manifest.json /static/favicon.png; do
-            curl --fail --silent --show-error --retry 2 "$OMEGA_BASE_URL$asset" -o /dev/null
+            curl --fail --silent --show-error --retry 1 --retry-delay 1 "$OMEGA_BASE_URL$asset" -o /dev/null
           done
           echo "Dashboard HTML and all required static assets responded successfully."
 
@@ -46,10 +47,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/live" -o "$RUNNER_TEMP/live.json"
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/ready" -o "$RUNNER_TEMP/ready.json"
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/models" -o "$RUNNER_TEMP/models.json"
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/version" -o "$RUNNER_TEMP/version.json"
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/health/live" -o "$RUNNER_TEMP/live.json"
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/health/ready" -o "$RUNNER_TEMP/ready.json"
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/health/models" -o "$RUNNER_TEMP/models.json"
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/version" -o "$RUNNER_TEMP/version.json"
           python3 - <<'PY'
           import json
           import os
@@ -77,6 +79,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
           status="$(curl --silent --show-error -D "$RUNNER_TEMP/version.headers" -o "$RUNNER_TEMP/version.body" -w '%{http_code}' "$OMEGA_BASE_URL/version")"
           test "$status" = "200"
           grep -iq '^x-request-id: ' "$RUNNER_TEMP/version.headers"
@@ -117,6 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
           status="$(curl --silent --show-error -o "$RUNNER_TEMP/preflight.txt" -D "$RUNNER_TEMP/preflight.headers" -w '%{http_code}' \
             -X OPTIONS "$OMEGA_BASE_URL/v1/computer/files" \
             -H 'Origin: https://appassets.androidplatform.net' \
