@@ -170,7 +170,25 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
     """Build gateways identically for API and worker processes; never invent a fallback model."""
     gateways: list[ModelGateway] = []
 
-    # One eligible hosted-inference API is used for all cloud model calls.
+    # OpenRouter is the preferred shared gateway when its server-side key is configured.
+    # It provides one OpenAI-compatible endpoint for multiple model families.
+    openrouter_token = config.openrouter_api_key
+    if openrouter_token is not None and openrouter_token.get_secret_value().strip():
+        model = config.openrouter_model.strip()
+        if not model:
+            raise ValueError("OMEGA_OPENROUTER_MODEL must not be empty")
+        provider = ProviderConfig(
+            name="openrouter-primary",
+            base_url=config.openrouter_base_url.rstrip("/"),
+            api_key=openrouter_token,
+            model=model,
+            capabilities=_ALL_CAPABILITIES,
+            priority=config.openrouter_priority,
+            timeout_seconds=120,
+        )
+        return [OpenAICompatibleGateway(provider, client)]
+
+    # One eligible hosted-inference API is used for all cloud model calls when OpenRouter is absent.
     # This prevents failures in old provider credentials from silently masking the primary provider.
     hf_token = config.hf_inference_token
     if hf_token is not None and hf_token.get_secret_value().strip():
