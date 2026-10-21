@@ -28,7 +28,7 @@ After setting the secret, deploy the API and worker, check the provider status e
 
 ## GitHub webhook secret — owner action required
 
-The API intentionally rejects unsigned GitHub webhook requests. Configure one unique random value as `OMEGA_GITHUB_WEBHOOK_SECRET` in the Render **API service** and use exactly the same value in the repository's GitHub webhook configuration. The available connected actions can deploy source and manage Railway variables, but cannot update the secret field on the GitHub repository webhook. Do not put the secret in source control or chat. After configuring both ends, use GitHub's “Redeliver” function on a test `ping` delivery and confirm a successful response in protected logs.
+The API intentionally rejects unsigned GitHub webhook requests. Configure one unique random value as `OMEGA_GITHUB_WEBHOOK_SECRET` in the Render **API service** and use exactly the same value in the repository's GitHub webhook configuration. The available connected actions can deploy source and manage Render service environment variables, but cannot update the secret field on the GitHub repository webhook. Do not put the secret in source control or chat. After configuring both ends, use GitHub's “Redeliver” function on a test `ping` delivery and confirm a successful response in protected logs.
 
 ## Real production model inference — run only when approved
 
