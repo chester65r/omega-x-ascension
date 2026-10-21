@@ -188,7 +188,7 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
             )
         )
 
-    # Keep configured free/limited-quota gateways as fallbacks instead of hiding Gemini.
+    # Keep explicitly configured OpenRouter and Hugging Face gateways as ordered fallbacks.
     openrouter_token = config.openrouter_api_key
     if openrouter_token is not None and openrouter_token.get_secret_value().strip():
         model = config.openrouter_model.strip()
