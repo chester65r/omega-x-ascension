@@ -29,7 +29,7 @@ systemctl enable --now docker
 log "Retrieving protected runtime environment from Secret Manager."
 ACCESS_TOKEN="$(meta instance/service-accounts/default/token | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')"
 install -d -m 0700 /opt/omega
-curl --fail --silent --show-error \
+curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   "https://secretmanager.googleapis.com/v1/projects/${PROJECT_ID}/secrets/${SECRET_NAME}/versions/latest:access" \
   | python3 -c 'import base64,json,sys; sys.stdout.write(base64.b64decode(json.load(sys.stdin)["payload"]["data"]).decode("utf-8"))' \
