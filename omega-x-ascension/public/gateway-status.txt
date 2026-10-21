@@ -1,1 +1,1 @@
-OMEGA-X ASCENSION static gateway. Application routes are rewritten to the Render production API.
+OMEGA-X ASCENSION static gateway. The current route remains on the previous API until the Render replacement passes its production checks.
