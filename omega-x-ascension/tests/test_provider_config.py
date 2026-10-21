@@ -60,6 +60,7 @@ def test_openai_flagship_gateway_uses_configured_secret():
             openai_api_key=SecretStr("sk-test-not-a-real-key"),
             openai_model="gpt-6.1-sol",
             openai_base_url="https://api.openai.com/v1",
+            enable_paid_model_fallback=True,
         )
         async with httpx.AsyncClient() as client:
             gateways = build_gateways(settings, client)
