@@ -2,7 +2,7 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
-  const DEFAULT_API_BASE = 'https://omega-api-production-e4ed.up.railway.app';
+  const DEFAULT_API_BASE = 'https://omega-x-ascension-api-a0sh.onrender.com';
   const isNativeApp = Boolean(window.OmegaNative && typeof window.OmegaNative.postMessage === 'function');
   let token = isNativeApp ? '' : (sessionStorage.getItem('omega-jwt') || '');
   let deviceRefreshToken = '';
