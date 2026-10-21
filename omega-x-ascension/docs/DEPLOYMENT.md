@@ -1,10 +1,10 @@
 # Deployment readiness
 
-## Current Render recovery status (checked 2026-10-21)
+## Current Render recovery status (checked 2026-10-22)
 
-The intended replacement for the old Railway runtime is defined by the repository-root `render.yaml`. The Render workspace already contains the API service, PostgreSQL database, and Key Value store. The API image builds successfully, but the latest deployments fail at application startup because the running service does not receive its required database, checkpoint-database, and Redis connection settings. This indicates that the existing service has not been synced to the Blueprint wiring; setting arbitrary placeholder URLs is not a valid fix.
+Render is the sole production target and is defined by the repository-root `render.yaml`. The workspace already contains the API service, PostgreSQL database, and Key Value store. The API image builds successfully, but deployments currently fail at application startup because the running service does not receive its required database, checkpoint-database, and Redis connection settings. The existing resources must be adopted/synced to the Blueprint so that its connection references and generated secrets reach the service; arbitrary placeholder URLs are not a valid fix.
 
-The intended Render API URL is `https://omega-x-ascension-api-a0sh.onrender.com`. Do **not** point the Android app to this URL, remove the previous Railway endpoint, or report cutover complete until the checks below pass.
+The Android app and current deployment configuration use `https://omega-x-ascension-api-a0sh.onrender.com` as the only backend target. Do not add fallback URLs. The service is not production-ready until its missing environment references are applied and the checks below pass.
 
 ### Required Render Blueprint setup
 
@@ -13,7 +13,7 @@ The intended Render API URL is `https://omega-x-ascension-api-a0sh.onrender.com`
 3. Review the full proposed diff. The intended result is to wire the **existing** PostgreSQL database and Key Value store into the API's `OMEGA_MIGRATION_DATABASE_URL` and `OMEGA_REDIS_URL`, configure the API entrypoint to run migrations and create least-privilege database connection URLs, and add only the separate sandbox service. The sandbox must generate its own `OMEGA_SANDBOX_TOKEN`; the API references that token and the sandbox's `RENDER_EXTERNAL_HOSTNAME`. Do not make the sandbox depend on an API-generated token while the API also depends on the sandbox host, because that creates a circular Blueprint dependency. Do not delete or recreate the current database.
 4. Sync the adopted Blueprint. Then manually set the model-provider secrets on the API service: `OMEGA_OPENROUTER_API_KEY`, `OMEGA_HF_INFERENCE_TOKEN`, and/or `OMEGA_GEMINI_API_KEY`. These `sync: false` secrets are not populated by later Blueprint syncs, so add them in the Render Dashboard; never commit or embed them in Android. Configure at least one valid provider.
 5. Confirm a successful deploy and check `/health/live`, `/health/ready`, `/health/models`, and `/version`. Then verify a real model completion, a low-risk authenticated workflow with non-empty output, tenant-scoped file operations, and the separate sandbox health endpoint. A successful build alone is not sufficient.
-6. Only after all tests pass, switch `DEFAULT_API_BASE` in `static/app.js` to the Render URL and rebuild/install the Android APK. Keep the previous host available for rollback until the new APK is verified on the physical Android device.
+6. After all checks pass, keep `DEFAULT_API_BASE` and the rewrite configuration pointed only at Render, rebuild/install the current Android APK, and verify it on the physical Android device. Retire unused hosting only after a database backup and a verified live cutover.
 
 **Time-sensitive database note:** the existing Render free PostgreSQL resource currently reports an expiry date of **2026-11-09**. Back up any data that matters and confirm a continuation or migration plan before that date. Do not assume the database will be retained indefinitely on its current plan.
 
@@ -42,7 +42,7 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 
 ## Webhook and token security
 
-- Configure `OMEGA_GITHUB_WEBHOOK_SECRET` in the active API service (Render after cutover; the previous host only during rollback) and the matching secret in GitHub's webhook settings before enabling issue or pull-request automation. The endpoint rejects missing or invalid signatures in every environment; it does not run webhook actions without a verified HMAC signature.
+- Configure `OMEGA_GITHUB_WEBHOOK_SECRET` in the Render API service and the matching secret in GitHub's webhook settings before enabling issue or pull-request automation. The endpoint rejects missing or invalid signatures in every environment; it does not run webhook actions without a verified HMAC signature.
 - MCP JSON-RPC calls to `POST /mcp` and `POST /v1/mcp` require a signed Bearer JWT. Grant only the needed scopes: `runs:read`, `runs:write`, and `runs:approve`. Use short-lived operator tokens and never place them in the Android APK, client-side JavaScript, or source control.
 - Rotate any old credential that may have appeared in historical committed environment files. Removing an environment file from the latest tree does not erase its older Git history.
 
