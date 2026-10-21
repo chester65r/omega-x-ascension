@@ -27,7 +27,7 @@ def main() -> int:
         return 2
 
     base_url = os.environ.get(
-        "OMEGA_API_BASE_URL", "https://omega-api-production-e4ed.up.railway.app"
+        "OMEGA_API_BASE_URL", "https://omega-x-ascension-api-a0sh.onrender.com"
     ).rstrip("/")
     issuer = os.environ.get("OMEGA_JWT_ISSUER", "omega-x")
     audience = os.environ.get("OMEGA_JWT_AUDIENCE", "omega-x-api")
