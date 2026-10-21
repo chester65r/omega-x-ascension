@@ -442,7 +442,7 @@ input, textarea, select { border-radius:4px; background:#080808; border-color:#3
 }
 
 
-/* OMEGA-X 0.8.3 — refined, mobile-first control surface */
+/* OMEGA-X 0.8.5 — refined, mobile-first control surface */
 :root{color-scheme:dark;--bg:#060a0f;--surface:#0a1119;--surface-raised:#101b26;--surface-soft:#142331;--border:rgba(134,166,188,.19);--border-strong:rgba(150,187,213,.34);--text:#edf6fc;--muted:#9ab0c0;--subtle:#6d8394;--accent:#e9f6ff;--accent-ink:#071019;--blue:#78caff;--cyan:#54d7f2;--success:#73e0b3;--warning:#ffd17d;--error:#ff8996;--radius:18px;--radius-small:12px;--shadow:0 24px 70px rgba(0,0,0,.32)}
 html{background:var(--bg);scroll-behavior:smooth;scrollbar-color:#293e50 #071019}
 body{color:var(--text);background:radial-gradient(ellipse at 12% -15%,rgba(30,103,150,.2),transparent 44%),radial-gradient(ellipse at 100% 5%,rgba(24,78,116,.17),transparent 38%),linear-gradient(180deg,#070c12 0%,var(--bg) 45%,#070c11 100%)}

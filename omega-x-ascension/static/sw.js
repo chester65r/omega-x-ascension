@@ -1,4 +1,4 @@
-const CACHE_NAME = "omega-x-v0.8.3";
+const CACHE_NAME = "omega-x-v0.8.5";
 const STATIC_ASSETS = [
   "/",
   "/static/style.css",

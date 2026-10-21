@@ -99,7 +99,7 @@ class GeminiGateway:
     def _headers(self) -> dict[str, str]:
         return {
             "x-goog-api-key": self._api_key,
-            "x-goog-api-client": "omega-x-ascension/0.8.3",
+            "x-goog-api-client": "omega-x-ascension/0.8.5",
             "Content-Type": "application/json",
         }
 
