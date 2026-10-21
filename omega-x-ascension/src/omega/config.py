@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     # One-time setup key; it is never embedded in the Android APK.
     token_bootstrap_secret: SecretStr | None = None
     model_providers: list[ProviderConfig] = Field(default_factory=list)
+    # Single-provider cutover: when configured, OpenRouter replaces all legacy model providers.
+    # Keep this key only in the deployment secret store; never put it in the Android APK.
+    openrouter_api_key: SecretStr | None = None
+    openrouter_model: str = "openrouter/free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_priority: int = Field(default=100, ge=0, le=100)
+    openrouter_timeout_seconds: float = Field(default=180, gt=0, le=600)
+    # Legacy providers remain available only until the OpenRouter key is configured.
     # Optional OpenAI reasoning-model gateway; set the API key only in a deployment secret store.
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-6.1-sol"
