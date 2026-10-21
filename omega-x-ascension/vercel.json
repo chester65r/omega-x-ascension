@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "https://omega-api-production-e4ed.up.railway.app/"
+      "destination": "https://omega-x-ascension-api-a0sh.onrender.com/"
     },
     {
       "source": "/:path*",
