@@ -9,7 +9,7 @@ from omega.adapters.models import build_gateways
 from omega.config import ProviderConfig, Settings
 
 
-def make_settings(*, hf_token: str | None) -> Settings:
+def make_settings(*, hf_token: str | None, openrouter_token: str | None = None) -> Settings:
     legacy_provider = ProviderConfig(
         name="legacy-custom",
         base_url="https://legacy.example/v1",
@@ -26,6 +26,10 @@ def make_settings(*, hf_token: str | None) -> Settings:
         jwt_secret=SecretStr("test-only-jwt-secret-with-enough-entropy-123456"),
         model_providers=[legacy_provider],
         hf_inference_token=SecretStr(hf_token) if hf_token else None,
+        openrouter_api_key=SecretStr(openrouter_token) if openrouter_token else None,
+        openrouter_model="meta-llama/llama-3.3-70b-instruct:free",
+        openrouter_base_url="https://openrouter.ai/api/v1",
+        openrouter_priority=100,
         hf_inference_model="Qwen/Qwen2.5-1.5B-Instruct:cheapest",
         hf_inference_base_url="https://router.huggingface.co/v1",
         hf_inference_priority=100,
@@ -64,5 +68,21 @@ def test_legacy_provider_configuration_stays_available_until_primary_token_is_se
             "openai-gpt-6.1-sol",
             "gemini-gemini-3.8-flash",
         }
+    finally:
+        asyncio.run(client.aclose())
+
+
+def test_openrouter_token_takes_precedence_over_other_model_gateways():
+    config = make_settings(hf_token="test-huggingface-token", openrouter_token="test-openrouter-token")
+    client = httpx.AsyncClient()
+    try:
+        gateways = build_gateways(config, client)
+        assert len(gateways) == 1
+        gateway = gateways[0]
+        assert gateway.name == "openrouter-primary"
+        assert gateway.priority == 100
+        assert gateway._config.base_url == "https://openrouter.ai/api/v1"
+        assert gateway._config.model == "meta-llama/llama-3.3-70b-instruct:free"
+        assert gateway._config.api_key.get_secret_value() == "test-openrouter-token"
     finally:
         asyncio.run(client.aclose())
