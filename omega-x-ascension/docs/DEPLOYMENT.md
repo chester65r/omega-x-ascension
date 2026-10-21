@@ -2,17 +2,17 @@
 
 ## Production hosting and verification
 
-The live dashboard and API are served together by the existing Railway service at `https://omega-api-production-e4ed.up.railway.app`. Do not create a second deployment of this FastAPI application on Vercel: it duplicates the current runtime and has been producing failed deployment checks.
+The configured production API service is on Render at `https://omega-x-ascension-api-a0sh.onrender.com`. Render hosts the API; the existing Render PostgreSQL and Key Value resources provide persistence and queueing. Vercel is optional and is not required by the Android app. Verify that Render environment variables are synchronized before declaring the release ready.
 
-The repository uses GitHub Actions for source validation and a separate `.github/workflows/production-smoke.yml` to check the live dashboard, static assets, API liveness/readiness, configured and healthy model-provider counts, version endpoint, and the Android authenticated-file-write CORS preflight. Railway continues to deploy the connected `main` branch. The live site is already available at the Railway URL above; the GitHub Actions workflow replaces Vercel's health-check role, not the API runtime.
+The repository uses GitHub Actions for source validation and `.github/workflows/production-smoke.yml` to check the dashboard, assets, API liveness/readiness, configured and healthy model-provider counts, version endpoint, security headers, authentication, metrics privacy, and Android authenticated-file-write CORS preflight. Render deploys the connected `main` branch. A green CI run is not proof that the live Render service is healthy.
 
-GitHub Actions usage for this public repository does not require a separate hosting subscription. This does **not** guarantee that Railway runtime resources or hosted model inference are unlimited or cost-free; check the current account usage and provider allowance. This configuration adds no new runtime service, database, or paid integration.
+GitHub Actions usage for this public repository does not require a separate hosting subscription. Render's free service and database limits, expiry dates, suspension behavior, and hosted model inference allowances can change; verify the account dashboard. The API depends on the existing Render service, PostgreSQL database, and Key Value store.
 
 This repository can be built, but live AI inference requires an actual provider endpoint and credentials. Do not commit secrets or paste them into chat.
 
-## Hosted Hugging Face model on Railway
+## Hosted Hugging Face model on Render
 
-The current cloud API is deployed on Railway. Configure the API service with `OMEGA_HF_INFERENCE_BASE_URL`, `OMEGA_HF_INFERENCE_MODEL`, `OMEGA_HF_INFERENCE_PRIORITY`, and the secret `OMEGA_HF_INFERENCE_TOKEN`. The current project configuration uses `https://router.huggingface.co/v1` and `Qwen/Qwen3-4B:featherless-ai`. Store the token only in Railway Variables, give it only the inference permission it needs, and never commit or paste it into chat.
+The current cloud API is configured for Render. Configure the API service with `OMEGA_HF_INFERENCE_BASE_URL`, `OMEGA_HF_INFERENCE_MODEL`, `OMEGA_HF_INFERENCE_PRIORITY`, and the secret `OMEGA_HF_INFERENCE_TOKEN`. The current project configuration uses `https://router.huggingface.co/v1` and `Qwen/Qwen3-4B:featherless-ai`. Store the token only in Render environment variables, give it only the inference permission it needs, and never commit or paste it into chat.
 
 **A healthy provider check is not proof of successful text generation.** `GET /health/models` checks provider/model-list access; `GET /health/ready` reports whether the app considers itself ready. For a real verification, run `python scripts/verify_model_provider.py` in a trusted environment configured with the same provider settings, then submit a low-risk `POST /v1/runs` task using a valid short-lived JWT and verify a `succeeded` run with non-empty output. CI uses a fixture model, so passing CI does not prove the production account can complete inference.
 
@@ -37,7 +37,7 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 
 ## Webhook and token security
 
-- Configure `OMEGA_GITHUB_WEBHOOK_SECRET` in Railway and the matching secret in GitHub's webhook settings before enabling issue or pull-request automation. The endpoint rejects missing or invalid signatures in every environment; it does not run webhook actions without a verified HMAC signature.
+- Configure `OMEGA_GITHUB_WEBHOOK_SECRET` in Render and the matching secret in GitHub's webhook settings before enabling issue or pull-request automation. The endpoint rejects missing or invalid signatures in every environment; it does not run webhook actions without a verified HMAC signature.
 - MCP JSON-RPC calls to `POST /mcp` and `POST /v1/mcp` require a signed Bearer JWT. Grant only the needed scopes: `runs:read`, `runs:write`, and `runs:approve`. Use short-lived operator tokens and never place them in the Android APK, client-side JavaScript, or source control.
 - Rotate any old credential that may have appeared in historical committed environment files. Removing an environment file from the latest tree does not erase its older Git history.
 
