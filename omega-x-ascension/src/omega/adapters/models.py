@@ -133,7 +133,7 @@ class GeminiGateway:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=1, max=8),
-        retry=retry_if_exception_type(httpx.TransportError),
+        retry=retry_if_exception(_retryable_provider_error),
         reraise=True,
     )
     async def complete(self, *, system: str, prompt: str) -> str:
