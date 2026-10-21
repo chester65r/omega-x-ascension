@@ -170,6 +170,26 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
     """Build gateways identically for API and worker processes; never invent a fallback model."""
     gateways: list[ModelGateway] = []
 
+    # One key, one endpoint, one model router. Once OpenRouter is configured, do not
+    # silently keep using legacy Google/OpenAI/Hugging Face credentials.
+    openrouter_token = config.openrouter_api_key
+    if openrouter_token is not None and openrouter_token.get_secret_value().strip():
+        model = config.openrouter_model.strip()
+        if not model:
+            raise ValueError("OMEGA_OPENROUTER_MODEL must not be empty")
+        provider = ProviderConfig(
+            name="openrouter-free-router" if model == "openrouter/free" else f"openrouter-{model}",
+            base_url=config.openrouter_base_url.rstrip("/"),
+            api_key=openrouter_token,
+            model=model,
+            capabilities=_ALL_CAPABILITIES,
+            priority=config.openrouter_priority,
+            timeout_seconds=config.openrouter_timeout_seconds,
+        )
+        return [OpenAICompatibleGateway(provider, client)]
+
+    # Before the new OpenRouter key is set, keep legacy providers available so this
+    # source update alone does not interrupt the currently deployed application.
     # When configured, Gemini is the first provider at the default priority. Raise or
     # lower OMEGA_GEMINI_PRIORITY to choose another provider without changing code.
     gemini_token = config.gemini_api_key
