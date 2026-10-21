@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from scripts.render_entrypoint import _normalise_owner_dsn, _role_dsn
+import sys
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+from render_entrypoint import _normalise_owner_dsn, _role_dsn  # noqa: E402
 
 
 def test_normalise_owner_dsn_preserves_encoded_credentials_and_query() -> None:
