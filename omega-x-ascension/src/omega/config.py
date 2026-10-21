@@ -38,7 +38,9 @@ class ProviderConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="OMEGA_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="OMEGA_", env_file=".env", extra="ignore", hide_input_in_errors=True
+    )
     env: Literal["development", "test", "production"] = "development"
     database_url: str
     checkpoint_database_url: str
