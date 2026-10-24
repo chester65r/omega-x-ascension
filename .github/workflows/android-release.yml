@@ -194,7 +194,7 @@ jobs:
           with open(keystore_path, "wb") as handle:
               handle.write(key_data)
           # Register derived signing values for log redaction before exposing them to later steps.
-          for secret_name in ("storePassword", "keyPassword", "keyAlias"):
+          for secret_name in required:
               print(f"::add-mask::{bundle[secret_name]}")
           with open(env_path, "a", encoding="utf-8") as handle:
               handle.write(f"ANDROID_KEYSTORE_FILE={keystore_path}\n")
