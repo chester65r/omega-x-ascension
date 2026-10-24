@@ -306,7 +306,7 @@ def test_application_and_legacy_rewrite_use_render_only():
     js = Path("static/app.js").read_text(encoding="utf-8")
     rewrite = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
 
-    render_url = "https://omega-x-ascension-api-a0sh.onrender.com"
+    render_url = "https://omega-x-ascension-api.onrender.com"
     assert f"const DEFAULT_API_BASE = '{render_url}';" in js
     assert "railway.app" not in js.lower()
 
