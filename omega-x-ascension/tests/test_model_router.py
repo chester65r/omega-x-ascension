@@ -93,9 +93,7 @@ def test_model_router_reports_safe_failure_when_all_providers_fail():
                 ]
             )
         )
-        with pytest.raises(
-            ModelExecutionFailed, match="all 2 attempted model providers failed"
-        ):
+        with pytest.raises(ModelExecutionFailed, match="all 2 attempted model providers failed"):
             await router.complete("planning", system="s", prompt="p")
 
     asyncio.run(check())

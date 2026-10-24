@@ -54,7 +54,6 @@ def test_android_backup_is_disabled_and_rules_exclude_private_app_data():
         assert f'domain="{domain}"' in extraction_v36
 
 
-
 def test_sandbox_internal_smoke_gate_is_wired_into_full_stack_ci():
     workflow = Path("../.github/workflows/ci.yml").read_text(encoding="utf-8")
     smoke = Path("scripts/smoke_sandbox.py").read_text(encoding="utf-8")

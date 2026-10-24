@@ -320,7 +320,10 @@ def test_github_webhook_triages_signed_issue(monkeypatch):
     settings = _webhook_settings()
     monkeypatch.setattr("omega.webhooks.get_settings", lambda: settings)
     payload = json.dumps(
-        {"action": "opened", "issue": {"number": 7, "title": "Fix crash on startup", "body": "Steps..."}}
+        {
+            "action": "opened",
+            "issue": {"number": 7, "title": "Fix crash on startup", "body": "Steps..."},
+        }
     ).encode()
     headers = _signed_headers(payload)
     svc = FakeServices(redis=FakeRedis())
