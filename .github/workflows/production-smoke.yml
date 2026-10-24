@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      OMEGA_BASE_URL: https://omega-x-ascension-api-a0sh.onrender.com
+      OMEGA_BASE_URL: https://omega-x-ascension-api.onrender.com
     steps:
       - name: Check live page and static assets
         shell: bash
