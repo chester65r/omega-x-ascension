@@ -12,7 +12,7 @@ on:
         description: "Production release tag"
         required: false
         type: string
-        default: "v0.8.5"
+        default: "v0.8.6"
   push:
     branches: [main]
     paths:
@@ -193,6 +193,9 @@ jobs:
               raise SystemExit("Signing keystore is invalid or empty.")
           with open(keystore_path, "wb") as handle:
               handle.write(key_data)
+          # Register derived signing values for log redaction before exposing them to later steps.
+          for secret_name in ("storePassword", "keyPassword", "keyAlias"):
+              print(f"::add-mask::{bundle[secret_name]}")
           with open(env_path, "a", encoding="utf-8") as handle:
               handle.write(f"ANDROID_KEYSTORE_FILE={keystore_path}\n")
               handle.write(f"ANDROID_KEYSTORE_PASSWORD={bundle['storePassword']}\n")
@@ -240,7 +243,7 @@ jobs:
           disable-linux-hw-accel: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: ./android/gradlew -p android connectedReleaseAndroidTest --no-daemon --stacktrace
+          script: ./android/gradlew -p android :app:connectedReleaseAndroidTest --no-daemon --stacktrace
 
       - name: Publish signed APK as a GitHub Release asset
         uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
