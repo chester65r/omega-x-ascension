@@ -4,7 +4,7 @@
 
 Render is the sole production target and is defined by the repository-root `render.yaml`. The workspace already contains the API service, PostgreSQL database, and Key Value store. The API image builds successfully, but deployments currently fail at application startup because the running service does not receive its required database, checkpoint-database, and Redis connection settings. The existing resources must be adopted/synced to the Blueprint so that its connection references and generated secrets reach the service; arbitrary placeholder URLs are not a valid fix.
 
-The Android app and current deployment configuration use `https://omega-x-ascension-api-a0sh.onrender.com` as the only backend target. Do not add fallback URLs. The service is not production-ready until its missing environment references are applied and the checks below pass.
+The Android app and current deployment configuration use `https://omega-x-ascension-api.onrender.com` as the only backend target. Do not add fallback URLs. The service is not production-ready until its missing environment references are applied and the checks below pass.
 
 ### Required Render Blueprint setup
 
