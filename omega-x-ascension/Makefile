@@ -1,10 +1,13 @@
-.PHONY: dev test lint up down migrate
+.PHONY: dev test lint typecheck check up down migrate
 dev:
 	uvicorn omega.main:app --reload --app-dir src
 test:
 	pytest -q
 lint:
-	ruff check . && mypy src
+	ruff check src scripts tests && ruff format --check src scripts tests
+typecheck:
+	mypy src
+check: lint typecheck test
 up:
 	docker compose up --build -d
 down:
