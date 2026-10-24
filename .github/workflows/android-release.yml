@@ -100,7 +100,7 @@ jobs:
           echo "DEBUG_RELEASE_TAG=debug-v${APP_VERSION}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
       - name: Publish installable debug APK to GitHub Releases
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ env.DEBUG_RELEASE_TAG }}
           name: OMEGA-X Ascension ${{ env.DEBUG_RELEASE_TAG }} (debug APK)
@@ -243,7 +243,7 @@ jobs:
           script: ./android/gradlew -p android connectedReleaseAndroidTest --no-daemon --stacktrace
 
       - name: Publish signed APK as a GitHub Release asset
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_production && inputs.release_tag || github.ref_name }}
           files: |
