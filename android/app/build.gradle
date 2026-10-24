@@ -5,6 +5,7 @@ plugins {
 android {
     namespace 'com.omega.ascension'
     compileSdk 35
+    testBuildType "release"
 
     defaultConfig {
         applicationId "com.omega.ascension"
