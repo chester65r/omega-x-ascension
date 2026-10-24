@@ -97,7 +97,7 @@ jobs:
           set -euo pipefail
           APP_VERSION="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\1/p' android/app/build.gradle | head -n 1)"
           test -n "$APP_VERSION"
-          echo "DEBUG_RELEASE_TAG=debug-v${APP_VERSION}" >> "$GITHUB_ENV"
+          echo "DEBUG_RELEASE_TAG=debug-v${APP_VERSION}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
       - name: Publish installable debug APK to GitHub Releases
         uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
