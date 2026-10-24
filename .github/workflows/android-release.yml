@@ -262,7 +262,7 @@ jobs:
 
       - name: Upload release UI test diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: omega-x-ascension-android-release-test-diagnostics
           path: |
