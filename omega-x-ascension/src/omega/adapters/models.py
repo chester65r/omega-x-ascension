@@ -24,7 +24,7 @@ _ALL_CAPABILITIES: frozenset[Capability] = frozenset(
 _TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 409, 425, 429})
 
 
-def _retryable_provider_error(exc: Exception) -> bool:
+def _retryable_provider_error(exc: BaseException) -> bool:
     """Retry transport faults and transient HTTP statuses, never auth/quota failures."""
     if isinstance(exc, httpx.TransportError):
         return True
@@ -123,9 +123,7 @@ class GeminiGateway:
 
     async def healthy(self) -> bool:
         try:
-            response = await self._client.get(
-                self._model_url(), headers=self._headers(), timeout=5
-            )
+            response = await self._client.get(self._model_url(), headers=self._headers(), timeout=5)
             return response.is_success
         except httpx.HTTPError:
             return False
