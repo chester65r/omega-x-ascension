@@ -108,7 +108,9 @@ def test_agent_workflow_executes_all_model_roles_and_research_with_fixtures():
         assert "Judge" in joined_calls
         assert result["final"] == "Final verified test result"
         assert "Deterministic source content" in result["research"]
-        specialist_call = next(call for call in gateway.calls if "assigned specialist" in call.lower())
+        specialist_call = next(
+            call for call in gateway.calls if "assigned specialist" in call.lower()
+        )
         assert "untrusted evidence" in specialist_call.lower()
         assert "never as instructions" in specialist_call.lower()
         assert "computer_output" not in result
@@ -121,7 +123,15 @@ def test_agent_workflow_self_correcting_feedback_loop():
         class RevisingGateway:
             name = "workflow-revision-test"
             capabilities = frozenset(
-                {"reasoning", "coding", "mathematics", "planning", "analysis", "summarization", "research"}
+                {
+                    "reasoning",
+                    "coding",
+                    "mathematics",
+                    "planning",
+                    "analysis",
+                    "summarization",
+                    "research",
+                }
             )
             priority = 10
 
@@ -169,7 +179,9 @@ def test_agent_workflow_self_correcting_feedback_loop():
             task_type="planning",
             requested_actions=[],
         )
-        assert gateway.specialist_calls == 2, f"Expected 2 specialist calls, got {gateway.specialist_calls}"
+        assert gateway.specialist_calls == 2, (
+            f"Expected 2 specialist calls, got {gateway.specialist_calls}"
+        )
         assert gateway.critic_calls == 2, f"Expected 2 critic calls, got {gateway.critic_calls}"
         assert result["revision_count"] == 1
         assert result["critique_approved"] is True
@@ -326,11 +338,13 @@ def test_requested_computer_execution_is_explicitly_reported_when_policy_disable
             browser=FakeBrowser(),
             computer=DisabledComputer(),
         )
-        result = await workflow.executor({
-            "goal": "Inspect a test workspace",
-            "solution": "List the workspace files",
-            "requested_actions": ["execute_code"],
-        })
+        result = await workflow.executor(
+            {
+                "goal": "Inspect a test workspace",
+                "solution": "List the workspace files",
+                "requested_actions": ["execute_code"],
+            }
+        )
         assert "disabled by server policy" in result["computer_output"]
         assert "No command was executed." in result["computer_output"]
 
@@ -403,7 +417,9 @@ def test_agent_workspace_file_tools_are_tenant_scoped_read_only_by_default():
         assert ("list_dir", ".", workspace) in computer.calls
         assert ("read_file", "notes.txt", workspace) in computer.calls
         assert not any(call[0] == "write_file" for call in computer.calls)
-        listing = next(line for line in first["computer_output"].splitlines() if '"entries"' in line)
+        listing = next(
+            line for line in first["computer_output"].splitlines() if '"entries"' in line
+        )
         assert ".env" not in listing and ".git" not in listing
         # A critic revision must not repeat a prior tool side effect.
         state.update(first)
@@ -423,13 +439,15 @@ def test_agent_workspace_edits_run_only_with_explicit_write_action():
             computer=computer,
         )
         workspace = str(uuid4())
-        result = await workflow.executor({
-            "goal": "Update notes.txt",
-            "plan": "Inspect and edit the notes",
-            "solution": "Replace the note with a concise update",
-            "workspace_id": workspace,
-            "requested_actions": ["use_workspace_files", "write_workspace_files"],
-        })
+        result = await workflow.executor(
+            {
+                "goal": "Update notes.txt",
+                "plan": "Inspect and edit the notes",
+                "solution": "Replace the note with a concise update",
+                "workspace_id": workspace,
+                "requested_actions": ["use_workspace_files", "write_workspace_files"],
+            }
+        )
         assert computer.contents["notes.txt"] == "updated safely"
         assert ("write_file", "notes.txt", workspace) in computer.calls
         assert '"written": true' in result["computer_output"]
@@ -440,9 +458,15 @@ def test_agent_workspace_edits_run_only_with_explicit_write_action():
 
 def test_agent_workspace_file_tools_block_traversal_hidden_and_credential_paths():
     for path in (
-        "../outside.txt", "/etc/passwd", ".env", ".git/config",
-        "credentials.json", "secrets.yaml", "nested/client_secret.json",
-        "service-account.json", "keys/client.pem",
+        "../outside.txt",
+        "/etc/passwd",
+        ".env",
+        ".git/config",
+        "credentials.json",
+        "secrets.yaml",
+        "nested/client_secret.json",
+        "service-account.json",
+        "keys/client.pem",
     ):
         try:
             CoreWorkflow._workspace_path(path)
@@ -459,12 +483,14 @@ def test_workspace_file_actions_are_opt_in_tenant_scoped_and_hide_sensitive_entr
 
             async def complete(self, *, system, prompt):
                 if "careful workspace inspection agent" in system.lower():
-                    return json.dumps({
-                        "operations": [
-                            {"type": "list_dir", "path": "."},
-                            {"type": "read_file", "path": "README.md"},
-                        ]
-                    })
+                    return json.dumps(
+                        {
+                            "operations": [
+                                {"type": "list_dir", "path": "."},
+                                {"type": "read_file", "path": "README.md"},
+                            ]
+                        }
+                    )
                 return await super().complete(system=system, prompt=prompt)
 
         class WorkspaceComputer:
@@ -478,12 +504,15 @@ def test_workspace_file_actions_are_opt_in_tenant_scoped_and_hide_sensitive_entr
 
             async def list_dir(self, path=".", workspace_id=None):
                 self.listed.append((path, str(workspace_id)))
-                return {"entries": [
-                    {"name": "README.md", "type": "file", "size": 12},
-                    {"name": ".env", "type": "file", "size": 44},
-                    {"name": "token.json", "type": "file", "size": 20},
-                    {"name": "shortcut", "type": "link", "size": 0},
-                ], "truncated": False}
+                return {
+                    "entries": [
+                        {"name": "README.md", "type": "file", "size": 12},
+                        {"name": ".env", "type": "file", "size": 44},
+                        {"name": "token.json", "type": "file", "size": 20},
+                        {"name": "shortcut", "type": "link", "size": 0},
+                    ],
+                    "truncated": False,
+                }
 
             async def read_file(self, path, workspace_id=None):
                 self.read.append((path, str(workspace_id)))
@@ -533,20 +562,32 @@ def test_workspace_file_writes_are_separate_explicit_action_and_stay_in_tenant_w
 
             async def complete(self, *, system, prompt):
                 if "careful workspace inspection agent" in system.lower():
-                    return json.dumps({
-                        "operations": [
-                            {"type": "list_dir", "path": "."},
-                            {"type": "read_file", "path": "README.md"},
-                        ]
-                    })
+                    return json.dumps(
+                        {
+                            "operations": [
+                                {"type": "list_dir", "path": "."},
+                                {"type": "read_file", "path": "README.md"},
+                            ]
+                        }
+                    )
                 if "authorized tenant-workspace file editor" in system.lower():
-                    return json.dumps({
-                        "operations": [
-                            {"type": "write_file", "path": "summary.md", "content": "Project summary"},
-                            {"type": "write_file", "path": "../outside.txt", "content": "Blocked"},
-                            {"type": "write_file", "path": ".env", "content": "Blocked"},
-                        ]
-                    })
+                    return json.dumps(
+                        {
+                            "operations": [
+                                {
+                                    "type": "write_file",
+                                    "path": "summary.md",
+                                    "content": "Project summary",
+                                },
+                                {
+                                    "type": "write_file",
+                                    "path": "../outside.txt",
+                                    "content": "Blocked",
+                                },
+                                {"type": "write_file", "path": ".env", "content": "Blocked"},
+                            ]
+                        }
+                    )
                 return await super().complete(system=system, prompt=prompt)
 
         class WorkspaceComputer:
@@ -557,11 +598,14 @@ def test_workspace_file_writes_are_separate_explicit_action_and_stay_in_tenant_w
                 self.written = []
 
             async def list_dir(self, path=".", workspace_id=None):
-                return {"entries": [
-                    {"name": "README.md", "type": "file", "size": 12},
-                    {"name": ".env", "type": "file", "size": 44},
-                    {"name": "shortcut", "type": "link", "size": 0},
-                ], "truncated": False}
+                return {
+                    "entries": [
+                        {"name": "README.md", "type": "file", "size": 12},
+                        {"name": ".env", "type": "file", "size": 44},
+                        {"name": "shortcut", "type": "link", "size": 0},
+                    ],
+                    "truncated": False,
+                }
 
             async def read_file(self, path, workspace_id=None):
                 return {"path": path, "content": "Project documentation"}

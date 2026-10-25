@@ -190,7 +190,13 @@ async def handle_mcp(
     if method != "tools/call":
         return _jsonrpc_error(req_id, -32601, "Unknown method")
 
-    action = "runs:create" if tool_name == "omega_create_run" else "browser:search" if tool_name == "omega_search_web" else "mcp:tools"
+    action = (
+        "runs:create"
+        if tool_name == "omega_create_run"
+        else "browser:search"
+        if tool_name == "omega_search_web"
+        else "mcp:tools"
+    )
     limit = 10 if action == "runs:create" else 30 if action == "browser:search" else 60
     try:
         await enforce_rate_limit(
@@ -202,6 +208,7 @@ async def handle_mcp(
         )
     except Exception as exc:
         from fastapi import HTTPException
+
         if isinstance(exc, HTTPException):
             return _jsonrpc_error(req_id, -32029 if exc.status_code == 429 else -32000, exc.detail)
         raise
@@ -254,12 +261,16 @@ async def handle_mcp(
                 or len(actions) > 20
                 or any(not isinstance(action, str) or len(action) > 100 for action in actions)
             ):
-                return _jsonrpc_error(req_id, -32602, "requested_actions must contain at most 20 short strings")
+                return _jsonrpc_error(
+                    req_id, -32602, "requested_actions must contain at most 20 short strings"
+                )
 
             try:
                 await svc.router.select(task_type)
             except NoEligibleModel:
-                return _jsonrpc_error(req_id, -32000, "No healthy model is configured for this capability")
+                return _jsonrpc_error(
+                    req_id, -32000, "No healthy model is configured for this capability"
+                )
 
             run = WorkflowRun(
                 goal=goal.strip(),

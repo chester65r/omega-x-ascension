@@ -20,10 +20,12 @@ MAX_OUTPUT_BYTES = 16_000
 MAX_FILE_BYTES = 100_000
 MAX_DIRECTORY_ENTRIES = 200
 WORKSPACE_ROOT = Path(os.environ.get("OMEGA_SANDBOX_WORKSPACE", "/workspace")).resolve()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Railway starts with "uvicorn module:app", which bypasses the __main__ block.
-    # Apply process hardening during ASGI startup for Railway and local Compose alike.
+    # Render starts with "uvicorn module:app", which bypasses the __main__ block.
+    # Apply process hardening during ASGI startup for Render and local Compose alike.
     try:
         ctypes.CDLL(None).prctl(4, 0, 0, 0, 0)  # PR_SET_DUMPABLE = 0
     except Exception:
@@ -254,16 +256,18 @@ def _check_workspace_writable(root: Path) -> None:
 async def health(
     supplied: str | None = Header(default=None, alias="X-OMEGA-SANDBOX-TOKEN"),
 ):
-    # Railway's own health probe omits credentials; allow it to verify process/workspace readiness.
+    # Render's own health probe omits credentials; allow it to verify process/workspace readiness.
     # API readiness supplies the shared credential so mismatched API/sandbox secrets cannot look healthy.
     expected = os.environ.get("OMEGA_SANDBOX_TOKEN", "")
     if len(expected) < 32:
-        logger.error("Sandbox health check failed: shared service credential is missing or too short.")
+        logger.error(
+            "Sandbox health check failed: shared service credential is missing or too short."
+        )
         raise HTTPException(status_code=503, detail="sandbox service credential is not configured")
     if supplied is not None and not secrets.compare_digest(supplied, expected):
         logger.warning("Sandbox health check rejected a mismatched internal credential.")
         raise HTTPException(status_code=401, detail="invalid sandbox service credential")
-    # A process-only 200 hid the broken /workspace permissions on Railway. Check the
+    # A process-only 200 hid the broken /workspace permissions on Render. Check the
     # same filesystem and credential prerequisites required by real authenticated file calls.
     try:
         _check_workspace_writable(get_runtime().root)

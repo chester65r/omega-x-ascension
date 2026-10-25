@@ -23,21 +23,23 @@ permissions:
 
 jobs:
   production-smoke:
-    name: Verify live Railway dashboard and API
+    if: github.event_name != 'pull_request'
+    name: Verify live Render dashboard and API
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      OMEGA_BASE_URL: https://omega-api-production-e4ed.up.railway.app
+      OMEGA_BASE_URL: https://omega-x-ascension-api.onrender.com
     steps:
       - name: Check live page and static assets
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/" -o "$RUNNER_TEMP/home.html"
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/" -o "$RUNNER_TEMP/home.html"
           grep -qi '<title>OMEGA-X ASCENSION</title>' "$RUNNER_TEMP/home.html"
           grep -q 'What can I help with?' "$RUNNER_TEMP/home.html"
           for asset in /static/app.js /static/style.css /static/manifest.json /static/favicon.png; do
-            curl --fail --silent --show-error --retry 2 "$OMEGA_BASE_URL$asset" -o /dev/null
+            curl --fail --silent --show-error --retry 1 --retry-delay 1 "$OMEGA_BASE_URL$asset" -o /dev/null
           done
           echo "Dashboard HTML and all required static assets responded successfully."
 
@@ -45,10 +47,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/live" -o "$RUNNER_TEMP/live.json"
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/ready" -o "$RUNNER_TEMP/ready.json"
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/health/models" -o "$RUNNER_TEMP/models.json"
-          curl --fail --silent --show-error --retry 3 --retry-delay 2 "$OMEGA_BASE_URL/version" -o "$RUNNER_TEMP/version.json"
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/health/live" -o "$RUNNER_TEMP/live.json"
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/health/ready" -o "$RUNNER_TEMP/ready.json"
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/health/models" -o "$RUNNER_TEMP/models.json"
+          curl --fail --silent --show-error --retry 1 --retry-delay 2 "$OMEGA_BASE_URL/version" -o "$RUNNER_TEMP/version.json"
           python3 - <<'PY'
           import json
           import os
@@ -76,6 +79,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
           status="$(curl --silent --show-error -D "$RUNNER_TEMP/version.headers" -o "$RUNNER_TEMP/version.body" -w '%{http_code}' "$OMEGA_BASE_URL/version")"
           test "$status" = "200"
           grep -iq '^x-request-id: ' "$RUNNER_TEMP/version.headers"
@@ -85,6 +89,16 @@ jobs:
 
           status="$(curl --silent --show-error -o "$RUNNER_TEMP/auth.body" -w '%{http_code}' "$OMEGA_BASE_URL/v1/runs")"
           test "$status" = "401"
+
+          # A deliberately invalid key verifies that the live service has a bootstrap secret configured.
+          # It cannot consume the real one-time key; a configured secret must reject this request with 401.
+          status="$(curl --silent --show-error -X POST -H 'X-OMEGA-BOOTSTRAP-SECRET: omega-smoke-invalid-key-do-not-use' -o "$RUNNER_TEMP/bootstrap.body" -w '%{http_code}' "$OMEGA_BASE_URL/v1/auth/bootstrap")"
+          if [[ "$status" != "401" ]]; then
+            echo "Device bootstrap configuration check failed: expected HTTP 401 for an invalid key, got $status." >&2
+            cat "$RUNNER_TEMP/bootstrap.body" >&2 || true
+            exit 1
+          fi
+          echo "Device bootstrap rejects invalid keys without consuming the one-time setup key."
 
           status="$(curl --silent --show-error -o "$RUNNER_TEMP/metrics.body" -w '%{http_code}' "$OMEGA_BASE_URL/metrics")"
           if [[ "$status" != "404" && "$status" != "401" ]]; then
@@ -106,6 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          curl() { command curl --connect-timeout 4 --max-time 10 "$@"; }
           status="$(curl --silent --show-error -o "$RUNNER_TEMP/preflight.txt" -D "$RUNNER_TEMP/preflight.headers" -w '%{http_code}' \
             -X OPTIONS "$OMEGA_BASE_URL/v1/computer/files" \
             -H 'Origin: https://appassets.androidplatform.net' \

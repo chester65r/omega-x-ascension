@@ -1,22 +1,27 @@
 # Deployment readiness
 
-## Production hosting and verification
+## Current Render recovery status (checked 2026-10-22)
 
-The live dashboard and API are served together by the existing Railway service at `https://omega-api-production-e4ed.up.railway.app`. Do not create a second deployment of this FastAPI application on Vercel: it duplicates the current runtime and has been producing failed deployment checks.
+Render is the sole production target and is defined by the repository-root `render.yaml`. The workspace already contains the API service, PostgreSQL database, and Key Value store. The API image builds successfully, but deployments currently fail at application startup because the running service does not receive its required database, checkpoint-database, and Redis connection settings. The existing resources must be adopted/synced to the Blueprint so that its connection references and generated secrets reach the service; arbitrary placeholder URLs are not a valid fix.
 
-The repository uses GitHub Actions for source validation and a separate `.github/workflows/production-smoke.yml` to check the live dashboard, static assets, API liveness/readiness, configured and healthy model-provider counts, version endpoint, and the Android authenticated-file-write CORS preflight. Railway continues to deploy the connected `main` branch. The live site is already available at the Railway URL above; the GitHub Actions workflow replaces Vercel's health-check role, not the API runtime.
+The Android app and current deployment configuration use `https://omega-x-ascension-api.onrender.com` as the only backend target. Do not add fallback URLs. The service is not production-ready until its missing environment references are applied and the checks below pass.
 
-GitHub Actions usage for this public repository does not require a separate hosting subscription. This does **not** guarantee that Railway runtime resources or hosted model inference are unlimited or cost-free; check the current account usage and provider allowance. This configuration adds no new runtime service, database, or paid integration.
+### Required Render Blueprint setup
 
-This repository can be built, but live AI inference requires an actual provider endpoint and credentials. Do not commit secrets or paste them into chat.
+1. Open the [Render Dashboard](https://dashboard.render.com) and inspect the **Blueprints** section before changing anything. If a Blueprint already manages these resources, use that Blueprint. If none does, do **not** blindly create a new Blueprint from `render.yaml`: Render may append suffixes and create separate resources when a new Blueprint collides with existing services.
+2. Use Render's **Generate Blueprint from existing services** flow (or its explicit add-existing-resource flow) to adopt the existing `omega-x-ascension-api`, `omega-x-ascension-db`, and `omega-x-ascension-kv` resources. Ensure the Blueprint path points to the repository-root `render.yaml` on branch `main`. If the resource preview shows duplicate API/database/Key Value resources, suffixed names, or an unexpected plan/resource replacement, cancel and correct the adoption before deploying.
+3. Review the full proposed diff. The intended result is to wire the **existing** PostgreSQL database and Key Value store into the API's `OMEGA_MIGRATION_DATABASE_URL` and `OMEGA_REDIS_URL`, configure the API entrypoint to run migrations and create least-privilege database connection URLs, and add only the separate sandbox service. The sandbox must generate its own `OMEGA_SANDBOX_TOKEN`; the API references that token and the sandbox's `RENDER_EXTERNAL_HOSTNAME`. Do not make the sandbox depend on an API-generated token while the API also depends on the sandbox host, because that creates a circular Blueprint dependency. Do not delete or recreate the current database.
+4. Sync the adopted Blueprint. Then manually set the model-provider secrets on the API service: `OMEGA_OPENROUTER_API_KEY`, `OMEGA_HF_INFERENCE_TOKEN`, and/or `OMEGA_GEMINI_API_KEY`. These `sync: false` secrets are not populated by later Blueprint syncs, so add them in the Render Dashboard; never commit or embed them in Android. Configure at least one valid provider.
+5. Confirm a successful deploy and check `/health/live`, `/health/ready`, `/health/models`, and `/version`. Then verify a real model completion, a low-risk authenticated workflow with non-empty output, tenant-scoped file operations, and the separate sandbox health endpoint. A successful build alone is not sufficient.
+6. After all checks pass, keep `DEFAULT_API_BASE` and the rewrite configuration pointed only at Render, rebuild/install the current Android APK, and verify it on the physical Android device. Retire unused hosting only after a database backup and a verified live cutover.
 
-## Hosted Hugging Face model on Railway
+**Time-sensitive database note:** the existing Render free PostgreSQL resource currently reports an expiry date of **2026-11-09**. Back up any data that matters and confirm a continuation or migration plan before that date. Do not assume the database will be retained indefinitely on its current plan.
 
-The current cloud API is deployed on Railway. Configure the API service with `OMEGA_HF_INFERENCE_BASE_URL`, `OMEGA_HF_INFERENCE_MODEL`, `OMEGA_HF_INFERENCE_PRIORITY`, and the secret `OMEGA_HF_INFERENCE_TOKEN`. The current project configuration uses `https://router.huggingface.co/v1` and `Qwen/Qwen3-4B:featherless-ai`. Store the token only in Railway Variables, give it only the inference permission it needs, and never commit or paste it into chat.
+## Model provider setup
 
-**A healthy provider check is not proof of successful text generation.** `GET /health/models` checks provider/model-list access; `GET /health/ready` reports whether the app considers itself ready. For a real verification, run `python scripts/verify_model_provider.py` in a trusted environment configured with the same provider settings, then submit a low-risk `POST /v1/runs` task using a valid short-lived JWT and verify a `succeeded` run with non-empty output. CI uses a fixture model, so passing CI does not prove the production account can complete inference.
+The Render Blueprint declares OpenRouter, Hugging Face Inference Providers, and optional Gemini settings. The API keys/tokens are deliberately marked `sync: false`; enter only credentials you intend to use in Render's dashboard. Model quotas and free-tier availability can change. Never store a key in GitHub source control, the Android APK, or browser JavaScript.
 
-Hugging Face hosted inference is not unlimited free hosting. Free allowance and provider availability can change, and model calls may fail when the allowance is exhausted. Do not add a payment method or purchase credits when a zero-cost setup is required. Keep provider secrets server-side; never expose them in the Android app or browser dashboard.
+**A healthy provider check is not proof of successful text generation.** `GET /health/models` checks provider/model-list access; `GET /health/ready` reports whether the app considers itself ready. For real verification, run `python scripts/verify_model_provider.py` in a trusted environment configured with the same provider settings, then submit a low-risk `POST /v1/runs` task using a valid short-lived JWT and verify a `succeeded` run with non-empty output. CI uses a fixture model, so passing CI does not prove the live account can complete inference.
 
 ## Local backend
 
@@ -37,7 +42,7 @@ Use a private LAN address only on a trusted network, or a properly configured HT
 
 ## Webhook and token security
 
-- Configure `OMEGA_GITHUB_WEBHOOK_SECRET` in Railway and the matching secret in GitHub's webhook settings before enabling issue or pull-request automation. The endpoint rejects missing or invalid signatures in every environment; it does not run webhook actions without a verified HMAC signature.
+- Configure `OMEGA_GITHUB_WEBHOOK_SECRET` in the Render API service and the matching secret in GitHub's webhook settings before enabling issue or pull-request automation. The endpoint rejects missing or invalid signatures in every environment; it does not run webhook actions without a verified HMAC signature.
 - MCP JSON-RPC calls to `POST /mcp` and `POST /v1/mcp` require a signed Bearer JWT. Grant only the needed scopes: `runs:read`, `runs:write`, and `runs:approve`. Use short-lived operator tokens and never place them in the Android APK, client-side JavaScript, or source control.
 - Rotate any old credential that may have appeared in historical committed environment files. Removing an environment file from the latest tree does not erase its older Git history.
 

@@ -12,7 +12,7 @@ on:
         description: "Production release tag"
         required: false
         type: string
-        default: "v0.8.5"
+        default: "v0.8.6"
   push:
     branches: [main]
     paths:
@@ -97,10 +97,10 @@ jobs:
           set -euo pipefail
           APP_VERSION="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\1/p' android/app/build.gradle | head -n 1)"
           test -n "$APP_VERSION"
-          echo "DEBUG_RELEASE_TAG=debug-v${APP_VERSION}" >> "$GITHUB_ENV"
+          echo "DEBUG_RELEASE_TAG=debug-v${APP_VERSION}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
       - name: Publish installable debug APK to GitHub Releases
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ env.DEBUG_RELEASE_TAG }}
           name: OMEGA-X Ascension ${{ env.DEBUG_RELEASE_TAG }} (debug APK)
@@ -193,6 +193,9 @@ jobs:
               raise SystemExit("Signing keystore is invalid or empty.")
           with open(keystore_path, "wb") as handle:
               handle.write(key_data)
+          # Register derived signing values for log redaction before exposing them to later steps.
+          for secret_name in required:
+              print(f"::add-mask::{bundle[secret_name]}")
           with open(env_path, "a", encoding="utf-8") as handle:
               handle.write(f"ANDROID_KEYSTORE_FILE={keystore_path}\n")
               handle.write(f"ANDROID_KEYSTORE_PASSWORD={bundle['storePassword']}\n")
@@ -240,10 +243,10 @@ jobs:
           disable-linux-hw-accel: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: ./android/gradlew -p android connectedReleaseAndroidTest --no-daemon --stacktrace
+          script: ./android/gradlew -p android :app:connectedReleaseAndroidTest -PomegaTestBuildType=release --no-daemon --stacktrace
 
       - name: Publish signed APK as a GitHub Release asset
-        uses: softprops/action-gh-release@6cbd405e2c4e67a21c47fa9e383d020e4e28b836 # v2.3.3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_production && inputs.release_tag || github.ref_name }}
           files: |
@@ -262,7 +265,7 @@ jobs:
 
       - name: Upload release UI test diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: omega-x-ascension-android-release-test-diagnostics
           path: |

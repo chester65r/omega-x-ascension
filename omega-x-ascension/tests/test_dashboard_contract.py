@@ -1,6 +1,12 @@
 import re
+import tomllib
 from html.parser import HTMLParser
 from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+from omega.api import RunCreate
 
 
 class DashboardParser(HTMLParser):
@@ -88,6 +94,20 @@ def test_local_ai_android_mixed_content_is_restricted_to_loopback():
     assert "127.0.0.1" in network_config and "localhost" in network_config
 
 
+def test_run_create_accepts_short_greetings_but_rejects_blank_goals():
+    run = RunCreate(goal=" Hi ", task_type="reasoning")
+    assert run.goal == "Hi"
+
+    with pytest.raises(ValidationError):
+        RunCreate(goal="   ", task_type="reasoning")
+
+
+def test_chat_does_not_reject_non_empty_prompts_shorter_than_three_characters():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    assert "if (clean.length < 3)" not in js
+    assert "at least 3 characters to start an agent task" not in js
+
+
 def test_personal_assistant_does_not_fake_backend_responses():
     js = Path("static/app.js").read_text(encoding="utf-8")
     assert "Cloud agent tasks require a signed JWT" in js
@@ -103,6 +123,15 @@ def test_model_health_ui_uses_real_provider_status_endpoint():
     assert "apiFetch('/health/models')" in js
     assert '@app.get("/health/models")' in main
     assert "await gateway.healthy()" in router
+
+
+def test_tool_health_ui_explains_policy_limited_features():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    main = Path("src/omega/main.py").read_text(encoding="utf-8")
+    assert "apiFetch('/health/tools')" in js
+    assert "terminal disabled by server policy" in js
+    assert '@app.get("/health/tools")' in main
+    assert "requires_explicit_scope_and_approval" in main
 
 
 def test_native_browser_is_available_without_cloud_backend():
@@ -189,7 +218,6 @@ def test_chat_interface_has_sidebar_local_history_and_safe_markdown():
     assert ".chat-sidebar" in css
 
 
-
 def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment():
     js = Path("static/app.js").read_text(encoding="utf-8")
     html = Path("static/index.html").read_text(encoding="utf-8")
@@ -197,17 +225,17 @@ def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment
     assert "'X-OMEGA-BOOTSTRAP-SECRET': candidate" in js
     assert "bootstrapRefreshToken = String(bootstrapData.refresh_token)" in js
     assert "saveRefreshTokenForDevice(bootstrapRefreshToken)" in js
-    assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index("await api('/v1/runs?limit=1')")
+    assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index(
+        "await api('/v1/runs?limit=1')"
+    )
     assert "getStoredRefreshToken" in js
     assert "One-time device activation key" in html
-
 
 
 def test_dashboard_initially_exposes_the_assistant_tab_before_javascript_runs():
     html = Path("static/index.html").read_text(encoding="utf-8")
     assert '<button class="tab active" data-tab="assistant"' in html
     assert '<section id="assistant" class="tab-content active"' in html
-
 
 
 def test_android_bootstrap_stores_the_refresh_credential_before_network_verification():
@@ -217,7 +245,9 @@ def test_android_bootstrap_stores_the_refresh_credential_before_network_verifica
     handler = js[handler_start:handler_end]
     save_credential = handler.index("saveRefreshTokenForDevice(bootstrapRefreshToken)")
     network_probe = handler.index("await api('/v1/runs?limit=1')")
-    recovery_path = handler.index("if (isNativeApp && refreshCredentialStored && deviceRefreshToken)")
+    recovery_path = handler.index(
+        "if (isNativeApp && refreshCredentialStored && deviceRefreshToken)"
+    )
     assert save_credential < network_probe
     assert "Close and reopen OMEGA-X to retry automatically" in handler[recovery_path:]
     assert "the saved refresh credential was retained" in handler[recovery_path:]
@@ -233,8 +263,54 @@ def test_android_api_and_session_are_internal_and_navigation_is_simplified():
     assert "storeRefreshToken" in js
     assert 'placeholder="One-time device activation key"' in html
     assert "signed JWT once" not in html
-    assert '<span>Workspace</span>' in html
+    assert "<span>Workspace</span>" in html
     assert "Cloud access is secured on this device" in html
     assert "#tool-overview,#tool-runs,#tool-local-ai{display:none!important}" in css
     assert "body.native-app #api-base" in css
     assert "body.native-app #save-server-btn" in css
+
+
+def test_release_version_is_consistent_across_android_api_and_dashboard():
+    app_root = Path(__file__).resolve().parents[1]
+    repo_root = app_root.parent
+    version = tomllib.loads((app_root / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
+
+    assert version == "0.8.6"
+    package_version = (app_root / "src/omega/__init__.py").read_text(encoding="utf-8")
+    html = (app_root / "static/index.html").read_text(encoding="utf-8")
+    js = (app_root / "static/app.js").read_text(encoding="utf-8")
+    css = (app_root / "static/style.css").read_text(encoding="utf-8")
+    service_worker = (app_root / "static/sw.js").read_text(encoding="utf-8")
+    model_adapter = (app_root / "src/omega/adapters/models.py").read_text(encoding="utf-8")
+    remote_mcp = (app_root / "src/omega/remote_mcp.py").read_text(encoding="utf-8")
+    android_gradle = (repo_root / "android/app/build.gradle").read_text(encoding="utf-8")
+    android_dockerfile = (repo_root / "android/Dockerfile").read_text(encoding="utf-8")
+
+    assert f'__version__ = "{version}"' in package_version
+    assert f'<span class="section-chip">VERSION {version}</span>' in html
+    assert f'<dd id="about-version">{version}</dd>' in html
+    assert f"version: '{version}'," in js
+    assert f"OMEGA-X {version}" in css
+    assert f'const CACHE_NAME = "omega-x-v{version}";' in service_worker
+    assert f"omega-x-ascension/{version}" in model_adapter
+    assert f'"version": "{version}"' in remote_mcp
+    assert f'versionName "{version}"' in android_gradle
+    assert f"omega-x-ascension-{version}-debug.apk" in android_dockerfile
+
+
+def test_application_and_legacy_rewrite_use_render_only():
+    import json
+    from pathlib import Path
+
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    rewrite = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
+
+    render_url = "https://omega-x-ascension-api.onrender.com"
+    assert f"const DEFAULT_API_BASE = '{render_url}';" in js
+    assert "railway.app" not in js.lower()
+
+    destinations = [rule["destination"] for rule in rewrite["rewrites"]]
+    assert all(render_url in destination for destination in destinations)
+    assert all("railway.app" not in destination.lower() for destination in destinations)

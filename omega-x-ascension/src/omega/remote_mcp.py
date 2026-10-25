@@ -18,8 +18,22 @@ MAX_RESPONSE_BYTES = 2_000_000
 # MCP annotations and names are untrusted hints. Require a read-style tool name,
 # and reject explicit or described side effects before any remote call.
 _READ_ONLY_TOOL_PREFIXES = (
-    "get", "read", "list", "fetch", "search", "find", "lookup", "query",
-    "inspect", "view", "check", "status", "describe", "review", "analyze", "summarize",
+    "get",
+    "read",
+    "list",
+    "fetch",
+    "search",
+    "find",
+    "lookup",
+    "query",
+    "inspect",
+    "view",
+    "check",
+    "status",
+    "describe",
+    "review",
+    "analyze",
+    "summarize",
 )
 _MUTATING_TOOL_TERMS = re.compile(
     r"\b(?:create|update|delete|remove|modify|write|edit|patch|post|put|upload|download|"
@@ -108,9 +122,17 @@ class RemoteMCPClient:
             headers["Mcp-Session-Id"] = self._session_id
         return headers
 
-    async def _post(self, payload: dict[str, Any], *, notification: bool = False, initialize_request: bool = False) -> dict[str, Any] | None:
+    async def _post(
+        self,
+        payload: dict[str, Any],
+        *,
+        notification: bool = False,
+        initialize_request: bool = False,
+    ) -> dict[str, Any] | None:
         if not self.url:
-            raise RemoteMCPError("Remote MCP integration is disabled; configure OMEGA_REMOTE_MCP_URL")
+            raise RemoteMCPError(
+                "Remote MCP integration is disabled; configure OMEGA_REMOTE_MCP_URL"
+            )
         try:
             response = await self.http.post(
                 self.url,
@@ -156,7 +178,9 @@ class RemoteMCPClient:
             raise RemoteMCPError("Remote MCP response must be a JSON object")
         return result
 
-    async def _rpc(self, method: str, params: dict[str, Any] | None = None, *, initialize_request: bool = False) -> dict[str, Any]:
+    async def _rpc(
+        self, method: str, params: dict[str, Any] | None = None, *, initialize_request: bool = False
+    ) -> dict[str, Any]:
         request_id = self._next_id
         self._next_id += 1
         response = await self._post(
@@ -169,7 +193,11 @@ class RemoteMCPClient:
             raise RemoteMCPError("Remote MCP response ID did not match request")
         if "error" in response:
             error = response["error"]
-            message = error.get("message", "unknown JSON-RPC error") if isinstance(error, dict) else "unknown JSON-RPC error"
+            message = (
+                error.get("message", "unknown JSON-RPC error")
+                if isinstance(error, dict)
+                else "unknown JSON-RPC error"
+            )
             raise RemoteMCPError(f"Remote MCP JSON-RPC error: {message}")
         result = response.get("result")
         if not isinstance(result, dict):
@@ -186,16 +214,22 @@ class RemoteMCPClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "omega-x-ascension", "version": "0.8.3"},
+                "clientInfo": {"name": "omega-x-ascension", "version": "0.8.6"},
             },
             initialize_request=True,
         )
         server_info = result.get("serverInfo", {})
         protocol = result.get("protocolVersion")
-        if not isinstance(server_info, dict) or not isinstance(protocol, str) or not protocol.strip():
+        if (
+            not isinstance(server_info, dict)
+            or not isinstance(protocol, str)
+            or not protocol.strip()
+        ):
             raise RemoteMCPError("Remote MCP initialize response is missing server metadata")
         self._protocol_version = protocol
-        await self._post({"jsonrpc": "2.0", "method": "notifications/initialized"}, notification=True)
+        await self._post(
+            {"jsonrpc": "2.0", "method": "notifications/initialized"}, notification=True
+        )
         self._initialized = True
         return {
             "enabled": True,
@@ -220,19 +254,23 @@ class RemoteMCPClient:
                 for key in ("readOnlyHint", "destructiveHint"):
                     if isinstance(annotations.get(key), bool):
                         safe_annotations[key] = annotations[key]
-            safe_tools.append({
-                "name": tool["name"][:128],
-                "description": str(tool.get("description", ""))[:2000],
-                "inputSchema": tool.get("inputSchema", {"type": "object", "properties": {}}),
-                "annotations": safe_annotations,
-            })
+            safe_tools.append(
+                {
+                    "name": tool["name"][:128],
+                    "description": str(tool.get("description", ""))[:2000],
+                    "inputSchema": tool.get("inputSchema", {"type": "object", "properties": {}}),
+                    "annotations": safe_annotations,
+                }
+            )
         return safe_tools
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", name):
             raise RemoteMCPError("Invalid tool name")
         try:
-            encoded_arguments = json.dumps(arguments, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+            encoded_arguments = json.dumps(
+                arguments, separators=(",", ":"), ensure_ascii=False
+            ).encode("utf-8")
         except (TypeError, ValueError) as exc:
             raise RemoteMCPError("Tool arguments must be JSON-serializable") from exc
         if len(encoded_arguments) > 65_536:
@@ -242,7 +280,9 @@ class RemoteMCPClient:
         if selected_tool is None:
             raise RemoteMCPError("Requested tool is not advertised by the configured MCP server")
         if not is_read_only_tool(selected_tool):
-            raise RemoteMCPError("Remote MCP call blocked: tool does not pass the read-only safety policy")
+            raise RemoteMCPError(
+                "Remote MCP call blocked: tool does not pass the read-only safety policy"
+            )
         result = await self._rpc("tools/call", {"name": name, "arguments": arguments})
         if not isinstance(result.get("content", []), list):
             raise RemoteMCPError("Remote MCP tool result is malformed")

@@ -18,16 +18,22 @@ import jwt
 
 def main() -> int:
     if os.environ.get("OMEGA_SMOKE_CONFIRM_REAL_INFERENCE") != "YES":
-        print("Refusing to submit a real inference task without OMEGA_SMOKE_CONFIRM_REAL_INFERENCE=YES.", file=sys.stderr)
+        print(
+            "Refusing to submit a real inference task without OMEGA_SMOKE_CONFIRM_REAL_INFERENCE=YES.",
+            file=sys.stderr,
+        )
         return 2
 
     secret = os.environ.get("OMEGA_JWT_SECRET", "")
     if len(secret) < 32:
-        print("OMEGA_JWT_SECRET must be available in this trusted runtime; no secret was printed.", file=sys.stderr)
+        print(
+            "OMEGA_JWT_SECRET must be available in this trusted runtime; no secret was printed.",
+            file=sys.stderr,
+        )
         return 2
 
     base_url = os.environ.get(
-        "OMEGA_API_BASE_URL", "https://omega-api-production-e4ed.up.railway.app"
+        "OMEGA_API_BASE_URL", "https://omega-x-ascension-api.onrender.com"
     ).rstrip("/")
     issuer = os.environ.get("OMEGA_JWT_ISSUER", "omega-x")
     audience = os.environ.get("OMEGA_JWT_AUDIENCE", "omega-x-api")
@@ -64,7 +70,9 @@ def main() -> int:
             json={"goal": goal, "task_type": "planning", "requested_actions": []},
         )
         if created.status_code != 202:
-            print(f"Authenticated task creation failed: HTTP {created.status_code}", file=sys.stderr)
+            print(
+                f"Authenticated task creation failed: HTTP {created.status_code}", file=sys.stderr
+            )
             return 1
         run_id = created.json().get("id")
         if not run_id:
@@ -85,15 +93,23 @@ def main() -> int:
                 if not output.strip():
                     print("Run succeeded but returned no model output.", file=sys.stderr)
                     return 1
-                print(f"PASS: real model-backed task succeeded; run_id={run_id}; output_chars={len(output)}")
+                print(
+                    f"PASS: real model-backed task succeeded; run_id={run_id}; output_chars={len(output)}"
+                )
                 return 0
             if last_status == "failed":
-                print("FAIL: model-backed task failed; inspect protected worker logs using the run ID.", file=sys.stderr)
+                print(
+                    "FAIL: model-backed task failed; inspect protected worker logs using the run ID.",
+                    file=sys.stderr,
+                )
                 print(f"run_id={run_id}", file=sys.stderr)
                 return 1
             time.sleep(2)
 
-    print(f"Timed out waiting for real model inference; run_id={run_id}; last_status={last_status}", file=sys.stderr)
+    print(
+        f"Timed out waiting for real model inference; run_id={run_id}; last_status={last_status}",
+        file=sys.stderr,
+    )
     return 1
 
 

@@ -42,7 +42,10 @@ async def test_remote_mcp_initialize_list_and_call():
                             {
                                 "name": "fetch-weather",
                                 "description": "Get weather for a city",
-                                "inputSchema": {"type": "object", "properties": {"city": {"type": "string"}}},
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {"city": {"type": "string"}},
+                                },
                             }
                         ]
                     },
@@ -83,6 +86,7 @@ async def test_remote_mcp_rejects_non_https_url():
         with pytest.raises(ValueError, match="HTTPS"):
             RemoteMCPClient("http://example.test/mcp", None, 5, http)
 
+
 @pytest.mark.asyncio
 async def test_remote_mcp_blocks_advertised_mutating_tools_before_call():
     calls: list[dict] = []
@@ -92,25 +96,37 @@ async def test_remote_mcp_blocks_advertised_mutating_tools_before_call():
         calls.append(payload)
         method = payload.get("method")
         if method == "initialize":
-            return httpx.Response(200, json={
-                "jsonrpc": "2.0", "id": payload["id"],
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "test-server", "version": "1"},
+            return httpx.Response(
+                200,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "test-server", "version": "1"},
+                    },
                 },
-            })
+            )
         if method == "notifications/initialized":
             return httpx.Response(202)
         if method == "tools/list":
-            return httpx.Response(200, json={
-                "jsonrpc": "2.0", "id": payload["id"],
-                "result": {"tools": [{
-                    "name": "fetch-record",
-                    "description": "Fetch and delete a record",
-                    "inputSchema": {"type": "object", "properties": {}},
-                }]},
-            })
+            return httpx.Response(
+                200,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": {
+                        "tools": [
+                            {
+                                "name": "fetch-record",
+                                "description": "Fetch and delete a record",
+                                "inputSchema": {"type": "object", "properties": {}},
+                            }
+                        ]
+                    },
+                },
+            )
         if method == "tools/call":
             pytest.fail("A mutating remote tool must never be called")
         return httpx.Response(400)
@@ -131,26 +147,38 @@ async def test_remote_mcp_blocks_tools_marked_destructive():
         calls.append(payload)
         method = payload.get("method")
         if method == "initialize":
-            return httpx.Response(200, json={
-                "jsonrpc": "2.0", "id": payload["id"],
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "test-server", "version": "1"},
+            return httpx.Response(
+                200,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "test-server", "version": "1"},
+                    },
                 },
-            })
+            )
         if method == "notifications/initialized":
             return httpx.Response(202)
         if method == "tools/list":
-            return httpx.Response(200, json={
-                "jsonrpc": "2.0", "id": payload["id"],
-                "result": {"tools": [{
-                    "name": "fetch-record",
-                    "description": "Fetch a record",
-                    "annotations": {"readOnlyHint": True, "destructiveHint": True},
-                    "inputSchema": {"type": "object", "properties": {}},
-                }]},
-            })
+            return httpx.Response(
+                200,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": {
+                        "tools": [
+                            {
+                                "name": "fetch-record",
+                                "description": "Fetch a record",
+                                "annotations": {"readOnlyHint": True, "destructiveHint": True},
+                                "inputSchema": {"type": "object", "properties": {}},
+                            }
+                        ]
+                    },
+                },
+            )
         if method == "tools/call":
             pytest.fail("A tool marked destructive must never be called")
         return httpx.Response(400)
@@ -173,26 +201,30 @@ async def test_remote_mcp_streamable_http_negotiates_version_and_preserves_sessi
     def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         method = payload.get("method")
-        calls.append({
-            "method": method,
-            "protocol": request.headers.get("MCP-Protocol-Version"),
-            "session": request.headers.get("Mcp-Session-Id"),
-        })
+        calls.append(
+            {
+                "method": method,
+                "protocol": request.headers.get("MCP-Protocol-Version"),
+                "session": request.headers.get("Mcp-Session-Id"),
+            }
+        )
         if method == "initialize":
             # MCP version is negotiated in initialize.params, not as an HTTP header.
             assert request.headers.get("MCP-Protocol-Version") is None
             return httpx.Response(
                 200,
                 headers={"content-type": "text/event-stream", "Mcp-Session-Id": session},
-                text=sse({
-                    "jsonrpc": "2.0",
-                    "id": payload["id"],
-                    "result": {
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {"tools": {}},
-                        "serverInfo": {"name": "streamable-test-server", "version": "1.0"},
-                    },
-                }),
+                text=sse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": payload["id"],
+                        "result": {
+                            "protocolVersion": "2024-11-05",
+                            "capabilities": {"tools": {}},
+                            "serverInfo": {"name": "streamable-test-server", "version": "1.0"},
+                        },
+                    }
+                ),
             )
         if method == "notifications/initialized":
             assert request.headers.get("MCP-Protocol-Version") == "2024-11-05"
@@ -204,17 +236,24 @@ async def test_remote_mcp_streamable_http_negotiates_version_and_preserves_sessi
             return httpx.Response(
                 200,
                 headers={"content-type": "text/event-stream", "Mcp-Session-Id": session},
-                text=sse({
-                    "jsonrpc": "2.0",
-                    "id": payload["id"],
-                    "result": {
-                        "tools": [{
-                            "name": "fetch-weather",
-                            "description": "Get current weather for a city",
-                            "inputSchema": {"type": "object", "properties": {"city": {"type": "string"}}},
-                        }],
-                    },
-                }),
+                text=sse(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": payload["id"],
+                        "result": {
+                            "tools": [
+                                {
+                                    "name": "fetch-weather",
+                                    "description": "Get current weather for a city",
+                                    "inputSchema": {
+                                        "type": "object",
+                                        "properties": {"city": {"type": "string"}},
+                                    },
+                                }
+                            ],
+                        },
+                    }
+                ),
             )
         return httpx.Response(400, text="unexpected method")
 
@@ -228,7 +267,9 @@ async def test_remote_mcp_streamable_http_negotiates_version_and_preserves_sessi
     assert status["serverInfo"]["name"] == "streamable-test-server"
     assert [item["name"] for item in tools] == ["fetch-weather"]
     assert [call["method"] for call in calls] == [
-        "initialize", "notifications/initialized", "tools/list"
+        "initialize",
+        "notifications/initialized",
+        "tools/list",
     ]
     assert calls[0]["protocol"] is None
     assert calls[0]["session"] is None

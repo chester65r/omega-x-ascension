@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, SecretStr, model_validator
+from pydantic import AliasChoices, BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Capability = Literal[
@@ -38,7 +38,9 @@ class ProviderConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="OMEGA_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="OMEGA_", env_file=".env", extra="ignore", hide_input_in_errors=True
+    )
     env: Literal["development", "test", "production"] = "development"
     database_url: str
     checkpoint_database_url: str
@@ -52,19 +54,41 @@ class Settings(BaseSettings):
     # One-time setup key; it is never embedded in the Android APK.
     token_bootstrap_secret: SecretStr | None = None
     model_providers: list[ProviderConfig] = Field(default_factory=list)
-    # Optional OpenAI reasoning-model gateway; set the API key only in a deployment secret store.
+    # OpenRouter fallback gateway. Explicit priority controls its order relative to other providers.
+    # Accept historical Render variable names during migration; keep the canonical name preferred.
+    openrouter_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "OMEGA_OPENROUTER_API_KEY", "OMEGA_OPENROUTER_API", "openrouter_api_key"
+        ),
+    )
+    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_priority: int = Field(default=100, ge=0, le=100)
+    # Optional paid OpenAI gateway; disabled unless explicitly opted into for paid fallback calls.
+    enable_paid_model_fallback: bool = False
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-6.1-sol"
     openai_base_url: str = "https://api.openai.com/v1"
     openai_priority: int = Field(default=100, ge=0, le=100)
     openai_timeout_seconds: float = Field(default=180, gt=0, le=600)
     # Optional hosted inference: set a narrowly scoped Hugging Face token in the secret store.
-    hf_inference_token: SecretStr | None = None
-    hf_inference_model: str = "Qwen/Qwen3-4B:featherless-ai"
+    hf_inference_token: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "OMEGA_HF_INFERENCE_TOKEN", "OMEGA_HF_INTERFACE_AP8", "hf_inference_token"
+        ),
+    )
+    hf_inference_model: str = "Qwen/Qwen2.5-1.5B-Instruct:cheapest"
     hf_inference_base_url: str = "https://router.huggingface.co/v1"
-    hf_inference_priority: int = Field(default=80, ge=0, le=100)
+    hf_inference_priority: int = Field(default=100, ge=0, le=100)
     # Optional first-choice Gemini gateway. Store the API key only in the deployment secret store.
-    gemini_api_key: SecretStr | None = None
+    gemini_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "OMEGA_GEMINI_API_KEY", "OMEGA_GEMINI_API_TOKEN", "gemini_api_key"
+        ),
+    )
     gemini_model: str = "gemini-3.8-flash"
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     gemini_priority: int = Field(default=100, ge=0, le=100)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from urllib.parse import quote
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from omega.config import Capability, ProviderConfig, Settings
 from omega.ports import ModelGateway
@@ -19,6 +19,19 @@ _ALL_CAPABILITIES: frozenset[Capability] = frozenset(
         "research",
     }
 )
+
+
+_TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 409, 425, 429})
+
+
+def _retryable_provider_error(exc: BaseException) -> bool:
+    """Retry transport faults and transient HTTP statuses, never auth/quota failures."""
+    if isinstance(exc, httpx.TransportError):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        return status in _TRANSIENT_HTTP_STATUS_CODES or 500 <= status <= 599
+    return False
 
 
 class OpenAICompatibleGateway:
@@ -44,7 +57,7 @@ class OpenAICompatibleGateway:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=1, max=8),
-        retry=retry_if_exception_type(httpx.TransportError),
+        retry=retry_if_exception(_retryable_provider_error),
         reraise=True,
     )
     async def complete(self, *, system: str, prompt: str) -> str:
@@ -99,7 +112,7 @@ class GeminiGateway:
     def _headers(self) -> dict[str, str]:
         return {
             "x-goog-api-key": self._api_key,
-            "x-goog-api-client": "omega-x-ascension/0.8.3",
+            "x-goog-api-client": "omega-x-ascension/0.8.6",
             "Content-Type": "application/json",
         }
 
@@ -110,9 +123,7 @@ class GeminiGateway:
 
     async def healthy(self) -> bool:
         try:
-            response = await self._client.get(
-                self._model_url(), headers=self._headers(), timeout=5
-            )
+            response = await self._client.get(self._model_url(), headers=self._headers(), timeout=5)
             return response.is_success
         except httpx.HTTPError:
             return False
@@ -120,7 +131,7 @@ class GeminiGateway:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=1, max=8),
-        retry=retry_if_exception_type(httpx.TransportError),
+        retry=retry_if_exception(_retryable_provider_error),
         reraise=True,
     )
     async def complete(self, *, system: str, prompt: str) -> str:
@@ -154,17 +165,20 @@ class StaticRegistry:
 
 
 def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGateway]:
-    """Build gateways identically for API and worker processes; never invent a fallback model."""
+    """Build configured gateways in priority order, with Gemini first on equal priorities."""
     gateways: list[ModelGateway] = []
 
-    # When configured, Gemini is the first provider at the default priority. Raise or
-    # lower OMEGA_GEMINI_PRIORITY to choose another provider without changing code.
+    # Gemini is intentionally appended first, so it wins equal-priority ties.
+    # The Gemini Developer API provider is independent of the application hosting platform.
     gemini_token = config.gemini_api_key
     if gemini_token is not None and gemini_token.get_secret_value().strip():
+        model = config.gemini_model.strip()
+        if not model:
+            raise ValueError("OMEGA_GEMINI_MODEL must not be empty")
         gateways.append(
             GeminiGateway(
                 api_key=gemini_token.get_secret_value(),
-                model=config.gemini_model,
+                model=model,
                 base_url=config.gemini_base_url,
                 priority=config.gemini_priority,
                 timeout_seconds=config.gemini_timeout_seconds,
@@ -172,9 +186,49 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
             )
         )
 
+    # Keep explicitly configured OpenRouter and Hugging Face gateways as ordered fallbacks.
+    openrouter_token = config.openrouter_api_key
+    if openrouter_token is not None and openrouter_token.get_secret_value().strip():
+        model = config.openrouter_model.strip()
+        if not model:
+            raise ValueError("OMEGA_OPENROUTER_MODEL must not be empty")
+        provider = ProviderConfig(
+            name="openrouter-primary",
+            base_url=config.openrouter_base_url.rstrip("/"),
+            api_key=openrouter_token,
+            model=model,
+            capabilities=_ALL_CAPABILITIES,
+            priority=config.openrouter_priority,
+            timeout_seconds=120,
+        )
+        gateways.append(OpenAICompatibleGateway(provider, client))
+
+    hf_token = config.hf_inference_token
+    if hf_token is not None and hf_token.get_secret_value().strip():
+        model = config.hf_inference_model.strip()
+        if not model:
+            raise ValueError("OMEGA_HF_INFERENCE_MODEL must not be empty")
+        provider = ProviderConfig(
+            name="huggingface-inference-primary",
+            base_url=config.hf_inference_base_url.rstrip("/"),
+            api_key=hf_token,
+            model=model,
+            capabilities=_ALL_CAPABILITIES,
+            priority=config.hf_inference_priority,
+            timeout_seconds=90,
+        )
+        gateways.append(OpenAICompatibleGateway(provider, client))
+
+    # Custom providers are explicitly supplied by the deployment configuration.
     providers = list(config.model_providers)
     openai_token = config.openai_api_key
-    if openai_token is not None and openai_token.get_secret_value().strip():
+    # Do not make accidental billable OpenAI calls when a free-tier provider reaches quota.
+    # Paid fallback must be explicitly enabled in server configuration with OMEGA_ENABLE_PAID_MODEL_FALLBACK=true.
+    if (
+        config.enable_paid_model_fallback
+        and openai_token is not None
+        and openai_token.get_secret_value().strip()
+    ):
         providers.append(
             ProviderConfig(
                 name="openai-gpt-6-astra"
@@ -186,19 +240,6 @@ def build_gateways(config: Settings, client: httpx.AsyncClient) -> list[ModelGat
                 capabilities=_ALL_CAPABILITIES,
                 priority=config.openai_priority,
                 timeout_seconds=config.openai_timeout_seconds,
-            )
-        )
-    hf_token = config.hf_inference_token
-    if hf_token is not None and hf_token.get_secret_value().strip():
-        providers.append(
-            ProviderConfig(
-                name="huggingface-inference",
-                base_url=config.hf_inference_base_url.rstrip("/"),
-                api_key=hf_token,
-                model=config.hf_inference_model,
-                capabilities=_ALL_CAPABILITIES,
-                priority=config.hf_inference_priority,
-                timeout_seconds=90,
             )
         )
     gateways.extend(OpenAICompatibleGateway(provider, client) for provider in providers)

@@ -64,6 +64,14 @@ def test_secret_error_does_not_echo_secret_in_human_message():
     assert secret not in excinfo.value.errors()[0]["msg"]
 
 
+def test_settings_validation_error_hides_all_input_values():
+    secret = "do-not-print-this-random-secret-9Vk4Qq2R"
+    with pytest.raises(ValidationError) as excinfo:
+        Settings(_env_file=None, env="production", jwt_secret=secret)
+    assert secret not in str(excinfo.value)
+    assert "input_value=" not in str(excinfo.value)
+
+
 def test_good_secret_has_no_weakness_reason():
     assert weak_secret_reason(GOOD_SECRET) is None
 

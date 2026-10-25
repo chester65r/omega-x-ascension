@@ -26,9 +26,16 @@ BOOTSTRAP_MAX_ATTEMPTS = 12
 BOOTSTRAP_ACCESS_LIFETIME_SECONDS = 5 * 60
 BOOTSTRAP_TENANT_ID = UUID("00000000-0000-0000-0000-000000000001")
 BOOTSTRAP_SUBJECT = "omega-primary-device"
-BOOTSTRAP_SCOPES = frozenset({
-    "runs:read", "runs:write", "runs:approve", "computer:read", "computer:write",
-})
+BOOTSTRAP_SCOPES = frozenset(
+    {
+        "runs:read",
+        "runs:write",
+        "runs:approve",
+        "computer:read",
+        "computer:write",
+        "computer:execute",
+    }
+)
 
 
 class RefreshRequest(BaseModel):
@@ -67,8 +74,16 @@ def _decode_refresh_token(value: str) -> dict:
             audience=cfg.jwt_audience,
             options={
                 "require": [
-                    "exp", "iat", "sub", "tenant_id", "iss", "aud",
-                    "jti", "token_use", "scope", "access_scope",
+                    "exp",
+                    "iat",
+                    "sub",
+                    "tenant_id",
+                    "iss",
+                    "aud",
+                    "jti",
+                    "token_use",
+                    "scope",
+                    "access_scope",
                 ]
             },
         )
@@ -100,7 +115,9 @@ async def _assert_not_revoked(request: Request, claims: dict) -> int:
         raise
     except Exception as exc:
         # Fail closed: never allow a refresh when revocation state cannot be checked.
-        raise HTTPException(status_code=503, detail="session service temporarily unavailable") from exc
+        raise HTTPException(
+            status_code=503, detail="session service temporarily unavailable"
+        ) from exc
     return ttl
 
 
@@ -112,24 +129,24 @@ async def bootstrap_device(
     """Enroll the trusted Android app without putting the JWT signing key in the APK."""
     cfg = get_settings()
     configured_secret = (
-        cfg.token_bootstrap_secret.get_secret_value()
-        if cfg.token_bootstrap_secret
-        else ""
+        cfg.token_bootstrap_secret.get_secret_value() if cfg.token_bootstrap_secret else ""
     )
     if len(configured_secret) < 32:
         raise HTTPException(status_code=404, detail="not found")
 
     redis = request.app.state.services.redis
     client_host = request.client.host if request.client else "unknown"
-    attempts_key = BOOTSTRAP_ATTEMPT_PREFIX + hashlib.sha256(
-        client_host.encode("utf-8")
-    ).hexdigest()[:24]
+    attempts_key = (
+        BOOTSTRAP_ATTEMPT_PREFIX + hashlib.sha256(client_host.encode("utf-8")).hexdigest()[:24]
+    )
     try:
         attempts = await redis.incr(attempts_key)
         if attempts == 1:
             await redis.expire(attempts_key, BOOTSTRAP_RATE_WINDOW_SECONDS)
     except Exception as exc:
-        raise HTTPException(status_code=503, detail="setup service temporarily unavailable") from exc
+        raise HTTPException(
+            status_code=503, detail="setup service temporarily unavailable"
+        ) from exc
     if attempts > BOOTSTRAP_MAX_ATTEMPTS:
         raise HTTPException(status_code=429, detail="too many setup attempts; try again shortly")
 
@@ -145,7 +162,9 @@ async def bootstrap_device(
             nx=True,
         )
     except Exception as exc:
-        raise HTTPException(status_code=503, detail="setup service temporarily unavailable") from exc
+        raise HTTPException(
+            status_code=503, detail="setup service temporarily unavailable"
+        ) from exc
     if not claimed:
         raise HTTPException(status_code=410, detail="this setup key has already been used")
 
@@ -231,16 +250,18 @@ async def refresh_device_session(body: RefreshRequest, request: Request):
     await _assert_not_revoked(request, claims)
     scope_string = str(claims.get("access_scope", "")).strip()
     allowed_scopes = {
-        "runs:read", "runs:write", "runs:approve",
-        "computer:read", "computer:write", "computer:execute",
+        "runs:read",
+        "runs:write",
+        "runs:approve",
+        "computer:read",
+        "computer:write",
+        "computer:execute",
     }
     scopes = frozenset(scope for scope in scope_string.split() if scope in allowed_scopes)
     # Do not turn a malformed or stripped refresh claim into a broader permission set.
     if not scopes or scopes != frozenset(scope_string.split()):
         raise HTTPException(status_code=401, detail="device session contains invalid scopes")
-    access_token = _encode_access_token(
-        str(claims["sub"]), UUID(str(claims["tenant_id"])), scopes
-    )
+    access_token = _encode_access_token(str(claims["sub"]), UUID(str(claims["tenant_id"])), scopes)
 
     # Rotate the device credential with a sliding 30-day lifetime. The previous
     # token stays usable until Android confirms the replacement was saved.
@@ -309,9 +330,9 @@ async def revoke_device_session(body: RefreshRequest, request: Request):
     if ttl > 0:
         redis = request.app.state.services.redis
         try:
-            await redis.set(
-                REFRESH_REVOKED_PREFIX + str(claims["jti"]), "1", ex=ttl
-            )
+            await redis.set(REFRESH_REVOKED_PREFIX + str(claims["jti"]), "1", ex=ttl)
         except Exception as exc:
-            raise HTTPException(status_code=503, detail="session service temporarily unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="session service temporarily unavailable"
+            ) from exc
     return {"revoked": True}

@@ -29,7 +29,7 @@ def test_no_hugging_face_token_does_not_create_a_fake_provider():
     asyncio.run(check())
 
 
-def test_hugging_face_token_adds_qwen_gateway_with_all_agent_capabilities():
+def test_hugging_face_token_selects_primary_gateway_with_all_agent_capabilities():
     async def check():
         settings = make_settings(hf_inference_token=SecretStr("hf_test_only_not_a_real_token"))
         async with httpx.AsyncClient() as client:
@@ -37,9 +37,9 @@ def test_hugging_face_token_adds_qwen_gateway_with_all_agent_capabilities():
 
         assert len(gateways) == 1
         gateway = gateways[0]
-        assert gateway.name == "huggingface-inference"
+        assert gateway.name == "huggingface-inference-primary"
         assert gateway._config.base_url == "https://router.huggingface.co/v1"
-        assert gateway._config.model == "Qwen/Qwen3-4B:featherless-ai"
+        assert gateway._config.model == "Qwen/Qwen2.5-1.5B-Instruct:cheapest"
         assert gateway._config.api_key.get_secret_value() == "hf_test_only_not_a_real_token"
         assert gateway.capabilities == {
             "reasoning",
@@ -60,6 +60,7 @@ def test_openai_flagship_gateway_uses_configured_secret():
             openai_api_key=SecretStr("sk-test-not-a-real-key"),
             openai_model="gpt-6.1-sol",
             openai_base_url="https://api.openai.com/v1",
+            enable_paid_model_fallback=True,
         )
         async with httpx.AsyncClient() as client:
             gateways = build_gateways(settings, client)

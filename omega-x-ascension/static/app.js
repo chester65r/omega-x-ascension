@@ -2,7 +2,7 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
-  const DEFAULT_API_BASE = 'https://omega-api-production-e4ed.up.railway.app';
+  const DEFAULT_API_BASE = 'https://omega-x-ascension-api.onrender.com';
   const isNativeApp = Boolean(window.OmegaNative && typeof window.OmegaNative.postMessage === 'function');
   let token = isNativeApp ? '' : (sessionStorage.getItem('omega-jwt') || '');
   let deviceRefreshToken = '';
@@ -727,6 +727,24 @@
     }
   }
 
+  async function loadToolHealth() {
+    const status = $('#about-runtime-status');
+    try {
+      const response = await apiFetch('/health/tools');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const tools = await response.json();
+      const browser = tools.browser?.available ? 'browser online' : 'browser unavailable';
+      const files = tools.computer_files?.enabled ? 'workspace files enabled' : 'workspace files disabled';
+      const execution = tools.computer_execution?.enabled
+        ? 'terminal policy enabled (scope + approval still required)'
+        : 'terminal disabled by server policy';
+      const remoteMcp = tools.remote_mcp?.enabled ? 'remote MCP enabled' : 'remote MCP disabled';
+      if (status) status.textContent = [browser, files, execution, remoteMcp].join(' · ');
+    } catch (error) {
+      if (status) status.textContent = 'Tool policy could not be checked (' + (error.message || 'request failed') + ').';
+    }
+  }
+
   async function loadMetrics() {
     if (!apiBase) {
       $('#metrics').textContent = 'Save your API server URL to view metrics.';
@@ -757,10 +775,12 @@
       $('#health-ready').textContent = 'Set URL';
       $('#models-list').innerHTML = '<div class="empty-state">Save your API server URL to inspect model status.</div>';
       $('#metrics').textContent = 'Waiting for server configuration.';
+      $('#about-runtime-status').textContent = 'Runtime status is waiting for an API server.';
       return;
     }
     pollHealth();
     loadMetrics();
+    loadToolHealth();
     pollTimer = setInterval(() => { pollHealth(); loadMetrics(); }, 10000);
     if (runPollTimer) clearInterval(runPollTimer);
     runPollTimer = token ? setInterval(() => {
@@ -1711,14 +1731,7 @@
     const clean = String(prompt || '').trim();
     const requestedActions = selectedAssistantActions();
     if (!clean) return;
-    // Match the API's Pydantic constraint locally so tiny inputs never create a doomed run.
-    if (clean.length < 3) {
-      setAssistantStatus('Please enter at least 3 characters to start an agent task.', 'warning');
-      addAgentLog('warning', 'Agent task was not sent: the goal must contain at least 3 characters.');
-      const promptField = $('#assistant-prompt');
-      if (promptField) promptField.focus();
-      return;
-    }
+    // The API trims input and accepts every non-empty goal, including greetings like "Hi".
     if (!apiBase || !token) {
       setAssistantStatus('Connect the API server first. Cloud agent tasks require a signed JWT with runs:write and a healthy configured model.', 'error');
       addAgentLog('warning', 'Assistant task was not sent because the backend is not connected.');
@@ -1999,7 +2012,7 @@
   $('#logs-export').addEventListener('click', () => {
     const payload = {
       app: 'OMEGA-X ASCENSION',
-      version: '0.8.3',
+      version: '0.8.6',
       exported_at: new Date().toISOString(),
       local_events: storedLogs,
       server_audit_events: serverAuditEvents,

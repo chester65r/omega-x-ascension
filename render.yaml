@@ -1,0 +1,122 @@
+# OMEGA-X on Render. Resource names intentionally match existing Render resources
+# so the Blueprint can manage the same API, Postgres database, and Key Value store.
+services:
+  - type: web
+    name: omega-x-ascension-api
+    runtime: docker
+    repo: https://github.com/chester65r/omega-x-ascension
+    branch: main
+    region: frankfurt
+    plan: free
+    dockerContext: ./omega-x-ascension
+    dockerfilePath: ./omega-x-ascension/Dockerfile
+    dockerCommand: python scripts/render_entrypoint.py
+    autoDeployTrigger: commit
+    healthCheckPath: /health/live
+    envVars:
+      - key: OMEGA_ENV
+        value: production
+      - key: OMEGA_BOOTSTRAP_DATABASE
+        value: "true"
+      - key: OMEGA_MIGRATION_DATABASE_URL
+        fromDatabase:
+          name: omega-x-ascension-db
+          property: connectionString
+      - key: OMEGA_APP_PASSWORD
+        generateValue: true
+      - key: OMEGA_WORKER_PASSWORD
+        generateValue: true
+      - key: OMEGA_CHECKPOINT_PASSWORD
+        generateValue: true
+      - key: OMEGA_DATABASE_URL
+        value: "set-by-render-entrypoint"
+      - key: OMEGA_CHECKPOINT_DATABASE_URL
+        value: "set-by-render-entrypoint"
+      - key: OMEGA_WORKER_DATABASE_URL
+        value: "set-by-render-entrypoint"
+      - key: OMEGA_REDIS_URL
+        fromService:
+          name: omega-x-ascension-kv
+          type: keyvalue
+          property: connectionString
+      - key: OMEGA_JWT_SECRET
+        generateValue: true
+      - key: OMEGA_TOKEN_BOOTSTRAP_SECRET
+        generateValue: true
+      - key: OMEGA_SANDBOX_TOKEN
+        fromService:
+          name: omega-x-ascension-sandbox
+          type: web
+          envVarKey: OMEGA_SANDBOX_TOKEN
+      - key: OMEGA_SANDBOX_HOST
+        fromService:
+          name: omega-x-ascension-sandbox
+          type: web
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
+      - key: OMEGA_EMBEDDED_WORKER
+        value: "true"
+      - key: OMEGA_ENABLE_COMPUTER_EXECUTION
+        value: "false"
+      - key: OMEGA_ENABLE_COMPUTER_FILES
+        value: "true"
+      - key: OMEGA_ENABLE_PAID_MODEL_FALLBACK
+        value: "false"
+      - key: OMEGA_GEMINI_API_KEY
+        sync: false
+      - key: OMEGA_GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: OMEGA_GEMINI_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta
+      - key: OMEGA_GEMINI_PRIORITY
+        value: "100"
+      - key: OMEGA_OPENROUTER_API_KEY
+        sync: false
+      - key: OMEGA_OPENROUTER_MODEL
+        value: meta-llama/llama-3.3-70b-instruct:free
+      - key: OMEGA_OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: OMEGA_OPENROUTER_PRIORITY
+        value: "100"
+      - key: OMEGA_HF_INFERENCE_TOKEN
+        sync: false
+      - key: OMEGA_HF_INFERENCE_MODEL
+        value: Qwen/Qwen2.5-1.5B-Instruct:cheapest
+      - key: OMEGA_HF_INFERENCE_BASE_URL
+        value: https://router.huggingface.co/v1
+      - key: OMEGA_HF_INFERENCE_PRIORITY
+        value: "100"
+
+  - type: web
+    name: omega-x-ascension-sandbox
+    runtime: docker
+    repo: https://github.com/chester65r/omega-x-ascension
+    branch: main
+    region: frankfurt
+    plan: free
+    dockerContext: ./omega-x-ascension
+    dockerfilePath: ./omega-x-ascension/Dockerfile
+    dockerCommand: python scripts/render_sandbox_entrypoint.py
+    autoDeployTrigger: commit
+    healthCheckPath: /health
+    envVars:
+      - key: OMEGA_SANDBOX_TOKEN
+        generateValue: true
+      - key: OMEGA_SANDBOX_WORKSPACE
+        value: /tmp/omega-workspaces
+
+  - type: keyvalue
+    name: omega-x-ascension-kv
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    persistenceMode: off
+    ipAllowList: []
+
+databases:
+  - name: omega-x-ascension-db
+    databaseName: omega_x_ascension_db
+    user: omega_x_ascension_db_user
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "16"
+    ipAllowList: []

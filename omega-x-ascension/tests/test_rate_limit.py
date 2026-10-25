@@ -77,6 +77,7 @@ def test_rate_limiter_fails_closed_when_redis_is_unavailable():
 
     asyncio.run(check())
 
+
 def test_rate_limiter_fails_closed_when_redis_is_missing():
     async def check():
         with pytest.raises(HTTPException) as exc:

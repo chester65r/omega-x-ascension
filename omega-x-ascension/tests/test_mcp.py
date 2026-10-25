@@ -66,11 +66,7 @@ class FakeRepo:
 
     async def approve_and_enqueue(self, tenant_id: UUID, run_id: UUID, digest: str, actor: str):
         run = self.runs.get((tenant_id, run_id))
-        if (
-            run is None
-            or run.status != RunStatus.WAITING_APPROVAL
-            or run.approval_digest != digest
-        ):
+        if run is None or run.status != RunStatus.WAITING_APPROVAL or run.approval_digest != digest:
             return False
         run.status = RunStatus.PENDING
         return True
@@ -166,7 +162,13 @@ def test_mcp_protocol_and_tenant_scoped_run_lifecycle(monkeypatch):
 
         listed_tools = rpc(client, token, "tools/list")["result"]["tools"]
         names = {item["name"] for item in listed_tools}
-        assert {"omega_get_version", "omega_create_run", "omega_get_run", "omega_list_runs", "omega_approve_run"} <= names
+        assert {
+            "omega_get_version",
+            "omega_create_run",
+            "omega_get_run",
+            "omega_list_runs",
+            "omega_approve_run",
+        } <= names
 
         version = tool_call(client, token, "omega_get_version")["result"]
         assert version["isError"] is False
@@ -176,7 +178,11 @@ def test_mcp_protocol_and_tenant_scoped_run_lifecycle(monkeypatch):
             client,
             token,
             "omega_create_run",
-            {"goal": "Prepare a controlled rollout", "task_type": "planning", "requested_actions": ["deploy"]},
+            {
+                "goal": "Prepare a controlled rollout",
+                "task_type": "planning",
+                "requested_actions": ["deploy"],
+            },
         )
         created = json.loads(created_response["result"]["content"][0]["text"])
         run_id = created["run_id"]
@@ -239,6 +245,7 @@ def test_mcp_create_run_enforces_computer_action_scopes(monkeypatch):
     app.dependency_overrides[get_settings] = lambda: TestSettings()
     client = TestClient(app)
     try:
+
         def create_with_actions(actions, request_id):
             return client.post(
                 "/mcp",

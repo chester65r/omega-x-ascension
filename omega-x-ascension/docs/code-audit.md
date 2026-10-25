@@ -12,7 +12,7 @@
 - The production Docker image builds and imports the FastAPI app.
 - An isolated full-stack integration starts the API, PostgreSQL, Redis, worker, sandbox, and fixture model; API-to-worker workflow smoke test passes.
 - APK build, packaged dashboard assets, package/signature checks, and Android emulator instrumentation pass. Instrumentation verifies first-launch layout, assistant/tools navigation, sidebar interactions, browser screen, and tool groups.
-- Live API liveness is healthy; readiness reported 2 configured models and 2 healthy models. Railway reported the API at 2/2 online with Redis, PostgreSQL, and the sandbox online.
+- Historical live-host snapshot from 15 October 2026: liveness was healthy and readiness reported 2 configured and 2 healthy model providers. This is not evidence of current production health. On 21 October 2026, Render deployment logs showed startup failure because the running service lacked required database, checkpoint database, and Redis URLs. See `docs/DEPLOYMENT.md` for the recovery status and cutover gate.
 
 ## Important limitations and intentional fail-closed behavior
 
@@ -25,6 +25,6 @@
 ## Release risks to keep visible
 
 1. Keep terminal execution disabled until isolation and abuse-resistance tests prove safe boundaries.
-2. Keep setup secrets and model/provider credentials in Railway variables, never in the APK or committed source.
+2. Keep setup secrets and model/provider credentials in the active host's server-side environment variables, never in the APK or committed source.
 3. Retain CI regression tests for initial active-tab state, device enrollment order, token refresh, CORS, and browser navigation safety.
 4. After changes to bundled HTML/CSS/JS, ship a new APK; updating the live web dashboard alone does not update the locally bundled Android assets.
