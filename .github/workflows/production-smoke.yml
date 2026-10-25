@@ -26,10 +26,35 @@ jobs:
     if: github.event_name != 'pull_request'
     name: Verify live Render dashboard and API
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       OMEGA_BASE_URL: https://omega-x-ascension-api.onrender.com
+      OMEGA_SANDBOX_URL: https://omega-x-ascension-sandbox.onrender.com
     steps:
+      - name: Wake free-plan Render services
+        shell: bash
+        run: |
+          # Free Render services spin down when idle; /health/ready reports
+          # sandbox_unavailable until the sandbox finishes its cold start.
+          for url in "$OMEGA_BASE_URL/health/live" "$OMEGA_SANDBOX_URL/health"; do
+            for attempt in 1 2 3 4 5 6; do
+              if command curl --fail --silent --show-error --connect-timeout 10 --max-time 60 "$url" -o /dev/null; then
+                echo "$url is awake."
+                break
+              fi
+              echo "Waiting for $url (attempt $attempt)..."
+              sleep 10
+            done
+          done
+          for attempt in 1 2 3 4 5 6; do
+            if command curl --fail --silent --max-time 20 "$OMEGA_BASE_URL/health/ready" -o /dev/null; then
+              echo "API reports ready."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "API did not report ready after waking; the next step will show why."
+
       - name: Check live page and static assets
         shell: bash
         run: |
