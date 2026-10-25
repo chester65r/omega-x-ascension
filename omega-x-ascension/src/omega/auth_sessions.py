@@ -23,6 +23,10 @@ BOOTSTRAP_USED_PREFIX = "omega:token-bootstrap:used:"
 BOOTSTRAP_ATTEMPT_PREFIX = "omega:token-bootstrap:attempts:"
 BOOTSTRAP_RATE_WINDOW_SECONDS = 60
 BOOTSTRAP_MAX_ATTEMPTS = 12
+GUEST_ENROLL_ATTEMPT_PREFIX = "omega:guest-enroll:attempts:"
+GUEST_ENROLL_RATE_WINDOW_SECONDS = 60 * 60
+GUEST_ENROLL_MAX_ATTEMPTS = 20
+GUEST_SCOPES = frozenset({"runs:read", "runs:write", "computer:read", "computer:write"})
 BOOTSTRAP_ACCESS_LIFETIME_SECONDS = 5 * 60
 BOOTSTRAP_TENANT_ID = UUID("00000000-0000-0000-0000-000000000001")
 BOOTSTRAP_SUBJECT = "omega-primary-device"
@@ -207,6 +211,64 @@ async def bootstrap_device(
         "expires_in": BOOTSTRAP_ACCESS_LIFETIME_SECONDS,
         "refresh_token": refresh_token,
         "refresh_expires_at": refresh_expiry,
+    }
+
+
+@router.post("/auth/guest", status_code=status.HTTP_201_CREATED)
+async def enroll_guest_device(request: Request):
+    """Create a least-privilege guest session for a fresh Android install.
+
+    Guests receive an isolated tenant and cannot approve runs or execute commands.
+    Enrollment is rate-limited and fails closed if the shared rate-limit store is down.
+    """
+    cfg = get_settings()
+    redis = request.app.state.services.redis
+    client_host = request.client.host if request.client else "unknown"
+    attempts_key = (
+        GUEST_ENROLL_ATTEMPT_PREFIX + hashlib.sha256(client_host.encode("utf-8")).hexdigest()[:24]
+    )
+    try:
+        attempts = await redis.incr(attempts_key)
+        if attempts == 1:
+            await redis.expire(attempts_key, GUEST_ENROLL_RATE_WINDOW_SECONDS)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="device setup service temporarily unavailable",
+        ) from exc
+    if attempts > GUEST_ENROLL_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="too many new-device enrollments from this network; try again later",
+        )
+
+    tenant_id = uuid4()
+    subject = "omega-guest-" + uuid4().hex
+    access_token = _encode_access_token(subject, tenant_id, GUEST_SCOPES)
+    now = datetime.now(UTC)
+    expires = int((now + timedelta(seconds=DEVICE_REFRESH_LIFETIME_SECONDS)).timestamp())
+    refresh_claims = {
+        "sub": subject,
+        "tenant_id": str(tenant_id),
+        "scope": "device:refresh",
+        "access_scope": " ".join(sorted(GUEST_SCOPES)),
+        "iss": cfg.jwt_issuer,
+        "aud": cfg.jwt_audience,
+        "iat": int(now.timestamp()),
+        "exp": expires,
+        "jti": uuid4().hex,
+        "token_use": "device_refresh",
+    }
+    refresh_token = jwt.encode(
+        refresh_claims, cfg.jwt_secret.get_secret_value(), algorithm=cfg.jwt_algorithm
+    )
+    return {
+        "token_type": "Bearer",
+        "access_token": access_token,
+        "expires_in": ACCESS_TOKEN_LIFETIME_SECONDS,
+        "refresh_token": refresh_token,
+        "refresh_expires_at": expires,
+        "account_type": "guest",
     }
 
 

@@ -56,6 +56,50 @@ def make_client(monkeypatch):
     return TestClient(app), app
 
 
+def test_public_guest_enrollment_issues_isolated_limited_sessions(monkeypatch):
+    client, _app = make_client(monkeypatch)
+
+    first = client.post("/v1/auth/guest")
+    second = client.post("/v1/auth/guest")
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    first_data = first.json()
+    second_data = second.json()
+    assert first_data["account_type"] == "guest"
+    assert first_data["access_token"]
+    assert first_data["refresh_token"]
+    assert first_data["access_token"] != second_data["access_token"]
+
+    first_claims = jwt.decode(
+        first_data["access_token"],
+        Config.jwt_secret.get_secret_value(),
+        algorithms=["HS256"],
+        issuer=Config.jwt_issuer,
+        audience=Config.jwt_audience,
+    )
+    second_claims = jwt.decode(
+        second_data["access_token"],
+        Config.jwt_secret.get_secret_value(),
+        algorithms=["HS256"],
+        issuer=Config.jwt_issuer,
+        audience=Config.jwt_audience,
+    )
+    first_scopes = set(first_claims["scope"].split())
+    assert first_claims["tenant_id"] != second_claims["tenant_id"]
+    assert first_scopes == {"runs:read", "runs:write", "computer:read", "computer:write"}
+    assert "runs:approve" not in first_scopes
+    assert "computer:execute" not in first_scopes
+
+
+def test_guest_enrollment_is_rate_limited(monkeypatch):
+    client, _app = make_client(monkeypatch)
+    for _ in range(20):
+        assert client.post("/v1/auth/guest").status_code == 201
+    limited = client.post("/v1/auth/guest")
+    assert limited.status_code == 429
+
+
 def test_device_session_exchange_refreshes_access_token_with_same_scopes(monkeypatch):
     client, _app = make_client(monkeypatch)
 
