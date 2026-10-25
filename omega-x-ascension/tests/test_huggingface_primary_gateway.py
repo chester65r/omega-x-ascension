@@ -56,10 +56,17 @@ def test_gemini_is_first_and_huggingface_remains_a_fallback():
         ]
         assert gateways[0].priority == gateways[1].priority == 100
         hf_gateway = gateways[1]
-        assert hf_gateway.capabilities == frozenset({
-            "reasoning", "coding", "mathematics", "planning",
-            "analysis", "summarization", "research",
-        })
+        assert hf_gateway.capabilities == frozenset(
+            {
+                "reasoning",
+                "coding",
+                "mathematics",
+                "planning",
+                "analysis",
+                "summarization",
+                "research",
+            }
+        )
         assert hf_gateway._config.base_url == "https://router.huggingface.co/v1"
         assert hf_gateway._config.model == "Qwen/Qwen2.5-1.5B-Instruct:cheapest"
         assert hf_gateway._config.api_key.get_secret_value() == "test-huggingface-inference-token"
@@ -84,7 +91,9 @@ def test_gemini_and_explicit_legacy_provider_are_available():
 
 
 def test_gemini_precedes_openrouter_and_huggingface_at_equal_priority():
-    config = make_settings(hf_token="test-huggingface-token", openrouter_token="test-openrouter-token")
+    config = make_settings(
+        hf_token="test-huggingface-token", openrouter_token="test-openrouter-token"
+    )
     client = httpx.AsyncClient()
     try:
         gateways = build_gateways(config, client)

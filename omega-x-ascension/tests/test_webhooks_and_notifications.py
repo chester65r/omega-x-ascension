@@ -20,9 +20,10 @@ from omega.webhooks import verify_github_signature
 def test_verify_github_signature_valid():
     secret = SecretStr("my-webhook-secret-12345")
     payload = b'{"action":"opened","issue":{"number":42}}'
-    expected_hmac = "sha256=" + hmac.new(
-        secret.get_secret_value().encode(), payload, hashlib.sha256
-    ).hexdigest()
+    expected_hmac = (
+        "sha256="
+        + hmac.new(secret.get_secret_value().encode(), payload, hashlib.sha256).hexdigest()
+    )
 
     assert verify_github_signature(payload, expected_hmac, secret) is True
 
@@ -101,7 +102,8 @@ async def test_notify_approval_requested():
     assert results["telegram"] is True
 
     slack_call = next(
-        call for call in mock_client.post.call_args_list
+        call
+        for call in mock_client.post.call_args_list
         if call.args[0] == "https://hooks.slack.com/services/T00/B00/X00"
     )
     slack_payload = slack_call.kwargs["json"]
@@ -114,9 +116,8 @@ async def test_notify_approval_requested():
     )
 
     telegram_call = next(
-        call for call in mock_client.post.call_args_list
-        if "api.telegram.org" in call.args[0]
+        call for call in mock_client.post.call_args_list if "api.telegram.org" in call.args[0]
     )
     telegram_text = telegram_call.kwargs["json"]["text"]
-    assert '&lt;a href=&quot;https://evil.example&quot;&gt;click&lt;/a&gt;' in telegram_text
+    assert "&lt;a href=&quot;https://evil.example&quot;&gt;click&lt;/a&gt;" in telegram_text
     assert '<a href="https://omega.lovable.app/#run-' in telegram_text

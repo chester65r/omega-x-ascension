@@ -17,7 +17,9 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    require(len(SANDBOX_TOKEN) >= 32, "sandbox shared token is not configured for integration smoke")
+    require(
+        len(SANDBOX_TOKEN) >= 32, "sandbox shared token is not configured for integration smoke"
+    )
     headers = {"X-OMEGA-SANDBOX-TOKEN": SANDBOX_TOKEN}
     tenant_a, tenant_b = str(uuid4()), str(uuid4())
     relative_dir = "ci-sandbox-smoke"
@@ -81,7 +83,9 @@ def main() -> None:
         )
         require(
             listing.status_code == 200
-            and any(entry.get("name") == "probe.txt" for entry in listing.json().get("entries", [])),
+            and any(
+                entry.get("name") == "probe.txt" for entry in listing.json().get("entries", [])
+            ),
             f"sandbox directory listing failed: HTTP {listing.status_code}, body={listing.text[:240]}",
         )
 
@@ -90,7 +94,10 @@ def main() -> None:
         )
         require(
             other_listing.status_code == 200
-            and not any(entry.get("name") == relative_dir for entry in other_listing.json().get("entries", [])),
+            and not any(
+                entry.get("name") == relative_dir
+                for entry in other_listing.json().get("entries", [])
+            ),
             "sandbox workspace content crossed a tenant boundary",
         )
 

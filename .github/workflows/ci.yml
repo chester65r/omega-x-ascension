@@ -20,10 +20,10 @@ jobs:
         working-directory: omega-x-ascension
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -32,8 +32,16 @@ jobs:
 
       - name: Compile Python sources
         run: python -m compileall -q src scripts tests
+      - name: Run Ruff lint and format checks
+        run: |
+          ruff check src scripts tests
+          ruff format --check src scripts tests
+      - name: Run mypy type checks
+        run: mypy src
       - name: Validate dashboard JavaScript syntax
-        run: node --check static/app.js
+        run: |
+          node --check static/app.js
+          node --check static/sw.js
 
       - name: Validate Designly art direction
         run: python scripts/design_lint.py docs/designly-art-direction.json

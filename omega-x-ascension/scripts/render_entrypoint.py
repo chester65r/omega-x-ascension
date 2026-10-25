@@ -20,9 +20,7 @@ def _normalise_owner_dsn(value: str) -> str:
         raise SystemExit("OMEGA_MIGRATION_DATABASE_URL must be a PostgreSQL connection URL")
     if not parsed.hostname or not parsed.path:
         raise SystemExit("OMEGA_MIGRATION_DATABASE_URL must include a host and database name")
-    return urlunsplit(
-        ("postgresql+psycopg", parsed.netloc, parsed.path, parsed.query, "")
-    )
+    return urlunsplit(("postgresql+psycopg", parsed.netloc, parsed.path, parsed.query, ""))
 
 
 def _role_dsn(owner_dsn: str, role: str, password: str, scheme: str) -> str:
