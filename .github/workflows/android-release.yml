@@ -243,7 +243,7 @@ jobs:
           disable-linux-hw-accel: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: ./android/gradlew -p android :app:connectedReleaseAndroidTest --no-daemon --stacktrace
+          script: ./android/gradlew -p android :app:connectedReleaseAndroidTest -PomegaTestBuildType=release --no-daemon --stacktrace
 
       - name: Publish signed APK as a GitHub Release asset
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
