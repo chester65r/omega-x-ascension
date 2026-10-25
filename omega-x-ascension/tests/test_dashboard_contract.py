@@ -220,7 +220,6 @@ def test_chat_interface_has_sidebar_local_history_and_safe_markdown():
 
 def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment():
     js = Path("static/app.js").read_text(encoding="utf-8")
-    html = Path("static/index.html").read_text(encoding="utf-8")
     assert "'/v1/auth/bootstrap'" in js
     assert "'X-OMEGA-BOOTSTRAP-SECRET': candidate" in js
     assert "bootstrapRefreshToken = String(bootstrapData.refresh_token)" in js
@@ -228,8 +227,18 @@ def test_android_one_time_setup_key_flows_directly_into_secure_device_enrollment
     assert js.index("saveRefreshTokenForDevice(bootstrapRefreshToken)") < js.index(
         "await api('/v1/runs?limit=1')"
     )
+
+
+def test_android_first_launch_enrolls_without_manual_activation_key():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    assert "'/v1/auth/guest'" in js
+    assert "async function enrollNativeGuestDevice()" in js
+    assert "enrollNativeGuestDevice();" in js
+    assert "saveRefreshTokenForDevice(refreshToken)" in js
     assert "getStoredRefreshToken" in js
-    assert "One-time device activation key" in html
+    assert "First-time setup only: activate this device with the one-time owner key." not in js
+    assert "One-time device activation key" in html  # browser compatibility only
 
 
 def test_dashboard_initially_exposes_the_assistant_tab_before_javascript_runs():
@@ -245,12 +254,20 @@ def test_android_bootstrap_stores_the_refresh_credential_before_network_verifica
     handler = js[handler_start:handler_end]
     save_credential = handler.index("saveRefreshTokenForDevice(bootstrapRefreshToken)")
     network_probe = handler.index("await api('/v1/runs?limit=1')")
-    recovery_path = handler.index(
-        "if (isNativeApp && refreshCredentialStored && deviceRefreshToken)"
-    )
     assert save_credential < network_probe
-    assert "Close and reopen OMEGA-X to retry automatically" in handler[recovery_path:]
-    assert "the saved refresh credential was retained" in handler[recovery_path:]
+    assert "if (isNativeApp && refreshCredentialStored && deviceRefreshToken)" in handler
+
+
+def test_android_guest_credential_is_saved_before_network_verification():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    startup_start = js.index("async function enrollNativeGuestDevice()")
+    startup_end = js.index("\n  function initializeNativeDeviceSession()", startup_start)
+    startup = js[startup_start:startup_end]
+    save_credential = startup.index("saveRefreshTokenForDevice(refreshToken)")
+    network_probe = startup.index("await api('/v1/runs?limit=1')")
+    assert save_credential < network_probe
+    assert "The server returned an incomplete guest session." in startup
+    assert "Guest session was saved" in startup
 
 
 def test_android_api_and_session_are_internal_and_navigation_is_simplified():
