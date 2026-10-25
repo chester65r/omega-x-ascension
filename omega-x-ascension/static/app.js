@@ -45,7 +45,7 @@
 
   function setConnected(connected) {
     const badge = $('#conn-status');
-    const label = connected ? 'Connected' : (isNativeApp ? 'Activation needed' : 'Disconnected');
+    const label = connected ? 'Connected' : (isNativeApp ? 'Starting…' : 'Disconnected');
     badge.innerHTML = '<span class="status-dot"></span> ' + label;
     badge.className = 'status-badge ' + (connected ? 'connected' : 'disconnected');
     const hideServerControls = Boolean(connected) || isNativeApp;
@@ -53,16 +53,17 @@
       const element = $('#' + id);
       if (element) element.hidden = hideServerControls;
     });
+    // The native app provisions a scoped guest session automatically; never prompt
+    // Android users to paste or type an activation key.
+    const hideActivationControls = Boolean(connected) || isNativeApp;
     ['jwt-token', 'connect-btn'].forEach((id) => {
       const element = $('#' + id);
-      if (element) element.hidden = Boolean(connected);
+      if (element) element.hidden = hideActivationControls;
     });
     const activationLabel = $('label[for="jwt-token"]');
-    if (activationLabel) activationLabel.hidden = Boolean(connected);
+    if (activationLabel) activationLabel.hidden = hideActivationControls;
     const disconnect = $('#disconnect-btn');
     if (disconnect) disconnect.hidden = !connected;
-    const activate = $('#connect-btn');
-    if (activate && !activate.disabled) activate.textContent = isNativeApp ? 'Activate device' : 'Connect';
   }
 
   // This client-side expiry check is only a UX aid; the API remains the authority for JWT validity.
@@ -2102,6 +2103,69 @@
   renderLocalLogs();
   $('#about-runtime-status').textContent = 'Runtime connectivity has not yet been verified.';
 
+  let nativeEnrollmentInFlight = false;
+
+  async function enrollNativeGuestDevice() {
+    if (nativeEnrollmentInFlight) return;
+    nativeEnrollmentInFlight = true;
+    let refreshCredentialStored = false;
+    try {
+      setAssistantStatus('Setting up OMEGA-X securely…');
+      const response = await apiFetch('/v1/auth/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        const error = new Error('Automatic device setup failed (' + response.status + '). ' + body.slice(0, 180));
+        error.status = response.status;
+        throw error;
+      }
+      const data = await response.json();
+      const accessToken = String(data.access_token || '');
+      const refreshToken = String(data.refresh_token || '');
+      if (!accessToken || !refreshToken) throw new Error('The server returned an incomplete guest session.');
+
+      // Securely persist the refresh credential before testing another API endpoint.
+      token = accessToken;
+      refreshCredentialStored = await saveRefreshTokenForDevice(refreshToken);
+      if (!refreshCredentialStored) deviceRefreshToken = '';
+
+      await api('/v1/runs?limit=1');
+      setConnected(true);
+      scheduleTokenExpiry(Date.now() + Number(data.expires_in || 3600) * 1000);
+      startPolling();
+      await loadRuns();
+      addAgentLog('success', refreshCredentialStored
+        ? 'Automatic guest enrollment succeeded; encrypted device session saved.'
+        : 'Automatic guest enrollment succeeded for this session; secure storage acknowledgement was unavailable.');
+      setAssistantStatus(
+        refreshCredentialStored
+          ? 'Ready. This device will reconnect automatically.'
+          : 'Ready for this session. Secure storage could not be confirmed; reopen the app to retry setup.',
+        refreshCredentialStored ? 'success' : 'warning'
+      );
+    } catch (error) {
+      if (refreshCredentialStored && deviceRefreshToken) {
+        token = '';
+        sessionStorage.removeItem('omega-jwt');
+        setConnected(false);
+        setAssistantStatus('Your device was saved securely, but the API could not finish connecting. Reopen OMEGA-X when the connection is available; it will retry automatically.', 'warning');
+        addAgentLog('warning', 'Guest session was saved; API verification failed and the secure credential was retained.');
+      } else {
+        token = '';
+        deviceRefreshToken = '';
+        setConnected(false);
+        const detail = String(error?.message || error || 'request failed').slice(0, 180);
+        setAssistantStatus('Could not set up OMEGA-X automatically. Check your internet connection and reopen the app to retry. ' + detail, 'warning');
+        addAgentLog('warning', 'Automatic guest enrollment failed: ' + detail);
+      }
+    } finally {
+      nativeEnrollmentInFlight = false;
+    }
+  }
+
   function initializeNativeDeviceSession() {
     if (!isNativeApp) return;
     window.addEventListener('omega:native', (event) => {
@@ -2111,9 +2175,7 @@
       if (!savedToken) {
         deviceRefreshToken = '';
         setConnected(false);
-        setAssistantStatus('First-time setup only: activate this device with the one-time owner key. The API URL and JWT are managed automatically.', 'warning');
-        const activationPanel = $('#connection-details');
-        if (activationPanel) activationPanel.open = true;
+        enrollNativeGuestDevice();
         return;
       }
       deviceRefreshToken = savedToken;
@@ -2125,7 +2187,7 @@
     });
     setAssistantStatus('Checking secure device session…');
     if (!nativeMessage('getStoredRefreshToken')) {
-      setAssistantStatus('Secure device storage is unavailable in this WebView. Connect again to continue.', 'warning');
+      setAssistantStatus('Secure device storage is unavailable in this WebView. Reopen OMEGA-X to retry.', 'warning');
     }
   }
 
