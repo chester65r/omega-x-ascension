@@ -248,7 +248,7 @@ def test_android_guest_credential_is_saved_before_network_verification():
     network_probe = startup.index("await api('/v1/runs?limit=1')")
     assert save_credential < network_probe
     assert "The server returned an incomplete guest session." in startup
-    assert "guest session was saved" in startup
+    assert "Guest session was saved" in startup
 
 
 def test_android_api_and_session_are_internal_and_navigation_is_simplified():
