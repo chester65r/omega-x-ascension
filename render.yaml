@@ -101,7 +101,7 @@ services:
     # Pull request preview copies of the sandbox fail to deploy and are not
     # used by any workflow; production sandbox deploys from main only.
     previews:
-      generation: off
+      generation: "off"
     envVars:
       - key: OMEGA_SANDBOX_TOKEN
         generateValue: true
