@@ -101,6 +101,9 @@
     if (remaining <= 0) {
       if (deviceRefreshToken) {
         refreshDeviceSession().catch((error) => failSecureSession(error));
+      } else if (isNativeApp) {
+        clearSession('Temporary device access expired; setting up a replacement session.');
+        enrollNativeGuestDevice();
       } else {
         clearSession('Access token expired. Connect again with a fresh token.');
       }
@@ -112,7 +115,12 @@
       if (deviceRefreshToken) {
         refreshDeviceSession().catch((error) => failSecureSession(error));
       } else if (Date.now() >= expiry) {
-        clearSession('Access token expired. Connect again with a fresh token.');
+        if (isNativeApp) {
+          clearSession('Temporary device access expired; setting up a replacement session.');
+          enrollNativeGuestDevice();
+        } else {
+          clearSession('Access token expired. Connect again with a fresh token.');
+        }
       } else {
         scheduleTokenExpiry(expiry);
       }
@@ -276,8 +284,14 @@
     token = '';
     deviceRefreshToken = '';
     clearRefreshTokenOnDevice();
-    clearSession('Saved device session was rejected. Activate this device once again only if its session was revoked or expired. ' + message.slice(0, 120));
-    setAssistantStatus('The saved device session has expired or was revoked. Reactivate this device to create a new secure session.', 'warning');
+    clearSession('Saved device session expired or was revoked. Setting up a replacement guest session.');
+    setAssistantStatus(
+      isNativeApp
+        ? 'Your saved session expired or was revoked. OMEGA-X is setting up a replacement automatically.'
+        : 'The saved device session has expired or was revoked. Connect with a new valid credential.',
+      'warning'
+    );
+    if (isNativeApp) window.setTimeout(() => enrollNativeGuestDevice(), 1000);
   }
 
   $('#api-base').value = apiBase;
