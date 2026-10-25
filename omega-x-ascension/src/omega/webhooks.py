@@ -104,7 +104,9 @@ async def github_webhook(
                 f"omega:webhook:github:{x_github_delivery}", "1", ex=86400, nx=True
             )
         except Exception as exc:
-            raise HTTPException(status_code=503, detail="Webhook replay protection unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Webhook replay protection unavailable"
+            ) from exc
         if not first_delivery:
             return {"status": "duplicate", "delivery_id": x_github_delivery}
 

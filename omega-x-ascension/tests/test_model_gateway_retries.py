@@ -86,3 +86,22 @@ def test_gateway_does_not_retry_quota_or_authorization_failures(kind, status):
         assert client.calls == 1
 
     asyncio.run(check())
+
+
+def test_retry_predicate_classifies_provider_errors():
+    from omega.adapters.models import _retryable_provider_error
+
+    request = httpx.Request("POST", "https://provider.invalid/v1/chat/completions")
+
+    def status_error(status: int) -> httpx.HTTPStatusError:
+        response = httpx.Response(status, request=request)
+        return httpx.HTTPStatusError("provider error", request=request, response=response)
+
+    assert _retryable_provider_error(httpx.ConnectError("down", request=request))
+    assert _retryable_provider_error(status_error(503))
+    assert _retryable_provider_error(status_error(500))
+    assert not _retryable_provider_error(status_error(401))
+    assert not _retryable_provider_error(status_error(403))
+    assert not _retryable_provider_error(ValueError("bad payload"))
+    # Cancellation is a BaseException, not an Exception; it must never be retried.
+    assert not _retryable_provider_error(asyncio.CancelledError())

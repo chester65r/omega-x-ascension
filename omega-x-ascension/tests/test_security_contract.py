@@ -163,9 +163,14 @@ def test_direct_computer_execution_requires_explicit_scopes():
 
 def test_agent_only_executes_computer_commands_when_requested_and_approved():
     workflow = Path("src/omega/workflow.py").read_text()
-    assert 'actions = {str(item).strip().casefold() for item in state.get("requested_actions", [])}' in workflow
+    assert (
+        'actions = {str(item).strip().casefold() for item in state.get("requested_actions", [])}'
+        in workflow
+    )
     assert 'if "execute_code" in actions:' in workflow
-    assert "Computer command execution was requested, but it is disabled by server policy." in workflow
+    assert (
+        "Computer command execution was requested, but it is disabled by server policy." in workflow
+    )
     assert "async def _workspace_file_actions" in workflow
     assert 'workspace_id=state.get("workspace_id")' in workflow
     compose = Path("docker-compose.yml").read_text()
@@ -267,7 +272,6 @@ def test_native_browser_does_not_expose_privileged_javascript_bridge():
     assert '"http".equalsIgnoreCase(scheme)' in browser
 
 
-
 def test_android_file_save_preflight_allows_put_and_required_headers():
     origin = "https://appassets.androidplatform.net"
 
@@ -294,7 +298,6 @@ def test_android_file_save_preflight_allows_put_and_required_headers():
         assert "content-type" in allowed_headers
 
     asyncio.run(check())
-
 
 
 def test_sandbox_health_checks_workspace_writeability_and_shared_token(monkeypatch, tmp_path):
@@ -409,6 +412,7 @@ def test_sandbox_health_rejects_a_mismatched_internal_credential(monkeypatch, tm
     monkeypatch.setattr(sandbox_service, "get_runtime", lambda: runtime)
 
     from fastapi.testclient import TestClient
+
     with TestClient(sandbox_service.app) as client:
         response = client.get("/health", headers={"X-OMEGA-SANDBOX-TOKEN": "x" * 48})
 

@@ -90,7 +90,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="OMEGA-X ASCENSION", version=__import__("omega").__version__, lifespan=lifespan)
 logger = logging.getLogger("omega.http")
-HTTP_REQUESTS = Counter("omega_http_requests_total", "HTTP requests served by OMEGA-X", ("method", "route", "status"))
+HTTP_REQUESTS = Counter(
+    "omega_http_requests_total", "HTTP requests served by OMEGA-X", ("method", "route", "status")
+)
 HTTP_REQUEST_DURATION = Histogram(
     "omega_http_request_duration_seconds",
     "HTTP request duration in seconds",
@@ -130,12 +132,20 @@ async def observability_and_security_headers(request: Request, call_next):
             response.headers["X-Content-Type-Options"] = "nosniff"
             # The server-side browser is intentionally embedded in a same-origin iframe;
             # its own CSP sandbox still applies there. All other routes deny framing.
-            response.headers["X-Frame-Options"] = "SAMEORIGIN" if route_name.endswith("/browser/proxy") else "DENY"
+            response.headers["X-Frame-Options"] = (
+                "SAMEORIGIN" if route_name.endswith("/browser/proxy") else "DENY"
+            )
             response.headers["Referrer-Policy"] = "no-referrer"
             response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-            forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+            forwarded_proto = (
+                request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+            )
             if request.url.scheme == "https" or forwarded_proto == "https":
-                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+                response.headers["Strict-Transport-Security"] = (
+                    "max-age=31536000; includeSubDomains"
+                )
+
+
 allowed_origins = ["https://appassets.androidplatform.net"]
 allowed_origins.extend(
     origin.strip()
@@ -147,7 +157,13 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-OMEGA-BOOTSTRAP-SECRET", "X-GitHub-Event", "X-Hub-Signature-256"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-OMEGA-BOOTSTRAP-SECRET",
+        "X-GitHub-Event",
+        "X-Hub-Signature-256",
+    ],
 )
 app.include_router(router, prefix="/v1")
 app.include_router(auth_sessions_router, prefix="/v1")
@@ -237,9 +253,7 @@ async def tool_health():
             "requires_explicit_scope_and_approval": True,
         },
         "remote_mcp": {
-            "enabled": bool(
-                getattr(getattr(app.state, "remote_mcp", None), "enabled", False)
-            )
+            "enabled": bool(getattr(getattr(app.state, "remote_mcp", None), "enabled", False))
         },
     }
 
@@ -270,6 +284,15 @@ async def metrics(request: Request):
     if configured_token:
         authorization = request.headers.get("authorization", "")
         scheme, separator, supplied = authorization.partition(" ")
-        if not separator or scheme.casefold() != "bearer" or not supplied or not hmac.compare_digest(supplied, configured_token):
-            raise HTTPException(status_code=401, detail="metrics bearer token required", headers={"WWW-Authenticate": "Bearer"})
+        if (
+            not separator
+            or scheme.casefold() != "bearer"
+            or not supplied
+            or not hmac.compare_digest(supplied, configured_token)
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="metrics bearer token required",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

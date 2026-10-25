@@ -65,7 +65,7 @@ jobs:
 
     - name: Set up JDK for Android build
       if: matrix.language == 'java-kotlin'
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
       with:
         distribution: temurin
         java-version: '17'

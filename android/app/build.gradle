@@ -5,7 +5,16 @@ plugins {
 android {
     namespace 'com.omega.ascension'
     compileSdk 35
-    testBuildType "release"
+    // Instrumented tests target the debug variant by default (Android APK workflow and local
+    // runs use connectedDebugAndroidTest). The signed release workflow opts in to release-variant
+    // instrumentation with -PomegaTestBuildType=release. AGP only generates androidTest tasks for
+    // the single configured testBuildType, so a hard-coded "release" removes
+    // connectedDebugAndroidTest entirely.
+    def requestedTestBuildType = (project.findProperty('omegaTestBuildType') ?: 'debug').toString().trim()
+    if (!(requestedTestBuildType in ['debug', 'release'])) {
+        throw new GradleException("omegaTestBuildType must be 'debug' or 'release', got '${requestedTestBuildType}'")
+    }
+    testBuildType requestedTestBuildType
 
     defaultConfig {
         applicationId "com.omega.ascension"
@@ -58,7 +67,7 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'androidx.webkit:webkit:1.8.0'
     androidTestImplementation 'androidx.test:runner:1.7.0'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'

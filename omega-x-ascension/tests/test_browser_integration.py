@@ -69,7 +69,6 @@ def test_browser_revalidates_each_redirect_target():
     asyncio.run(check())
 
 
-
 def test_browser_pins_socket_target_and_preserves_host_and_tls_name():
     async def check():
         async def handler(request):
