@@ -98,6 +98,10 @@ services:
     dockerCommand: python scripts/render_sandbox_entrypoint.py
     autoDeployTrigger: commit
     healthCheckPath: /health
+    # Pull request preview copies of the sandbox fail to deploy and are not
+    # used by any workflow; production sandbox deploys from main only.
+    previews:
+      generation: off
     envVars:
       - key: OMEGA_SANDBOX_TOKEN
         generateValue: true
