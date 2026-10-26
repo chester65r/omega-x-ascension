@@ -3,7 +3,13 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
   const DEFAULT_API_BASE = 'https://omega-x-ascension-api.onrender.com';
-  const isNativeApp = Boolean(window.OmegaNative && typeof window.OmegaNative.postMessage === 'function');
+  const hasNativeMessageBridge = Boolean(window.OmegaNative && typeof window.OmegaNative.postMessage === 'function');
+  // The asset-loader origin identifies the installed Android WebView even on older
+  // System WebView versions that do not expose WEB_MESSAGE_LISTENER.
+  const isAndroidAssetOrigin = window.location.protocol === 'https:'
+    && window.location.hostname === 'appassets.androidplatform.net'
+    && window.location.pathname.startsWith('/assets/web/');
+  const isNativeApp = hasNativeMessageBridge || isAndroidAssetOrigin;
   let token = isNativeApp ? '' : (sessionStorage.getItem('omega-jwt') || '');
   let deviceRefreshToken = '';
   let sessionRefreshInFlight = null;
@@ -2119,24 +2125,47 @@
 
   let nativeEnrollmentInFlight = false;
 
+  async function requestGuestSessionWithRetry() {
+    // Render free services may need to wake after inactivity. Retry temporary network
+    // errors and server errors automatically; do not loop on permanent errors or rate limits.
+    const retryDelays = [1500, 4000, 9000, 18000];
+    let lastError = null;
+    for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+      let response;
+      try {
+        response = await apiFetch('/v1/auth/guest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        });
+      } catch (error) {
+        lastError = error;
+      }
+
+      if (response) {
+        if (response.ok) return await response.json();
+        const body = await response.text();
+        const failure = new Error('Automatic device setup failed (' + response.status + '). ' + body.slice(0, 180));
+        failure.status = response.status;
+        if (response.status < 500 && response.status !== 408) throw failure;
+        lastError = failure;
+      }
+
+      if (attempt < retryDelays.length) {
+        setAssistantStatus('Waking the OMEGA-X service… retrying automatically (' + (attempt + 1) + '/' + retryDelays.length + ')');
+        await new Promise((resolve) => window.setTimeout(resolve, retryDelays[attempt]));
+      }
+    }
+    throw lastError || new Error('Automatic device setup could not reach the service.');
+  }
+
   async function enrollNativeGuestDevice() {
     if (nativeEnrollmentInFlight) return;
     nativeEnrollmentInFlight = true;
     let refreshCredentialStored = false;
     try {
       setAssistantStatus('Setting up OMEGA-X securely…');
-      const response = await apiFetch('/v1/auth/guest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        const error = new Error('Automatic device setup failed (' + response.status + '). ' + body.slice(0, 180));
-        error.status = response.status;
-        throw error;
-      }
-      const data = await response.json();
+      const data = await requestGuestSessionWithRetry();
       const accessToken = String(data.access_token || '');
       const refreshToken = String(data.refresh_token || '');
       if (!accessToken || !refreshToken) throw new Error('The server returned an incomplete guest session.');
@@ -2201,7 +2230,10 @@
     });
     setAssistantStatus('Checking secure device session…');
     if (!nativeMessage('getStoredRefreshToken')) {
-      setAssistantStatus('Secure device storage is unavailable in this WebView. Reopen OMEGA-X to retry.', 'warning');
+      setAssistantStatus('Secure device storage is unavailable. OMEGA-X will connect for this session and retry automatically.', 'warning');
+      // Do not make users type an activation key when the encrypted-storage bridge
+      // is unavailable. The guest access token still works for this app session.
+      enrollNativeGuestDevice();
     }
   }
 
