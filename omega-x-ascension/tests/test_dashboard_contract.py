@@ -270,6 +270,35 @@ def test_android_guest_credential_is_saved_before_network_verification():
     assert "Guest session was saved" in startup
 
 
+def test_android_native_origin_keeps_keyless_startup_if_bridge_is_unavailable():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    startup_start = js.index("function initializeNativeDeviceSession()")
+    startup_end = js.index("initializeNativeDeviceSession();", startup_start)
+    startup = js[startup_start:startup_end]
+
+    assert "const isNativeApp = hasNativeMessageBridge || isAndroidAssetOrigin;" in js
+    assert "window.location.pathname.startsWith('/assets/web/')" in js
+    assert "if (!nativeMessage('getStoredRefreshToken'))" in startup
+    assert "enrollNativeGuestDevice();" in startup
+    assert "will connect for this session and retry automatically" in startup
+
+
+def test_android_guest_enrollment_retries_temporary_wake_up_failures():
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    helper_start = js.index("async function requestGuestSessionWithRetry()")
+    helper_end = js.index("\n  async function enrollNativeGuestDevice()", helper_start)
+    helper = js[helper_start:helper_end]
+    startup_start = helper_end
+    startup_end = js.index("\n  function initializeNativeDeviceSession()", startup_start)
+    startup = js[startup_start:startup_end]
+
+    assert "const retryDelays = [1500, 4000, 9000, 18000];" in helper
+    assert "response.status < 500 && response.status !== 408" in helper
+    assert "Waking the OMEGA-X service" in helper
+    assert "const data = await requestGuestSessionWithRetry();" in startup
+    assert "await api('/v1/runs?limit=1')" in startup
+
+
 def test_android_api_and_session_are_internal_and_navigation_is_simplified():
     html = Path("static/index.html").read_text(encoding="utf-8")
     js = Path("static/app.js").read_text(encoding="utf-8")
