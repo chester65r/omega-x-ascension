@@ -44,7 +44,7 @@ class Services:
     computer: ComputerTool
 
 
-@asynccontextmanager
+
 async def _supervise_embedded_worker() -> None:
     """Run the embedded worker and restart it if it crashes, logging the real error."""
     from omega.worker import main as worker_main
@@ -61,7 +61,7 @@ async def _supervise_embedded_worker() -> None:
             supervisor_log.exception("embedded worker crashed; restarting in %ss", delay)
         await asyncio.sleep(delay)
         delay = min(delay * 2, 60)
-        
+@asynccontextmanager
 async def lifespan(app: FastAPI):
     cfg = get_settings()
     engine = build_engine(cfg.database_url)
