@@ -45,6 +45,23 @@ class Services:
 
 
 @asynccontextmanager
+async def _supervise_embedded_worker() -> None:
+    """Run the embedded worker and restart it if it crashes, logging the real error."""
+    from omega.worker import main as worker_main
+
+    supervisor_log = logging.getLogger("omega.worker.supervisor")
+    delay = 5
+    while True:
+        try:
+            await worker_main()
+            supervisor_log.error("embedded worker exited unexpectedly; restarting")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            supervisor_log.exception("embedded worker crashed; restarting in %ss", delay)
+        await asyncio.sleep(delay)
+        delay = min(delay * 2, 60)
+        
 async def lifespan(app: FastAPI):
     cfg = get_settings()
     engine = build_engine(cfg.database_url)
@@ -71,9 +88,7 @@ async def lifespan(app: FastAPI):
     )
     worker_task = None
     if os.environ.get("OMEGA_EMBEDDED_WORKER", "").lower() == "true":
-        from omega.worker import main as worker_main
-
-        worker_task = asyncio.create_task(worker_main(), name="omega-embedded-worker")
+        worker_task = asyncio.create_task(_supervise_embedded_worker(), name="omega-embedded-worker")
     try:
         yield
     finally:
